@@ -14,7 +14,7 @@ Grill the user relentlessly about the named SDD section(s) until you reach a sha
 
 ## SDD-specific rules
 
-- Read the SDD by section (§); never load the whole document into context.
+- Read only the sections in scope. In a split spec (`SDD.md` map + `spec/`, one file per §), a section = its file under `spec/`; in a monolithic `SDD.md`, locate the § via the index and read only that range. Never load the whole spec into context.
 - Stress-test invariants with concrete scenarios that probe edge cases and force precise boundaries.
 - Challenge terms against the SDD's own definitions; when usage drifts from the defined term, call it out immediately.
 - Every grilled point must land before the session ends:
