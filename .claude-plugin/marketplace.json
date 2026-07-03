@@ -1,0 +1,11 @@
+{
+  "name": "agent-skills",
+  "owner": { "name": "jointsome0-lgtm" },
+  "plugins": [
+    {
+      "name": "sdd",
+      "source": "./plugins/sdd",
+      "description": "SDD-stage workflow skills: grill a spec by section, keep the SDD the single durable artifact"
+    }
+  ]
+}

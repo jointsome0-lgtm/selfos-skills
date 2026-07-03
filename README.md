@@ -1,0 +1,37 @@
+# agent-skills
+
+Claude Code plugin marketplace with skills shared across the selfos-ecosystem repositories (`selfos`, `tick-like`, `atlas`, `exp2res`). Canonical home for cross-repo workflow skills; skills tied to one repository's specifics stay in that repo's `.claude/skills/`.
+
+## Layout
+
+```
+.claude-plugin/marketplace.json   ← lists the plugins in this repo
+plugins/
+  sdd/                            ← SDD-stage workflow skills
+    .claude-plugin/plugin.json
+    skills/
+      grill-sdd/SKILL.md          ← grill an SDD by section; outcomes → SDD edits + issues
+```
+
+One plugin per workflow domain; add a new plugin rather than growing a grab-bag.
+
+## Install (once, user scope — applies in all projects)
+
+```
+/plugin marketplace add ~/projects/agent-skills    # or jointsome0-lgtm/agent-skills from GitHub
+/plugin install sdd@agent-skills
+```
+
+Skills become available as `/sdd:grill-sdd`, and Claude invokes them by description when relevant.
+
+## Update flow
+
+`plugin.json` deliberately has no `version` field, so every commit is a new version:
+edit → commit → `/plugin update sdd@agent-skills` (or enable auto-update).
+For live iteration without reinstalling: `claude --plugin-dir ~/projects/agent-skills/plugins/sdd`.
+
+## Conventions
+
+- Public repository: no personal data, credentials, or local tool state; invented demo content only.
+- Skills are repo-agnostic — "this repository's SDD", never hard-coded repo names or paths.
+- Skills must be self-contained: no references to personal skills in `~/.claude/skills`.
