@@ -18,16 +18,18 @@ One plugin per workflow domain; add a new plugin rather than growing a grab-bag.
 ## Install (once, user scope — applies in all projects)
 
 ```
-/plugin marketplace add ~/projects/agent-skills    # or jointsome0-lgtm/agent-skills from GitHub
-/plugin install sdd@agent-skills
+/plugin marketplace add jointsome0-lgtm/agent-skills   # or the local checkout path
+/plugin install sdd@selfos
 ```
+
+The marketplace is named `selfos` (the name `agent-skills` is reserved for official Anthropic marketplaces), so plugins install as `<plugin>@selfos`.
 
 Skills become available as `/sdd:grill-sdd`, and Claude invokes them by description when relevant.
 
 ## Update flow
 
 `plugin.json` deliberately has no `version` field, so every commit is a new version:
-edit → commit → `/plugin update sdd@agent-skills` (or enable auto-update).
+edit → commit → push → `/plugin update sdd@selfos` (or enable auto-update).
 For live iteration without reinstalling: `claude --plugin-dir ~/projects/agent-skills/plugins/sdd`.
 
 ## Conventions
