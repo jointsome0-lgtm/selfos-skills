@@ -29,3 +29,4 @@ Background: on every push to an open PR the Codex bot reacts 👀 on the PR body
 - Judge findings on the merits — the reviewer is sometimes wrong. Disagreeing is allowed; ignoring is not.
 - No force-pushes mid-loop: one ordinary commit per round keeps review rounds mapped 1:1 to commits.
 - The watcher polls politely (30 s) and needs no babysitting itself: launch it, end the turn if there is nothing else to do, and continue when its completion wakes the session.
+- If the loop must end before a clean verdict (deadline, "merge now"), file the last round's unaddressed findings as an issue before merging. Cutting the loop short is allowed; losing its findings is not.
