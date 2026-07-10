@@ -11,6 +11,12 @@ plugins/
     .claude-plugin/plugin.json
     skills/
       grill-sdd/SKILL.md          ← grill an SDD by section; outcomes → SDD edits + issues
+  codex-pr/                       ← Codex cloud PR-review loop
+    .claude-plugin/plugin.json
+    skills/
+      watch/SKILL.md              ← push → wait for verdict → fix → repeat until 👍
+    scripts/
+      codex-pr-watch.sh           ← the poller: exit 0 approved / 2 findings / 3 timeout
 ```
 
 One plugin per workflow domain; add a new plugin rather than growing a grab-bag.

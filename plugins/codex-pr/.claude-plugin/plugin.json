@@ -1,0 +1,4 @@
+{
+  "name": "codex-pr",
+  "description": "Codex cloud PR-review loop: wait for the review verdict after a push, iterate fixes in-session until approved"
+}

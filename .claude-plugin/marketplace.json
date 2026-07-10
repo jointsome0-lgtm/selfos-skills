@@ -6,6 +6,11 @@
       "name": "sdd",
       "source": "./plugins/sdd",
       "description": "SDD-stage workflow skills: grill a spec by section, keep the SDD the single durable artifact"
+    },
+    {
+      "name": "codex-pr",
+      "source": "./plugins/codex-pr",
+      "description": "Codex cloud PR-review loop: wait for the review verdict after a push, iterate fixes in-session until approved"
     }
   ]
 }
