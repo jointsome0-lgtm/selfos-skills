@@ -1,6 +1,6 @@
 ---
 name: grill-sdd
-description: Relentless interview over named sections of this repository's SDD to stress-test decisions and invariants. Use when the user asks to grill the SDD, grill invariants, or stress-test a spec section.
+description: Conducts a relentless interview over named sections of this repository's SDD to stress-test decisions and invariants. Use when the user asks to grill the SDD or its invariants, or stress-test a spec section.
 ---
 
 Grill the user relentlessly about the named SDD section(s) until you reach a shared understanding. Self-contained adaptation of the generic grilling discipline for SDD-stage repositories.
