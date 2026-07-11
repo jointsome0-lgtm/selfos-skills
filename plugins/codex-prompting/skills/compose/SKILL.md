@@ -5,7 +5,7 @@ description: Composes lean, outcome-first prompts for the GPT-5.6 model family (
 
 # Composing GPT-5.6 / Codex prompts
 
-How to write prompts that delegate work to the GPT-5.6 model family — `gpt-5.6-sol` (flagship; the `gpt-5.6` alias routes here), `gpt-5.6-terra` (balanced cost), `gpt-5.6-luna` (high-volume) — in the Codex CLI, Codex cloud, or the API. Current as of the July 2026 GPT-5.6 release; canonical source: [OpenAI's GPT-5.6 prompting guide](https://developers.openai.com/api/docs/guides/prompt-guidance-gpt-5p6).
+How to write prompts that delegate work to the GPT-5.6 model family — `gpt-5.6-sol` (flagship; the `gpt-5.6` alias routes here), `gpt-5.6-terra` (balanced cost), `gpt-5.6-luna` (high-volume) — in the Codex CLI, Codex cloud, or the API. Current as of the July 2026 GPT-5.6 release; sources: OpenAI's [GPT-5.6 prompting guide](https://developers.openai.com/api/docs/guides/prompt-guidance-gpt-5p6) and [GPT-5.6 model guide](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-5.6).
 
 ## Core principle: lean and outcome-first
 
@@ -58,9 +58,18 @@ Name the safe local actions explicitly (read files, inspect logs, edit in-scope 
 ## Verification and stop rules
 
 - Include one explicit check-your-work criterion: "run the affected tests and include the output".
+- For code changes, require the most relevant validation available: targeted tests for the changed behavior, type or lint checks, a build of the affected packages.
 - Bound loops: "stop when <condition>; retry transient failures at most N times; do not repeat completed side-effecting calls".
+- When a lookup can come back empty or partial, ask for one or two meaningful fallbacks before concluding that no result exists.
 - Missing evidence means a structured failure, not a guess: "if you cannot establish X, stop and report what is missing".
 - Say which ambiguities warrant a question back and which the model may resolve itself.
+
+## Task-type notes
+
+- Long-running runs: ask for a short preamble before the first action and sparse, outcome-based updates at phase changes ("one concrete outcome and the next step") — not narration of every tool call.
+- Plan deliverables: require requirements, named files or resources, state transitions or data flow, validation checks, failure behavior, security/privacy considerations, and the open questions that materially affect implementation.
+- Frontend work: require inspecting and preserving existing design tokens, components, and patterns, and rendering the artifact before finalizing — checking layout, clipping, spacing, and visual consistency.
+- Research and grounded answers: set a search budget (start with one broad, discriminative search; search again only for a missing required fact, requested exhaustiveness, or an otherwise unsupported claim) and a citation scope. Forbid invented names, metrics, dates, and outcomes.
 
 ## Model and effort choice
 
