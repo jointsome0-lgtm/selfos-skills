@@ -1,4 +1,5 @@
 {
   "name": "sdd",
+  "version": "0.1.0",
   "description": "SDD-stage workflow skills: grill a spec by section, keep the SDD the single durable artifact"
 }

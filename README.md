@@ -1,11 +1,14 @@
 # selfos-skills
 
-Claude Code plugin marketplace with skills shared across the selfos-ecosystem repositories (`selfos`, `tick-like`, `atlas`, `exp2res`). Canonical home for cross-repo workflow skills; skills tied to one repository's specifics stay in that repo's `.claude/skills/`.
+Harness-agnostic skills shared across the selfos-ecosystem repositories (`selfos`, `tick-like`, `atlas`, `exp2res`), also packaged as a Claude Code plugin marketplace. This is the canonical home for cross-repository workflows; skills tied to one repository stay in that repository.
 
 ## Layout
 
 ```
+.github/workflows/skill-index.yml ← validates metadata and the generated index
 .claude-plugin/marketplace.json   ← lists the plugins in this repo
+AGENTS.md                         ← agent-neutral discovery index
+scripts/build_index.py            ← generates and checks AGENTS.md
 plugins/
   sdd/                            ← SDD-stage workflow skills
     .claude-plugin/plugin.json
@@ -19,27 +22,62 @@ plugins/
       codex-pr-watch.sh           ← the poller: exit 0 approved / 2 findings / 3 timeout
 ```
 
-One plugin per workflow domain; add a new plugin rather than growing a grab-bag.
+One plugin per workflow domain; add a new plugin rather than growing a grab-bag. Every skill body is plain Markdown, with any executable helpers kept as portable scripts.
 
-## Install (once, user scope — applies in all projects)
+## Install and discover
+
+### Claude Code
+
+Install once at user scope; the plugin is then available in all projects:
 
 ```
 /plugin marketplace add jointsome0-lgtm/selfos-skills   # or the local checkout path
 /plugin install sdd@selfos
+/plugin install codex-pr@selfos
 ```
 
 The marketplace inside is named `selfos`, so plugins install as `<plugin>@selfos`.
 
 Skills become available as `/sdd:grill-sdd`, and Claude invokes them by description when relevant.
 
-## Update flow
+### Codex
 
-`plugin.json` deliberately has no `version` field, so every commit is a new version:
-edit → commit → push → `/plugin update sdd@selfos` (or enable auto-update).
-For live iteration without reinstalling: `claude --plugin-dir ~/projects/selfos-skills/plugins/sdd`.
+Clone the repository and start Codex from the clone. Codex reads the root `AGENTS.md`, so matching skills are discoverable without putting their paths in the prompt.
+
+```
+git clone https://github.com/jointsome0-lgtm/selfos-skills.git
+cd selfos-skills
+codex
+```
+
+To make the index discoverable outside the clone, optionally add a pointer like this to `~/.codex/AGENTS.md` (using the clone's absolute path):
+
+```markdown
+Shared skill index: `/absolute/path/to/selfos-skills/AGENTS.md`. When a task matches, read that file and follow its table.
+```
+
+### Any other agent or human
+
+Clone or download the repository, open `AGENTS.md`, choose the matching row, and read the linked `SKILL.md` in full. Follow that file and resolve its relative paths from the skill folder.
+
+## Index maintenance
+
+Regenerate the discovery table after adding or changing skill metadata, then run the same check used in CI:
+
+```
+python scripts/build_index.py
+python scripts/build_index.py --check
+```
+
+## Versioning and update flow
+
+Each plugin has an independent semantic version in its `.claude-plugin/plugin.json`; bump the affected plugin's version whenever that plugin changes. For a notable release, tag the committed change as `<plugin>-v<version>` (for example, `sdd-v0.2.0`) before pushing the commit and tag. Claude Code users can then run `/plugin update sdd@selfos` or enable auto-update.
+
+For live marketplace iteration without reinstalling: `claude --plugin-dir /path/to/selfos-skills/plugins/sdd`.
 
 ## Conventions
 
 - Public repository: no personal data, credentials, or local tool state; invented demo content only.
 - Skills are repo-agnostic — "this repository's SDD", never hard-coded repo names or paths.
-- Skills must be self-contained: no references to personal skills in `~/.claude/skills`.
+- Skill folder names and frontmatter names are identical kebab-case; descriptions use third-person summary text plus explicit `Use when …` triggers.
+- Skills must be self-contained: no references to personal skills or machine-local agent state.
