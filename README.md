@@ -20,6 +20,10 @@ plugins/
       watch/SKILL.md              ← push → wait for verdict → fix → repeat until 👍
     scripts/
       codex-pr-watch.sh           ← the poller: exit 0 approved / 2 findings / 3 timeout
+  codex-prompting/                ← composing prompts for GPT/Codex delegation
+    .claude-plugin/plugin.json
+    skills/
+      compose/SKILL.md            ← GPT-5.6-era outcome-first prompt guide
 ```
 
 One plugin per workflow domain; add a new plugin rather than growing a grab-bag. Every skill body is plain Markdown, with any executable helpers kept as portable scripts.
@@ -34,6 +38,7 @@ Install once at user scope; the plugin is then available in all projects:
 /plugin marketplace add jointsome0-lgtm/selfos-skills   # or the local checkout path
 /plugin install sdd@selfos
 /plugin install codex-pr@selfos
+/plugin install codex-prompting@selfos
 ```
 
 The marketplace inside is named `selfos`, so plugins install as `<plugin>@selfos`.
