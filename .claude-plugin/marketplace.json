@@ -11,6 +11,11 @@
       "name": "codex-pr",
       "source": "./plugins/codex-pr",
       "description": "Codex cloud PR-review loop: wait for the review verdict after a push, iterate fixes in-session until approved"
+    },
+    {
+      "name": "codex-prompting",
+      "source": "./plugins/codex-prompting",
+      "description": "GPT/Codex prompt composition: lean outcome-first prompts, autonomy boundaries, model and reasoning-effort choice for the GPT-5.6 family"
     }
   ]
 }
