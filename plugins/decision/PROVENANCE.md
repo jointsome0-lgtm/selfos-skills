@@ -14,7 +14,7 @@
 
 Named deviations from the upstream text — everything else preserves upstream behavior:
 
-1. **Voice and description** — upstream is the user's first-person request ("Interview me…"); the local file instructs the executing agent and names "the owner". The frontmatter description is reworded to third person for this repository's index rule; upstream's "'grill' trigger phrases" clause is retained and a wrapper-routing trigger is added.
+1. **Voice and description** — upstream is the user's first-person request ("Interview me…"); the local file instructs the executing agent and names "the owner". The frontmatter description is reworded to third person for this repository's index rule; upstream's "'grill' trigger phrases" clause is retained but scoped to subjects no domain wrapper covers, and a wrapper-routing trigger is added (routing rule in "Composing with wrappers").
 2. **Bounded fact lookup** — upstream's unrestricted "environment (filesystem, tools, etc.)" is limited to explicitly permitted surfaces (owner- or runtime-authorized; repository instructions can narrow the surface, never widen it); home directories, unrelated workspaces, private journals, ignored paths, credentials, and ambient agent state are excluded.
 3. **Terminal states** — accepted / rejected / deferred-with-trigger / blocked-by-missing-fact are spelled out; deferred and blocked require an owner-confirmed reason and trigger.
 4. **Action gate made concrete** — durable artifacts are enumerated (issues, specs, decision logs, code); drafts only before confirmation; non-interactive runs never publish.

@@ -1,6 +1,6 @@
 ---
 name: grilling
-description: Grills the owner relentlessly about a plan, decision, or idea until shared understanding — one decision-tree branch at a time, a recommended answer per question, facts looked up from permitted surfaces, decisions left to the owner, no action before confirmation. Use when the owner wants to stress-test a plan, decision, or idea, uses any 'grill' trigger phrase, or when a domain workflow skill needs the shared decision-interview loop.
+description: Grills the owner relentlessly about a plan, decision, or idea until shared understanding — one decision-tree branch at a time, a recommended answer per question, facts looked up from permitted surfaces, decisions left to the owner, no action before confirmation. Use when the owner wants to stress-test a plan, decision, or idea, or uses a 'grill' trigger phrase — unless a domain grill wrapper such as grill-sdd covers the subject; then the wrapper is the entry point — or when a domain workflow skill needs the shared decision-interview loop.
 ---
 
 Interview the owner relentlessly about every aspect of the subject until you reach a shared understanding. Walk down each branch of the decision tree, resolving dependencies between decisions one by one. For each question, provide your recommended answer.
@@ -31,5 +31,7 @@ Do not act until the owner confirms you have reached a shared understanding. Cre
 ## Composing with wrappers
 
 This primitive owns the interview order, the recommendation per question, fact lookup, owner authority over decisions, and the confirmation gate. A domain wrapper skill owns its own scope: which canon it reads, which subjects it frames, and where confirmed outcomes land. Wrappers follow this file rather than restating it, and invoking this primitive grants no write authority by itself.
+
+When a domain wrapper covers the subject — like grill-sdd for a repository's SDD — the wrapper is the entry point: it loads its canon and landing rules, then follows this file for the interview. Reach for this primitive directly only when no wrapper claims the domain.
 
 Worked examples: [EXAMPLES.md](EXAMPLES.md).
