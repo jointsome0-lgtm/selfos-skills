@@ -122,10 +122,11 @@ def validate_provenance(plugin_dir: Path, errors: list[str]) -> None:
     A plugin with nothing vendored opens its only statement besides headings
     with "No vendored content." — anywhere else the marker is an error, so it
     can never silence the checks for vendored sections appended after it.
-    Each vendored item is a "## <path>" section (heading contains a slash)
-    carrying its own labeled 40-hex pin — with no all-zero placeholder
-    anywhere in the section — and real import date, so one pinned section
-    cannot vouch for another; the upstream license notice is checked
+    Every "##" section is a vendored item carrying its own labeled 40-hex
+    pin — with no all-zero placeholder anywhere in the section — and real
+    import date, so one pinned section cannot vouch for another and no
+    heading shape escapes the checks; the sole exemption is the license
+    notice, a slash-free heading naming "license"; the upstream license notice is checked
     file-wide because one upstream's notice may cover several sections. These
     are presence-and-shape checks against forgetting, not cryptographic
     verification: whether a pin matches the upstream bytes, or a notice its
@@ -170,8 +171,10 @@ def validate_provenance(plugin_dir: Path, errors: list[str]) -> None:
     sections: list[tuple[str, str]] = []
     for chunk in re.split(r"(?m)^## +", text)[1:]:
         heading, _, body = chunk.partition("\n")
-        if "/" in heading:
-            sections.append((heading.strip(), body))
+        heading = heading.strip()
+        if "license" in heading.lower() and "/" not in heading:
+            continue
+        sections.append((heading, body))
 
     if sections:
         for heading, body in sections:
