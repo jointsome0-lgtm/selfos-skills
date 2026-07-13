@@ -16,6 +16,7 @@ PLUGINS_DIR = ROOT / "plugins"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
 CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
+NO_VENDOR_MARKER = "No vendored content."
 
 
 def display_path(path: Path) -> str:
@@ -93,11 +94,13 @@ def validate_marketplace_entry(entry: object, index: int, errors: list[str]) -> 
 def validate_provenance(plugin_dir: Path, errors: list[str]) -> None:
     """Every plugin declares provenance in PROVENANCE.md.
 
-    A plugin with nothing vendored states "No vendored content." literally.
-    Vendored content must carry a labeled 40-hex pin, the full upstream
-    license notice, and a real import date. These are presence-and-shape
-    checks against forgetting, not cryptographic verification: whether a pin
-    actually matches the upstream bytes is established in PR review.
+    A plugin with nothing vendored opens its only statement besides headings
+    with "No vendored content." — anywhere else the marker is an error, so it
+    can never silence the checks for vendored sections appended after it. Vendored content must carry a labeled 40-hex pin, the full
+    upstream license notice, and a real import date. These are
+    presence-and-shape checks against forgetting, not cryptographic
+    verification: whether a pin actually matches the upstream bytes is
+    established in PR review.
     """
     provenance_path = plugin_dir / "PROVENANCE.md"
     relative = display_path(provenance_path)
@@ -122,8 +125,18 @@ def validate_provenance(plugin_dir: Path, errors: list[str]) -> None:
         errors.append(f"{relative}: cannot read UTF-8 file: {exc}")
         return
 
-    if "No vendored content." in text:
-        return
+    if NO_VENDOR_MARKER in text:
+        statements = [
+            line.strip()
+            for line in text.splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+        if len(statements) == 1 and statements[0].startswith(NO_VENDOR_MARKER):
+            return
+        errors.append(
+            f"{relative}: {NO_VENDOR_MARKER!r} must open the file's only statement "
+            f"besides headings; with vendored sections present, drop the marker and pin them"
+        )
 
     pin = re.search(r"(?i)\b(?:blob|commit|merge)\b[^\r\n]*?\b([0-9a-f]{40})\b", text)
     if pin is None or pin.group(1) == "0" * 40:
