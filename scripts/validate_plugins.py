@@ -92,11 +92,13 @@ def validate_marketplace_entry(entry: object, index: int, errors: list[str]) -> 
 
 
 def check_pin(chunk: str, where: str, errors: list[str]) -> None:
-    pin = re.search(r"(?i)\b(?:blob|commit|merge)\b[^\r\n]*?\b([0-9a-f]{40})\b", chunk)
-    if pin is None or pin.group(1) == "0" * 40:
+    labeled = re.findall(r"(?i)\b(?:blob|commit|merge)\b[^\r\n]*?\b([0-9a-f]{40})\b", chunk)
+    if not labeled:
         errors.append(
             f"{where}: must pin upstream content to a labeled 40-hex SHA (blob/commit/merge …)"
         )
+    if "0" * 40 in re.findall(r"(?i)\b[0-9a-f]{40}\b", chunk):
+        errors.append(f"{where}: pins must be real SHAs, not the all-zero placeholder")
 
 
 def check_import_date(chunk: str, where: str, errors: list[str]) -> None:
@@ -121,8 +123,9 @@ def validate_provenance(plugin_dir: Path, errors: list[str]) -> None:
     with "No vendored content." — anywhere else the marker is an error, so it
     can never silence the checks for vendored sections appended after it.
     Each vendored item is a "## <path>" section (heading contains a slash)
-    carrying its own labeled 40-hex pin and real import date, so one pinned
-    section cannot vouch for another; the upstream license notice is checked
+    carrying its own labeled 40-hex pin — with no all-zero placeholder
+    anywhere in the section — and real import date, so one pinned section
+    cannot vouch for another; the upstream license notice is checked
     file-wide because one upstream's notice may cover several sections. These
     are presence-and-shape checks against forgetting, not cryptographic
     verification: whether a pin matches the upstream bytes, or a notice its
