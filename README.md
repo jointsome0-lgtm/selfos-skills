@@ -58,7 +58,7 @@ Install once at user scope; the plugin is then available in all projects:
 
 The marketplace inside is named `selfos`, so plugins install as `<plugin>@selfos`.
 
-Skills become available as `/sdd:grill-sdd`, and Claude invokes them by description when relevant.
+Skills become available as `/sdd:grill-sdd`, and Claude invokes them by description when relevant — except skills marked `disable-model-invocation: true` (side-effecting workflows like learning's `teach`), which run only when you invoke them explicitly.
 
 ### Codex
 
