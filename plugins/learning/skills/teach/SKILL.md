@@ -1,6 +1,6 @@
 ---
 name: teach
-description: Teaches the user a topic or skill over multiple sessions in a dedicated learning workspace — mission, lessons, learning records, glossary, curated resources. Use when the user asks to be taught something, or wants to start or continue a learning session. Explicitly user-invoked (the teach slash command) — the model never auto-loads it.
+description: Teaches the user a topic or skill over multiple sessions in a dedicated learning workspace — mission, lessons, learning records, glossary, curated resources. Use when the user asks to be taught something, or wants to start or continue a learning session.
 disable-model-invocation: true
 argument-hint: "What would you like to learn about?"
 ---
