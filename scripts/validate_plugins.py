@@ -96,8 +96,9 @@ def validate_provenance(plugin_dir: Path, errors: list[str]) -> None:
 
     A plugin with nothing vendored opens its only statement besides headings
     with "No vendored content." — anywhere else the marker is an error, so it
-    can never silence the checks for vendored sections appended after it. Vendored content must carry a labeled 40-hex pin, the full
-    upstream license notice, and a real import date. These are
+    can never silence the checks for vendored sections appended after it.
+    Vendored content must carry a labeled 40-hex pin, the full upstream
+    license notice, and a real import date. These are
     presence-and-shape checks against forgetting, not cryptographic
     verification: whether a pin actually matches the upstream bytes is
     established in PR review.
