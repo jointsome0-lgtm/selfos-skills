@@ -91,17 +91,42 @@ def validate_marketplace_entry(entry: object, index: int, errors: list[str]) -> 
     return name, source_path
 
 
+def check_pin(chunk: str, where: str, errors: list[str]) -> None:
+    pin = re.search(r"(?i)\b(?:blob|commit|merge)\b[^\r\n]*?\b([0-9a-f]{40})\b", chunk)
+    if pin is None or pin.group(1) == "0" * 40:
+        errors.append(
+            f"{where}: must pin upstream content to a labeled 40-hex SHA (blob/commit/merge …)"
+        )
+
+
+def check_import_date(chunk: str, where: str, errors: list[str]) -> None:
+    imported = re.search(r"\bImported\b", chunk)
+    date_valid = False
+    if imported is not None:
+        for match in re.finditer(r"\b(\d{4})-(\d{2})-(\d{2})\b", chunk[imported.end():]):
+            try:
+                datetime.date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
+            except ValueError:
+                continue
+            date_valid = True
+            break
+    if not date_valid:
+        errors.append(f"{where}: must record a real import date (Imported … YYYY-MM-DD)")
+
+
 def validate_provenance(plugin_dir: Path, errors: list[str]) -> None:
     """Every plugin declares provenance in PROVENANCE.md.
 
     A plugin with nothing vendored opens its only statement besides headings
     with "No vendored content." — anywhere else the marker is an error, so it
     can never silence the checks for vendored sections appended after it.
-    Vendored content must carry a labeled 40-hex pin, the full upstream
-    license notice, and a real import date. These are
-    presence-and-shape checks against forgetting, not cryptographic
-    verification: whether a pin actually matches the upstream bytes is
-    established in PR review.
+    Each vendored item is a "## <path>" section (heading contains a slash)
+    carrying its own labeled 40-hex pin and real import date, so one pinned
+    section cannot vouch for another; the upstream license notice is checked
+    file-wide because one upstream's notice may cover several sections. These
+    are presence-and-shape checks against forgetting, not cryptographic
+    verification: whether a pin matches the upstream bytes, or a notice its
+    upstream, is established in PR review.
     """
     provenance_path = plugin_dir / "PROVENANCE.md"
     relative = display_path(provenance_path)
@@ -139,11 +164,20 @@ def validate_provenance(plugin_dir: Path, errors: list[str]) -> None:
             f"besides headings; with vendored sections present, drop the marker and pin them"
         )
 
-    pin = re.search(r"(?i)\b(?:blob|commit|merge)\b[^\r\n]*?\b([0-9a-f]{40})\b", text)
-    if pin is None or pin.group(1) == "0" * 40:
-        errors.append(
-            f"{relative}: must pin upstream content to a labeled 40-hex SHA (blob/commit/merge …)"
-        )
+    sections: list[tuple[str, str]] = []
+    for chunk in re.split(r"(?m)^## +", text)[1:]:
+        heading, _, body = chunk.partition("\n")
+        if "/" in heading:
+            sections.append((heading.strip(), body))
+
+    if sections:
+        for heading, body in sections:
+            where = f"{relative}: section {heading!r}"
+            check_pin(body, where, errors)
+            check_import_date(body, where, errors)
+    else:
+        check_pin(text, relative, errors)
+        check_import_date(text, relative, errors)
 
     notice_complete = (
         re.search(r"Copyright \(c\) \d{4}", text, re.IGNORECASE)
@@ -156,19 +190,6 @@ def validate_provenance(plugin_dir: Path, errors: list[str]) -> None:
             f"{relative}: must carry the full upstream license notice "
             f"(copyright line, permission grant, notice condition, warranty disclaimer)"
         )
-
-    imported = re.search(r"\bImported\b", text)
-    date_valid = False
-    if imported is not None:
-        for match in re.finditer(r"\b(\d{4})-(\d{2})-(\d{2})\b", text[imported.end():]):
-            try:
-                datetime.date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
-            except ValueError:
-                continue
-            date_valid = True
-            break
-    if not date_valid:
-        errors.append(f"{relative}: must record a real import date (Imported … YYYY-MM-DD)")
 
 
 def validate_plugin_manifest(name: str, plugin_dir: Path, errors: list[str]) -> None:
