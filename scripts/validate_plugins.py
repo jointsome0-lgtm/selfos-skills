@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import datetime
 import json
 import re
 import sys
@@ -15,6 +16,7 @@ PLUGINS_DIR = ROOT / "plugins"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
 CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
+NO_VENDOR_MARKER = "No vendored content."
 
 
 def display_path(path: Path) -> str:
@@ -89,6 +91,113 @@ def validate_marketplace_entry(entry: object, index: int, errors: list[str]) -> 
     return name, source_path
 
 
+def check_pin(chunk: str, where: str, errors: list[str]) -> None:
+    labeled = re.findall(r"(?i)\b(?:blob|commit|merge)\b[^\r\n]*?\b([0-9a-f]{40})\b", chunk)
+    if not labeled:
+        errors.append(
+            f"{where}: must pin upstream content to a labeled 40-hex SHA (blob/commit/merge …)"
+        )
+    if "0" * 40 in re.findall(r"(?i)\b[0-9a-f]{40}\b", chunk):
+        errors.append(f"{where}: pins must be real SHAs, not the all-zero placeholder")
+
+
+def check_import_date(chunk: str, where: str, errors: list[str]) -> None:
+    imported = re.search(r"\bImported\b", chunk)
+    date_valid = False
+    if imported is not None:
+        for match in re.finditer(r"\b(\d{4})-(\d{2})-(\d{2})\b", chunk[imported.end():]):
+            try:
+                datetime.date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
+            except ValueError:
+                continue
+            date_valid = True
+            break
+    if not date_valid:
+        errors.append(f"{where}: must record a real import date (Imported … YYYY-MM-DD)")
+
+
+def validate_provenance(plugin_dir: Path, errors: list[str]) -> None:
+    """Every plugin declares provenance in PROVENANCE.md.
+
+    A plugin with nothing vendored opens its only statement besides headings
+    with "No vendored content." — anywhere else the marker is an error, so it
+    can never silence the checks for vendored sections appended after it.
+    Every "##" section is a vendored item carrying its own labeled 40-hex
+    pin — with no all-zero placeholder anywhere in the section — and real
+    import date, so one pinned section cannot vouch for another and no
+    heading shape escapes the checks; the sole exemption is the license
+    notice, a slash-free heading naming "license"; the upstream license notice is checked
+    file-wide because one upstream's notice may cover several sections. These
+    are presence-and-shape checks against forgetting, not cryptographic
+    verification: whether a pin matches the upstream bytes, or a notice its
+    upstream, is established in PR review.
+    """
+    provenance_path = plugin_dir / "PROVENANCE.md"
+    relative = display_path(provenance_path)
+
+    if provenance_path.is_symlink():
+        errors.append(f"{relative}: must be a regular file, not a symlink")
+        return
+    if not provenance_path.exists():
+        errors.append(
+            f"{relative}: missing; pin vendored sources or state \"No vendored content.\""
+        )
+        return
+    if not provenance_path.is_file():
+        errors.append(f"{relative}: must be a regular file")
+        return
+    try:
+        if provenance_path.stat().st_size > 64 * 1024:
+            errors.append(f"{relative}: implausibly large (over 64 KiB)")
+            return
+        text = provenance_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        errors.append(f"{relative}: cannot read UTF-8 file: {exc}")
+        return
+
+    if NO_VENDOR_MARKER in text:
+        statements = [
+            line.strip()
+            for line in text.splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+        if len(statements) == 1 and statements[0].startswith(NO_VENDOR_MARKER):
+            return
+        errors.append(
+            f"{relative}: {NO_VENDOR_MARKER!r} must open the file's only statement "
+            f"besides headings; with vendored sections present, drop the marker and pin them"
+        )
+
+    sections: list[tuple[str, str]] = []
+    for chunk in re.split(r"(?m)^## +", text)[1:]:
+        heading, _, body = chunk.partition("\n")
+        heading = heading.strip()
+        if "license" in heading.lower() and "/" not in heading:
+            continue
+        sections.append((heading, body))
+
+    if sections:
+        for heading, body in sections:
+            where = f"{relative}: section {heading!r}"
+            check_pin(body, where, errors)
+            check_import_date(body, where, errors)
+    else:
+        check_pin(text, relative, errors)
+        check_import_date(text, relative, errors)
+
+    notice_complete = (
+        re.search(r"Copyright \(c\) \d{4}", text, re.IGNORECASE)
+        and "Permission is hereby granted" in text
+        and "The above copyright notice and this permission notice" in text
+        and 'THE SOFTWARE IS PROVIDED "AS IS"' in text
+    )
+    if not notice_complete:
+        errors.append(
+            f"{relative}: must carry the full upstream license notice "
+            f"(copyright line, permission grant, notice condition, warranty disclaimer)"
+        )
+
+
 def validate_plugin_manifest(name: str, plugin_dir: Path, errors: list[str]) -> None:
     manifest_path = plugin_dir / ".claude-plugin" / "plugin.json"
     manifest = load_json_object(manifest_path, errors)
@@ -139,6 +248,7 @@ def main() -> int:
                     continue
                 registered[name] = source_path
                 validate_plugin_manifest(name, source_path, errors)
+                validate_provenance(source_path, errors)
 
     if PLUGINS_DIR.is_dir():
         registered_dirs = {path for path in registered.values()}

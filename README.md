@@ -27,6 +27,11 @@ plugins/
     .claude-plugin/plugin.json
     skills/
       compose/SKILL.md            ← GPT-5.6-era outcome-first prompt guide
+  decision/                       ← shared decision primitives
+    .claude-plugin/plugin.json
+    PROVENANCE.md                 ← upstream pins + license notice for vendored content
+    skills/
+      grilling/SKILL.md           ← owner decision-interview loop (wrapped by domain skills)
 ```
 
 One plugin per workflow domain; add a new plugin rather than growing a grab-bag. Every skill body is plain Markdown, with any executable helpers kept as portable scripts.
@@ -42,6 +47,7 @@ Install once at user scope; the plugin is then available in all projects:
 /plugin install sdd@selfos
 /plugin install codex-pr@selfos
 /plugin install codex-prompting@selfos
+/plugin install decision@selfos
 ```
 
 The marketplace inside is named `selfos`, so plugins install as `<plugin>@selfos`.

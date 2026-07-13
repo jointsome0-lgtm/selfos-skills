@@ -1,0 +1,5 @@
+{
+  "name": "decision",
+  "version": "0.1.0",
+  "description": "Owner-facing decision primitives: the shared grilling interview loop that domain workflow skills wrap"
+}
