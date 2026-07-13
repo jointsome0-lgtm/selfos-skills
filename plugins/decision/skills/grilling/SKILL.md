@@ -32,6 +32,6 @@ Do not act until the owner confirms you have reached a shared understanding. Cre
 
 This primitive owns the interview order, the recommendation per question, fact lookup, owner authority over decisions, and the confirmation gate. A domain wrapper skill owns its own scope: which canon it reads, which subjects it frames, and where confirmed outcomes land. Wrappers follow this file rather than restating it, and invoking this primitive grants no write authority by itself.
 
-When a domain wrapper covers the subject — like grill-sdd for a repository's SDD — the wrapper is the entry point: it loads its canon and landing rules, then follows this file for the interview. Reach for this primitive directly only when no wrapper claims the domain.
+When a domain wrapper covers the subject — like grill-sdd for a repository's SDD — the wrapper is the entry point, and the contract above binds it: canon and landing rules are the wrapper's, the interview loop is this file's. A wrapper predating this primitive keeps its own rules until it is rewritten to that contract — for grill-sdd the rewrite is selfos-skills#6. Reach for this primitive directly only when no wrapper claims the domain.
 
 Worked examples: [EXAMPLES.md](EXAMPLES.md).
