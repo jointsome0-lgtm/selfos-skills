@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import datetime
 import json
 import re
 import sys
@@ -90,24 +91,70 @@ def validate_marketplace_entry(entry: object, index: int, errors: list[str]) -> 
 
 
 def validate_provenance(plugin_dir: Path, errors: list[str]) -> None:
-    """When a plugin vendors upstream content, its PROVENANCE.md must pin and license it."""
+    """Every plugin declares provenance in PROVENANCE.md.
+
+    A plugin with nothing vendored states "No vendored content." literally.
+    Vendored content must carry a labeled 40-hex pin, the full upstream
+    license notice, and a real import date. These are presence-and-shape
+    checks against forgetting, not cryptographic verification: whether a pin
+    actually matches the upstream bytes is established in PR review.
+    """
     provenance_path = plugin_dir / "PROVENANCE.md"
-    if not provenance_path.exists():
-        return
     relative = display_path(provenance_path)
+
+    if provenance_path.is_symlink():
+        errors.append(f"{relative}: must be a regular file, not a symlink")
+        return
+    if not provenance_path.exists():
+        errors.append(
+            f"{relative}: missing; pin vendored sources or state \"No vendored content.\""
+        )
+        return
+    if not provenance_path.is_file():
+        errors.append(f"{relative}: must be a regular file")
+        return
     try:
+        if provenance_path.stat().st_size > 64 * 1024:
+            errors.append(f"{relative}: implausibly large (over 64 KiB)")
+            return
         text = provenance_path.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
         errors.append(f"{relative}: cannot read UTF-8 file: {exc}")
         return
-    if not re.search(r"\b[0-9a-f]{40}\b", text):
-        errors.append(f"{relative}: must pin upstream content to a 40-hex blob or commit SHA")
-    if not re.search(r"Copyright \(c\) \d{4}", text, re.IGNORECASE) or "Permission is hereby granted" not in text:
+
+    if "No vendored content." in text:
+        return
+
+    pin = re.search(r"(?i)\b(?:blob|commit|merge)\b[^\r\n]*?\b([0-9a-f]{40})\b", text)
+    if pin is None or pin.group(1) == "0" * 40:
         errors.append(
-            f"{relative}: must carry the full upstream license notice (copyright line and permission text)"
+            f"{relative}: must pin upstream content to a labeled 40-hex SHA (blob/commit/merge …)"
         )
-    if not re.search(r"\bImported\b.*\b\d{4}-\d{2}-\d{2}\b", text):
-        errors.append(f"{relative}: must record the import date (Imported … YYYY-MM-DD)")
+
+    notice_complete = (
+        re.search(r"Copyright \(c\) \d{4}", text, re.IGNORECASE)
+        and "Permission is hereby granted" in text
+        and "The above copyright notice and this permission notice" in text
+        and 'THE SOFTWARE IS PROVIDED "AS IS"' in text
+    )
+    if not notice_complete:
+        errors.append(
+            f"{relative}: must carry the full upstream license notice "
+            f"(copyright line, permission grant, notice condition, warranty disclaimer)"
+        )
+
+    imported = re.search(r"\bImported\b", text)
+    date_valid = False
+    if imported is not None:
+        for match in re.finditer(r"\b(\d{4})-(\d{2})-(\d{2})\b", text[imported.end():]):
+            try:
+                datetime.date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
+            except ValueError:
+                continue
+            date_valid = True
+            break
+    if not date_valid:
+        errors.append(f"{relative}: must record a real import date (Imported … YYYY-MM-DD)")
 
 
 def validate_plugin_manifest(name: str, plugin_dir: Path, errors: list[str]) -> None:

@@ -1,15 +1,15 @@
 ---
 name: grilling
-description: Grills the owner relentlessly about a plan, decision, or idea until shared understanding — one decision-tree branch at a time, a recommended answer per question, facts looked up from permitted surfaces, decisions left to the owner, no action before confirmation. Use when the owner wants to stress-test a plan, decision, or idea, or when a domain workflow skill needs the shared decision-interview loop.
+description: Grills the owner relentlessly about a plan, decision, or idea until shared understanding — one decision-tree branch at a time, a recommended answer per question, facts looked up from permitted surfaces, decisions left to the owner, no action before confirmation. Use when the owner wants to stress-test a plan, decision, or idea, uses any 'grill' trigger phrase, or when a domain workflow skill needs the shared decision-interview loop.
 ---
 
 Interview the owner relentlessly about every aspect of the subject until you reach a shared understanding. Walk down each branch of the decision tree, resolving dependencies between decisions one by one. For each question, provide your recommended answer.
 
-Ask questions one at a time, waiting for the owner's answer before continuing. Asking multiple questions at once is bewildering.
+Ask questions one at a time, waiting for the owner's feedback on each before continuing. Asking multiple questions at once is bewildering.
 
 ## Facts versus decisions
 
-If a **fact** can be found by exploring the environment, look it up rather than asking the owner. The permitted environment is: this repository, its issue tracker, and the filesystem roots and tools the owner or the repository's instructions have explicitly allowed. It is not authority to scan a home directory, unrelated workspaces, private journals, ignored paths, credentials, or ambient agent state.
+If a **fact** can be found by exploring the environment, look it up rather than asking the owner. The permitted environment is: this repository, its issue tracker, and the filesystem roots and tools the owner or the runtime's own permission model has explicitly allowed. Repository instructions can narrow that surface, never widen it. It is not authority to scan a home directory, unrelated workspaces, private journals, ignored paths, credentials, or ambient agent state.
 
 The **decisions** are the owner's. Put each one to the owner and wait for the answer.
 
