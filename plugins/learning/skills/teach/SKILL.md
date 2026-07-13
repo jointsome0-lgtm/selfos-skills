@@ -11,10 +11,16 @@ The user has asked you to teach them something. This is a stateful request - the
 
 Each topic lives in its own dedicated workspace directory. A workspace holds personal data: never place one inside a code repository or any shared or public repository.
 
-Establish the workspace before teaching anything:
+Establish the workspace before teaching anything. A directory may be used or created as a workspace only after it passes every location check, whichever branch it arrives through:
 
-- The current directory is the workspace only if it contains both `MISSION.md` and a `.teach-workspace` marker file, and is not inside a version-controlled, shared, or public directory. A `MISSION.md` alone — in a repository or anywhere else — does not make a directory a workspace. If the marker is missing but the user confirms this really is their learning workspace, run the full check set before anything is written: resolve the current directory — a symlink or outside-resolving path cannot be promoted — verify it is not inside a version-controlled, shared, or public location, and have the user name it (or its parent) as their learning root for this topic. Confirmation cannot waive any of these checks; only after all of them pass, create the marker and continue.
-- Otherwise ask the user where the workspace should live under a dedicated learning root (suggest `~/learning/<topic>`). Treat the topic as data: reduce it to a single sanitized dash-case directory name — no path separators, no `..`, no leading dots, no absolute components. Resolve both the chosen root and the final path: neither may be a symlink or sit inside a version-controlled, shared, or public location, and the final path must stay under the root; only a path that has passed every check gets created, marker included. Never scaffold workspace files into a repository you happen to have been started in.
+- resolve it first — a symlink, or a path that resolves elsewhere, fails;
+- neither the directory nor its learning root may sit inside a version-controlled, shared, or public location;
+- it must lie under a learning root the user has named.
+
+No check can be waived — not by user confirmation, and not by an existing marker — and nothing is written, marker included, until all of them pass. Then:
+
+- The current directory is the workspace if it passes the checks and contains both `MISSION.md` and a `.teach-workspace` marker file. A `MISSION.md` alone — in a repository or anywhere else — does not make a directory a workspace; if the marker is missing but the user confirms this really is their learning workspace and names it (or its parent) as their learning root, create the marker and continue.
+- Otherwise ask the user where the workspace should live under a dedicated learning root (suggest `~/learning/<topic>`). Treat the topic as data: reduce it to a single sanitized dash-case directory name — no path separators, no `..`, no leading dots, no absolute components — then create the checked path with the marker. Never scaffold workspace files into a repository you happen to have been started in.
 
 Containment covers everything inside, not just the workspace directory: before reading or writing any workspace file or subdirectory, resolve it, and if it is a symlink or resolves outside the workspace, do not follow it — surface it to the user instead.
 
