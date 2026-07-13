@@ -1,14 +1,17 @@
 # selfos-skills
 
+[![Validate](https://github.com/jointsome0-lgtm/selfos-skills/actions/workflows/skill-index.yml/badge.svg)](https://github.com/jointsome0-lgtm/selfos-skills/actions/workflows/skill-index.yml)
+
 Harness-agnostic skills shared across the selfos-ecosystem repositories (`selfos`, `tick-like`, `atlas`, `exp2res`), also packaged as a Claude Code plugin marketplace. This is the canonical home for cross-repository workflows; skills tied to one repository stay in that repository.
 
 ## Layout
 
 ```
-.github/workflows/skill-index.yml ← validates metadata and the generated index
+.github/workflows/skill-index.yml ← CI: index check + plugin package validation
 .claude-plugin/marketplace.json   ← lists the plugins in this repo
 AGENTS.md                         ← agent-neutral discovery index
 scripts/build_index.py            ← generates and checks AGENTS.md
+scripts/validate_plugins.py       ← validates marketplace.json + plugin manifests
 plugins/
   sdd/                            ← SDD-stage workflow skills
     .claude-plugin/plugin.json
@@ -67,11 +70,12 @@ Clone or download the repository, open `AGENTS.md`, choose the matching row, and
 
 ## Index maintenance
 
-Regenerate the discovery table after adding or changing skill metadata, then run the same check used in CI:
+Regenerate the discovery table after adding or changing skill metadata, then run the same checks used in CI:
 
 ```
 python scripts/build_index.py
 python scripts/build_index.py --check
+python scripts/validate_plugins.py
 ```
 
 ## Versioning and update flow
@@ -86,3 +90,7 @@ For live marketplace iteration without reinstalling: `claude --plugin-dir /path/
 - Skills are repo-agnostic — "this repository's SDD", never hard-coded repo names or paths.
 - Skill folder names and frontmatter names are identical kebab-case; descriptions use third-person summary text plus explicit `Use when …` triggers.
 - Skills must be self-contained: no references to personal skills or machine-local agent state.
+
+## License
+
+MIT (see [LICENSE](LICENSE)) — the portfolio-wide license for all selfos-ecosystem repositories.

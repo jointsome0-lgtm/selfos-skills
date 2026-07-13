@@ -1,4 +1,4 @@
-name: Validate skill index
+name: Validate skills and plugins
 
 on:
   push:
@@ -16,3 +16,4 @@ jobs:
         with:
           python-version: "3.x"
       - run: python scripts/build_index.py --check
+      - run: python scripts/validate_plugins.py
