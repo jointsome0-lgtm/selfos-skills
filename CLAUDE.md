@@ -1,6 +1,9 @@
-@AGENTS.md
+# CLAUDE.md
 
-<!-- Single source of truth is AGENTS.md (shared with Codex and other tools). Add Claude-only rules below this line only if they cannot live in AGENTS.md. -->
+Read [AGENTS.md](AGENTS.md) first: it is the shared agent contract for this
+repository (the skill capability index, the rule to read a matching skill's
+`SKILL.md` in full, the public-data policy) and applies to Claude Code in
+full. Skills live under `plugins/<plugin>/skills/`.
 
 ## Security reviews go to Codex
 
