@@ -89,6 +89,25 @@ def validate_marketplace_entry(entry: object, index: int, errors: list[str]) -> 
     return name, source_path
 
 
+def validate_provenance(plugin_dir: Path, errors: list[str]) -> None:
+    """When a plugin vendors upstream content, its PROVENANCE.md must pin and license it."""
+    provenance_path = plugin_dir / "PROVENANCE.md"
+    if not provenance_path.exists():
+        return
+    relative = display_path(provenance_path)
+    try:
+        text = provenance_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        errors.append(f"{relative}: cannot read UTF-8 file: {exc}")
+        return
+    if not re.search(r"\b[0-9a-f]{40}\b", text):
+        errors.append(f"{relative}: must pin upstream content to a 40-hex blob or commit SHA")
+    if "license" not in text.lower():
+        errors.append(f"{relative}: must carry the upstream license notice")
+    if not re.search(r"\bImported\b.*\b\d{4}-\d{2}-\d{2}\b", text):
+        errors.append(f"{relative}: must record the import date (Imported … YYYY-MM-DD)")
+
+
 def validate_plugin_manifest(name: str, plugin_dir: Path, errors: list[str]) -> None:
     manifest_path = plugin_dir / ".claude-plugin" / "plugin.json"
     manifest = load_json_object(manifest_path, errors)
@@ -139,6 +158,7 @@ def main() -> int:
                     continue
                 registered[name] = source_path
                 validate_plugin_manifest(name, source_path, errors)
+                validate_provenance(source_path, errors)
 
     if PLUGINS_DIR.is_dir():
         registered_dirs = {path for path in registered.values()}

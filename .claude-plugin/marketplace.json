@@ -16,6 +16,11 @@
       "name": "codex-prompting",
       "source": "./plugins/codex-prompting",
       "description": "GPT/Codex prompt composition: lean outcome-first prompts, autonomy boundaries, model and reasoning-effort choice for the GPT-5.6 family"
+    },
+    {
+      "name": "decision",
+      "source": "./plugins/decision",
+      "description": "Owner-facing decision primitives: the shared grilling interview loop that domain workflow skills wrap"
     }
   ]
 }
