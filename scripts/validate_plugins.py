@@ -102,8 +102,10 @@ def validate_provenance(plugin_dir: Path, errors: list[str]) -> None:
         return
     if not re.search(r"\b[0-9a-f]{40}\b", text):
         errors.append(f"{relative}: must pin upstream content to a 40-hex blob or commit SHA")
-    if "license" not in text.lower():
-        errors.append(f"{relative}: must carry the upstream license notice")
+    if not re.search(r"Copyright \(c\) \d{4}", text, re.IGNORECASE) or "Permission is hereby granted" not in text:
+        errors.append(
+            f"{relative}: must carry the full upstream license notice (copyright line and permission text)"
+        )
     if not re.search(r"\bImported\b.*\b\d{4}-\d{2}-\d{2}\b", text):
         errors.append(f"{relative}: must record the import date (Imported … YYYY-MM-DD)")
 
