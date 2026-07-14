@@ -5,7 +5,7 @@
     {
       "name": "sdd",
       "source": "./plugins/sdd",
-      "description": "SDD-stage workflow skills and shared conventions: grill a spec by section, vendor the cross-repository conventions template and decision-log lint, keep the SDD the single durable artifact"
+      "description": "SDD-stage workflow skills and shared conventions: grill a spec by section, slice approved scopes into vertical tickets, vendor the cross-repository conventions template and decision-log lint, keep the SDD the single durable artifact"
     },
     {
       "name": "codex-pr",

@@ -22,8 +22,10 @@ plugins/
     scripts/
       sync_conventions.py         ← stdlib sync/check tool (single file, vendorable)
       check_decision_log.py       ← decision-log lint (graduated size thresholds)
+    PROVENANCE.md                 ← upstream pin + license notice for vendored content
     skills/
       grill-sdd/SKILL.md          ← grill an SDD by section; outcomes → SDD edits + issues
+      slice/SKILL.md              ← slice an approved SDD scope into vertical tickets
   codex-pr/                       ← Codex cloud PR-review loop
     .claude-plugin/plugin.json
     skills/
