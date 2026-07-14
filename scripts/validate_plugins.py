@@ -17,6 +17,9 @@ NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
 CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
 NO_VENDOR_MARKER = "No vendored content."
+MD_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
+FENCE_LINE_RE = re.compile(r"^ {0,3}(?:`{3,}|~{3,})")
+INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
 
 
 def display_path(path: Path) -> str:
@@ -215,6 +218,46 @@ def validate_plugin_manifest(name: str, plugin_dir: Path, errors: list[str]) -> 
         errors.append(f"{relative}: version {version!r} must be MAJOR.MINOR.PATCH")
 
 
+def validate_relative_links(errors: list[str]) -> None:
+    """Every relative Markdown link in plugin content resolves inside the repository.
+
+    Fenced code blocks and inline code spans are ignored; http(s)/mailto and
+    pure-anchor targets are out of scope. This is a resolution check, not a
+    content check: it exists so a skill's companion references (for example
+    DEEPENING.md next to a SKILL.md) cannot silently go missing or dangle.
+    """
+    root = ROOT.resolve()
+    for md_path in sorted(PLUGINS_DIR.glob("**/*.md")):
+        relative_md = display_path(md_path)
+        try:
+            lines = md_path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeError) as exc:
+            errors.append(f"{relative_md}: cannot read UTF-8 file: {exc}")
+            continue
+        in_fence = False
+        for line_number, line in enumerate(lines, start=1):
+            if FENCE_LINE_RE.match(line):
+                in_fence = not in_fence
+                continue
+            if in_fence:
+                continue
+            for target in MD_LINK_RE.findall(INLINE_CODE_RE.sub("", line)):
+                if target.startswith(("http://", "https://", "mailto:", "#")):
+                    continue
+                bare_target = target.split("#", 1)[0]
+                if not bare_target:
+                    continue
+                resolved = (md_path.parent / bare_target).resolve()
+                if not resolved.exists():
+                    errors.append(
+                        f"{relative_md}:{line_number}: relative link target {target!r} does not exist"
+                    )
+                elif root != resolved and root not in resolved.parents:
+                    errors.append(
+                        f"{relative_md}:{line_number}: relative link target {target!r} escapes the repository"
+                    )
+
+
 def main() -> int:
     errors: list[str] = []
     registered: dict[str, Path] = {}
@@ -259,6 +302,9 @@ def main() -> int:
                 )
     else:
         errors.append("plugins/: directory is missing")
+
+    if PLUGINS_DIR.is_dir():
+        validate_relative_links(errors)
 
     if errors:
         for error in errors:

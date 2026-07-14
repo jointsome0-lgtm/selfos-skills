@@ -23,6 +23,11 @@
       "description": "Owner-facing decision primitives: the shared grilling interview loop that domain workflow skills wrap"
     },
     {
+      "name": "design",
+      "source": "./plugins/design",
+      "description": "Architecture design vocabulary and methods: deep modules, seams, adapters, the deletion test, dependency-category deepening, and design-it-twice interface exploration"
+    },
+    {
       "name": "learning",
       "source": "./plugins/learning",
       "description": "Multi-session learning workspaces: mission-driven lessons, learning records, glossary, and curated resources per topic"

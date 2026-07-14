@@ -41,6 +41,13 @@ plugins/
     PROVENANCE.md                 ← upstream pins + license notice for vendored content
     skills/
       grilling/SKILL.md           ← owner decision-interview loop (wrapped by domain skills)
+  design/                         ← architecture design vocabulary and methods
+    .claude-plugin/plugin.json
+    PROVENANCE.md                 ← upstream pins + license notice for vendored content
+    skills/
+      codebase-design/SKILL.md    ← deep modules, seams, adapters, deletion test
+        DEEPENING.md              ← dependency categories, seam discipline
+        DESIGN-IT-TWICE.md        ← 3+ independent interface designs, then compare
   learning/                       ← multi-session teaching workspaces
     .claude-plugin/plugin.json
     PROVENANCE.md                 ← upstream pin + license notice for vendored content
@@ -62,6 +69,7 @@ Install once at user scope; the plugin is then available in all projects:
 /plugin install codex-pr@selfos
 /plugin install codex-prompting@selfos
 /plugin install decision@selfos
+/plugin install design@selfos
 /plugin install learning@selfos
 ```
 
