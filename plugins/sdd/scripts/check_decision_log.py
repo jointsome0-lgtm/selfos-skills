@@ -297,6 +297,13 @@ def visible_entry_text(entry: Entry) -> str:
     return " ".join(text.split())
 
 
+def visible_first_line_text(entry: Entry) -> str:
+    """The dated line's own TEXT — the grammar requires it there, not merely somewhere in the entry."""
+    text = HTML_COMMENT_RE.sub(" ", entry.parts[0].text)
+    text = strip_markdown_link_targets(text)
+    return " ".join(text.split())
+
+
 def word_count(entry: Entry) -> int:
     return len(visible_entry_text(entry).split())
 
@@ -394,9 +401,11 @@ def validate_entry(
         )
 
     text = visible_entry_text(entry)
-    if not text:
+    if not visible_first_line_text(entry):
         diagnostics.append(
-            make_diagnostic("ERROR", filename, entry.line, "empty decision text")
+            make_diagnostic(
+                "ERROR", filename, entry.line, "empty decision text on the dated entry line"
+            )
         )
 
     rejected_clause = find_rejected_clause(text)

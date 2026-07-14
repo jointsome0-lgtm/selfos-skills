@@ -119,11 +119,20 @@ class DecisionLogCheckerTests(unittest.TestCase):
             "text-empty.md",
             "- 2042-07-03 — <!-- fixture note -->\n",
         )
+        continuation_only = self.write_fixture(
+            "text-continuation-only.md",
+            "- 2042-07-03 — \n"
+            "  Pin Elm bundle names. Rejected: generated names — pins keep reviews stable. #604\n",
+        )
 
         self.assert_clean(self.run_checker(valid))
         result = self.run_checker(invalid)
         self.assertEqual(result.returncode, 1)
         self.assertIn("empty decision text", result.stderr)
+
+        shifted = self.run_checker(continuation_only)
+        self.assertEqual(shifted.returncode, 1)
+        self.assertIn("empty decision text on the dated entry line", shifted.stderr)
 
     def test_rejected_clause_forms_and_missing_components(self) -> None:
         valid = self.write_fixture(
