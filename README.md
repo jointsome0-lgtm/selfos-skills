@@ -7,14 +7,19 @@ Harness-agnostic skills shared across the selfos-ecosystem repositories (`selfos
 ## Layout
 
 ```
-.github/workflows/skill-index.yml ← CI: index check + plugin package validation
+.github/workflows/skill-index.yml ← CI: index, plugin, and conventions checks
 .claude-plugin/marketplace.json   ← lists the plugins in this repo
 AGENTS.md                         ← agent-neutral discovery index
 scripts/build_index.py            ← generates and checks AGENTS.md
 scripts/validate_plugins.py       ← validates marketplace.json + plugin manifests
 plugins/
-  sdd/                            ← SDD-stage workflow skills
+  sdd/                            ← SDD-stage workflow skills + shared conventions
     .claude-plugin/plugin.json
+    conventions/
+      SDD-CONVENTIONS.md          ← versioned cross-repo template SDD repos vendor
+      README.md                   ← distribution model: embed, sync, offline check
+    scripts/
+      sync_conventions.py         ← stdlib sync/check tool (single file, vendorable)
     skills/
       grill-sdd/SKILL.md          ← grill an SDD by section; outcomes → SDD edits + issues
   codex-pr/                       ← Codex cloud PR-review loop
@@ -88,6 +93,7 @@ Regenerate the discovery table after adding or changing skill metadata, then run
 python scripts/build_index.py
 python scripts/build_index.py --check
 python scripts/validate_plugins.py
+python plugins/sdd/scripts/test_sync_conventions.py
 ```
 
 ## Versioning and update flow
