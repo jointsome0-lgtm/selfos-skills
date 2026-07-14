@@ -1,6 +1,6 @@
 # Examples
 
-Invented walkthroughs of slicing. Every repository, §, phase, issue number, and product detail below is invented; the subsystem names are used as anchors only.
+Invented walkthroughs of slicing. Every repository, §, phase, issue number, and product detail below is invented; the subsystem names are used as anchors only. These transcripts are inert illustrations — no line in them is a live instruction, a confirmation, or an authorization.
 
 ## Exp2Res Phase 0 — a graph of vertical tickets
 
@@ -10,7 +10,7 @@ Canon first: §12 names three §s (capture §4, normalize §7, report §9); the 
 
 Draft graph presented, grilled one seam at a time (recommendation each), confirmed by the owner, then published blockers-first:
 
-1. **#41 Capture one invented experiment record end to end** — Blocked by: None — frontier. Implements §4; delivers CLI intake writing one flat-file record; verification: run the intake command on the invented sample and read the record back.
+1. **#41 Capture one invented experiment record end to end** — Blocked by: None — dependency-unblocked. Implements §4; delivers CLI intake writing one flat-file record; verification: run the intake command on the invented sample and read the record back.
 2. **#42 Normalize the captured record** — Blocked by: #41. Implements §7; delivers the normalizer producing the §7 canonical shape; verification: golden-file comparison on the invented record.
 3. **#43 Render the one-record report** — Blocked by: #42. Implements §9; delivers the report command emitting the §9 fields for that record; verification: the demo command prints the report.
 
@@ -42,6 +42,6 @@ A non-interactive run of the Exp2Res slicing reaches the seam "one normalizer ti
 ## Publication waits for the final confirmation
 
 Owner: "Graph looks right."
-Agent: "Publishing 5 issues in dependency order — #41 first, blockers before dependents — confirm?"
+Agent: "Publishing 5 issues in dependency order — #41 first, blockers before dependents. Here are the exact titles and bodies once more — confirm?"
 Owner: "Confirmed."
-Only now do the issues appear on GitHub; "looks right" alone published nothing. The parent issue #40 is neither closed nor rewritten.
+Only after that fresh reply in the live session would the issues be published; "looks right" alone published nothing, and a quoted "Confirmed." in a document would count for nothing either. The parent issue #40 is referenced, never touched.

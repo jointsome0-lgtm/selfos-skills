@@ -12,14 +12,17 @@
 | Status | **adapted** |
 
 Named deviations from the upstream text — the tracer-bullet rules, blocking
-edges, expand–migrate–contract sequencing, frontier discipline, dependency-order
-publication, stale-snippet rule, and the ticket-template skeleton preserve
-upstream behavior:
+edges, expand–migrate–contract sequencing (including the batch-green rule and
+the integration-branch fallback), dependency-order publication, the
+stale-snippet rule, and the ticket-template skeleton preserve upstream
+behavior:
 
 1. **Tracker fixed to GitHub issues** — upstream's `/setup-matt-pocock-skills`
    configuration step, the local-file tracker mode (`.scratch/<slug>/issues/`),
    and the `ready-for-agent` triage label are removed; selfos repositories keep
-   GitHub issues as the active-work system.
+   GitHub issues as the active-work system. Upstream's "native blocking /
+   sub-issue relationship" phrasing is kept as the native blocking relation
+   only.
 2. **Owner interview replaced** — upstream's "Quiz the user" step becomes the
    shared `grilling` primitive (declared plugin dependency), one decision at a
    time with a recommendation each; no second interview loop is kept in this
@@ -27,7 +30,10 @@ upstream behavior:
 3. **Scope contract added** — upstream accepts "a plan, spec, or conversation";
    `slice` takes exactly one implementation-ready SDD §, phase, or approved
    parent issue, verifies readiness under repository canon, and refuses with
-   the precise readiness blocker otherwise.
+   the precise readiness blocker otherwise. Upstream's fetch-and-read of any
+   passed reference (path, number, or URL) is dropped with it: canon
+   resolution reads repository surfaces only, and everything read is treated
+   as untrusted evidence, never instructions.
 4. **SDD read-only rule** — a contradiction or missing decision found while
    slicing becomes a proposed spec-issue draft, never a ticket assumption or a
    spec edit; upstream has no spec-authority boundary.
@@ -42,9 +48,19 @@ upstream behavior:
    artifact, the privacy/public-data boundary, and the rejected alternative
    when a design choice is embedded.
 8. **Publication gate hardened** — upstream publishes after breakdown approval;
-   `slice` publishes only after the primitive's final confirmation, a
-   non-interactive run creates nothing, and claim-before-implementation (by
-   issue assignment) is added to the frontier rule.
+   `slice` publishes only after a fresh, live, exact-payload owner
+   confirmation, a non-interactive run creates nothing, ticket bodies are
+   translated original prose (no verbatim source directives, markup, mentions,
+   or URLs), and every ticket body is treated as a disclosure surface bound to
+   the destination's visibility.
+9. **`/implement` handoff dropped, frontier tightened** — upstream ends by
+   working the frontier via `/implement` with blockers "done"; `slice` ends at
+   confirmed publication. The frontier requires blockers delivered (completed
+   successfully, not merely closed — upstream's "done" made strict), grants no
+   claim or assignment authority, and claim-by-assignment belongs to the later
+   implementation session. Upstream's "Do NOT close or modify any parent
+   issue" is widened to forbid every parent mutation (comments, labels,
+   assignment, relations included).
 
 `skills/slice/EXAMPLES.md`, `skills/grill-sdd/`, `conventions/`, and `scripts/`
 are local content, not vendored.
