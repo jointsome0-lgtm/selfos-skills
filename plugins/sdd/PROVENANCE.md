@@ -49,10 +49,12 @@ behavior:
    when a design choice is embedded.
 8. **Publication gate hardened** — upstream publishes after breakdown approval;
    `slice` publishes only after a fresh, live, exact-payload owner
-   confirmation, a non-interactive run creates nothing, ticket bodies are
+   confirmation (blockers referenced symbolically, with only the real issue
+   numbers substituted at publication), a non-interactive run creates nothing,
+   every outbound payload — tickets and spec issues, titles and bodies — is
    translated original prose (no verbatim source directives, markup, mentions,
-   or URLs), and every ticket body is treated as a disclosure surface bound to
-   the destination's visibility.
+   or URLs), and every payload is treated as a disclosure surface bound to the
+   destination's visibility, re-checked read-only before publishing.
 9. **`/implement` handoff dropped, frontier tightened** — upstream ends by
    working the frontier via `/implement` with blockers "done"; `slice` ends at
    confirmed publication. The frontier requires blockers delivered (completed

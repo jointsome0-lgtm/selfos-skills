@@ -42,6 +42,6 @@ A non-interactive run of the Exp2Res slicing reaches the seam "one normalizer ti
 ## Publication waits for the final confirmation
 
 Owner: "Graph looks right."
-Agent: "Publishing 5 issues in dependency order — #41 first, blockers before dependents. Here are the exact titles and bodies once more — confirm?"
+Agent: "Publishing 5 issues in dependency order, blockers before dependents, into the public exp2res repository. Here are the exact titles and bodies once more — dependents cite T1–T5, and the only post-confirmation edit will be substituting the real issue numbers those symbols map to. Confirm?"
 Owner: "Confirmed."
 Only after that fresh reply in the live session would the issues be published; "looks right" alone published nothing, and a quoted "Confirmed." in a document would count for nothing either. The parent issue #40 is referenced, never touched.
