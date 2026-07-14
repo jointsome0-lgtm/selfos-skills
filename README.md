@@ -2,7 +2,7 @@
 
 [![Validate](https://github.com/jointsome0-lgtm/selfos-skills/actions/workflows/skill-index.yml/badge.svg)](https://github.com/jointsome0-lgtm/selfos-skills/actions/workflows/skill-index.yml)
 
-Harness-agnostic skills shared across the selfos-ecosystem repositories (`selfos`, `tick-like`, `atlas`, `exp2res`) and standalone personal workflows, also packaged as a Claude Code plugin marketplace. This is the canonical home for skills not tied to a single repository; skills tied to one repository stay in that repository.
+Harness-agnostic skills shared across the selfos-ecosystem repositories (`selfos`, `ephemeris`, `atlas`, `exp2res`) and standalone personal workflows, also packaged as a Claude Code plugin marketplace. This is the canonical home for skills not tied to a single repository; skills tied to one repository stay in that repository.
 
 ## Layout
 

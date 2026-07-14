@@ -7,7 +7,7 @@ full. Skills live under `plugins/<plugin>/skills/`.
 
 ## Security reviews go to Codex
 
-Claude-only rule — the reason is Fable-specific, and in AGENTS.md it would just tell Codex to delegate to itself. Ecosystem-wide; the full version lives in tick-like's CLAUDE.md.
+Claude-only rule — the reason is Fable-specific, and in AGENTS.md it would just tell Codex to delegate to itself. Ecosystem-wide; the full version lives in ephemeris's CLAUDE.md.
 
 Adversarial security reviews — including prompt-injection probing of skill and plugin content — are **delegated to Codex** (`codex:rescue` or the codex plugin), not run by Claude in the first person.
 
