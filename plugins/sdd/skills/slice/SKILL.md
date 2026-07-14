@@ -26,7 +26,7 @@ Resolving the primitive: the declared `decision` plugin dependency is the author
 ## Carry ecosystem constraints — every ticket declares
 
 - the repository and its **Track A or Track B** lane, obeying that repository's lane rules;
-- the SDD § and the parent issue it implements — citations, not restatements;
+- the SDD § it implements and, when the scope came from one, the parent issue — citations, not restatements; a §- or phase-scoped slice with no parent issue records that explicitly instead of inventing or creating one;
 - the delivered behavior, acceptance criteria, verification (how the artifact is exercised), blocking edges, and the privacy/public-data boundary it must respect;
 - the rejected alternative with its reason, when the ticket embeds a design choice;
 - the end artifact that exists when the implementation session ends.
@@ -58,7 +58,7 @@ Every ticket states its repository, Track A/B lane, verification, and end artifa
 ```markdown
 ## Parent
 
-<parent issue reference> — implements <SDD § reference>
+<parent issue reference> — implements <SDD § reference>; or "No parent issue — sliced directly from <SDD § reference>"
 
 ## Delivered behavior
 
