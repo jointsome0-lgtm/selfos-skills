@@ -4,9 +4,9 @@ description: Conducts a relentless owner interview over named sections of this r
 disable-model-invocation: true
 ---
 
-Grill the owner about the named SDD section(s) until shared understanding. This skill is the SDD entry point for the shared `grilling` decision primitive (decision plugin; in this repository at `plugins/decision/skills/grilling/SKILL.md`): read that file in full and follow it for the whole interview loop — one question at a time with a recommendation each, facts versus decisions, the terminal states, and no action before confirmation live there and are not restated here. This file owns only the SDD-specific scope: which canon is read, how subjects are framed, and where confirmed outcomes land.
+Grill the owner about the named SDD section(s) until shared understanding. This skill is the SDD entry point for the shared `grilling` decision primitive from the `decision` plugin: load that skill and follow it in full for the whole interview loop — one question at a time with a recommendation each, facts versus decisions, the terminal states, and no action before confirmation live there and are not restated here. This file owns only the SDD-specific scope: which canon is read, how subjects are framed, and where confirmed outcomes land.
 
-Requires the decision plugin (`decision@selfos`) alongside `sdd@selfos`; in a bare checkout, resolve the primitive through the repository's `AGENTS.md` index.
+Resolving the primitive: installed, it is the `grilling` skill (`/decision:grilling`) — this plugin's manifest declares the `decision` dependency, so marketplace installs pull it in automatically; in a bare repository checkout, follow the `grilling` row of the repository's `AGENTS.md` index. Never substitute a local paraphrase of the loop when the primitive is unavailable — stop and install it.
 
 ## Resolve the named canon
 
