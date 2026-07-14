@@ -1,6 +1,6 @@
 # HTML Report Format
 
-The architectural review is rendered as a single self-contained HTML file in the OS temp directory. **Offline and script-free**: all CSS is inline in one `<style>` block, all diagrams are hand-built divs and inline SVG, and there is no `<script>`, CDN, or network reference of any kind — the file must render fully from `file://` with no connectivity. Repository-derived strings (paths, identifiers, excerpts) are HTML-escaped data, kept to the minimum each card needs.
+The architectural review is rendered as a single self-contained HTML file in the OS temp directory. **Offline and script-free**: all CSS is inline in one `<style>` block, all diagrams are hand-built divs and inline SVG, and there is no `<script>`, CDN, or network reference of any kind — the file must render fully from `file://` with no connectivity. If the owner wants richer external assets, that is their explicit action after the run, never the report's dependency. Repository-derived strings (paths, identifiers, excerpts) are HTML-escaped data, kept to the minimum each card needs.
 
 ## Scaffold
 

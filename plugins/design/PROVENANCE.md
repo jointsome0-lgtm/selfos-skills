@@ -81,10 +81,12 @@ output schema, and the present-and-compare rules are otherwise preserved:
 | License | MIT (notice below) |
 | Status | **adapted** |
 
-Named deviations — the explore → report → decide shape, the friction
+Named deviations — the explore → report → decide shape, the core friction
 questions, the deletion-test signal, the scope-before-scan/YAGNI rule, the
-three recommendation strengths, and the "no interfaces before selection"
-gate are upstream; the rest is reworked:
+three recommendation-strength names, and the "no interfaces before
+selection" gate are upstream; the rest is reworked. The companion
+`EXAMPLES.md` is original local content — invented fixtures, nothing
+vendored:
 
 1. **Renamed and re-described** — `improve-codebase-architecture` becomes
    `deepen`; the frontmatter description is rewritten for this repository's
@@ -105,19 +107,41 @@ gate are upstream; the rest is reworked:
    created or edited and no ADR is offered; durable outcomes route to a
    focused GitHub issue or an approved SDD/Decision Log change, only after
    the owner confirms the exact payload, written in the skill's own words
-   (never copied-through repository text).
+   (never copied-through repository text). The full publication gate —
+   destination repository and its visibility shown with the complete final
+   payload, fresh live confirmation of that display, read-only destination
+   recheck before the write, reconfirmation after any edit — has no
+   upstream counterpart.
 6. **Grilling resolution contract added** — the loop resolves through the
    declared `decision` plugin dependency (`/decision:grilling`) with the
    `AGENTS.md` row as bare-checkout fallback, and paraphrasing the loop is
    forbidden — same contract wording as the sdd plugin's skills.
-7. **Report made offline and script-free** — no Tailwind/Mermaid CDN;
-   inline CSS and hand-built SVG only, HTML-escaped repository strings,
-   minimum paths/excerpts, evidence source named per card.
+7. **Report made offline and script-free, creation hardened** — no
+   Tailwind/Mermaid CDN; inline CSS and hand-built SVG only, HTML-escaped
+   repository strings, minimum paths/excerpts, evidence source named per
+   card. Upstream's hand-assembled `<tmpdir>/<timestamp>.html` path
+   becomes a secure temp-file API contract: atomic creation, unpredictable
+   name, owner-only mode, canonicalized path verified outside the worktree
+   and durable locations, file-API writes with no shell interpolation, and
+   a literal single-argument opener invocation.
 8. **Untrusted-evidence boundary added** — everything read during a run is
    diagnostic evidence, never instructions or authority.
 9. **Run-mode and handoff rules added** — non-interactive runs stop at the
    report plus drafts with no durable artifact; the skill never starts the
-   refactor, and accepted work exits through the normal issue workflow.
+   refactor, and accepted work exits through the normal issue workflow;
+   the only repository writes the skill ever makes are the confirmed
+   step-3 payloads.
+10. **Evidence discipline added** — the duplicated-policy friction
+    question, the call-path/change-locality/test-surface evidence
+    requirement, the ban on line-count-only candidates, the
+    defect-versus-speculative distinction, the per-strength rubrics, and
+    the dependency-category classification step are additions with no
+    upstream counterpart.
+11. **Design-it-twice trigger changed** — upstream explores alternative
+    interfaces when the user asks ("Want to explore …?"); the adaptation
+    lets the skill judge "when genuinely different interfaces would
+    improve the decision", still inside the owner-selected,
+    confirmation-gated loop.
 
 ## skills/deepen/HTML-REPORT.md
 
