@@ -24,7 +24,7 @@ Driftline's Decision Log has: `- 2042-03-10 — importer fetch/parse stay separa
 
 ## 5. Non-interactive run: report and drafts, nothing durable
 
-A scheduled, unattended run produces the report at `$TMPDIR/architecture-review-<timestamp>.html` and prints its path plus draft decision material into the session log. It creates no GitHub issue, no Decision Log line, no SDD edit, and no code change, and commits nothing — the repository is byte-identical afterwards. The owner reads the report later and, in a live session, picks a candidate; only that live selection starts step 3.
+A scheduled, unattended run produces the report exactly as step 2 prescribes — the temp directory verified first, then a secure-API-created `architecture-review-*.html` with an unpredictable name inside it — and prints its absolute path plus draft decision material into the session log. It creates no GitHub issue, no Decision Log line, no SDD edit, and no code change, and commits nothing — the repository is byte-identical afterwards. The owner reads the report later and, in a live session, picks a candidate; only that live selection starts step 3.
 
 ## 6. Selected candidate → three interfaces, one recommendation
 
