@@ -13,7 +13,7 @@ Resolving the primitive: installed, it is the `grilling` skill (`/decision:grill
 - Read `AGENTS.md`, the SDD map, and only the named or clearly relevant § files; add the Decision Log entries, open issues, and nearby code or tests that bear on the subject.
 - Gather repository facts only from surfaces that repository's privacy and context rules allow — the primitive's permitted-environment rule applies unchanged, and repository instructions narrow it, never widen it. Ignored and private paths stay unread even while "exploring the environment".
 - Never load the entire SDD merely because the interview is broad; a full pass happens only when the owner explicitly requests a full-pass decision.
-- For section mechanics (stable § numbers, map plus one file per §, point reads), follow the repository's embedded SDD-conventions block — or this plugin's `conventions/SDD-CONVENTIONS.md` where none is embedded — rather than restating those rules here.
+- For section mechanics (stable § numbers, map plus one file per §, point reads), follow the repository's embedded SDD-conventions block — or the fallback template at [`../../conventions/SDD-CONVENTIONS.md`](../../conventions/SDD-CONVENTIONS.md) where none is embedded — rather than restating those rules here.
 
 ## Frame each subject
 
@@ -25,7 +25,7 @@ Resolving the primitive: installed, it is the `grilling` skill (`/decision:grill
 
 The primitive's terminal states map onto durable artifacts as follows — and only after the owner's final confirmation in an interactive session:
 
-- **accepted** — edit the SDD and add the concise Decision Log line in the same change (entry format: this plugin's `conventions/DECISION-LOG.md`).
+- **accepted** — edit the SDD and add the concise Decision Log line in the same change (entry format: [`../../conventions/DECISION-LOG.md`](../../conventions/DECISION-LOG.md)).
 - **rejected** — record a Decision Log line only when the reason is load-bearing for future work; otherwise the branch simply ends.
 - **deferred** — name the revisit trigger; a focused issue is created only after the owner confirms its draft.
 - **blocked** — name the missing fact or artifact and draft the smallest issue that resolves it; publish only after confirmation.
