@@ -1,5 +1,6 @@
 {
   "name": "design",
-  "version": "0.1.0",
-  "description": "Architecture design vocabulary and methods: deep modules, seams, adapters, the deletion test, dependency-category deepening, and design-it-twice interface exploration"
+  "version": "0.2.0",
+  "description": "Architecture design vocabulary and methods: deep modules, seams, adapters, the deletion test, dependency-category deepening, design-it-twice interface exploration, and the deepen diagnosis-and-decision loop",
+  "dependencies": ["decision"]
 }

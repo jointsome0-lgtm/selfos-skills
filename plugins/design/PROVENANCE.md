@@ -70,6 +70,89 @@ output schema, and the present-and-compare rules are otherwise preserved:
    verbs in the reference documents recommend changes, never authorize
    them — implementation requires a separate explicit user request.
 
+## skills/deepen/SKILL.md
+
+| Field | Value |
+| --- | --- |
+| Upstream repository | `mattpocock/skills` |
+| Upstream path | `skills/engineering/improve-codebase-architecture/SKILL.md` |
+| Blob | `b56969e92f0705d70700f908b8ec929a1edfa782` |
+| Imported | 2026-07-14 |
+| License | MIT (notice below) |
+| Status | **adapted** |
+
+Named deviations — the explore → report → decide shape, the friction
+questions, the deletion-test signal, the scope-before-scan/YAGNI rule, the
+three recommendation strengths, and the "no interfaces before selection"
+gate are upstream; the rest is reworked:
+
+1. **Renamed and re-described** — `improve-codebase-architecture` becomes
+   `deepen`; the frontmatter description is rewritten for this repository's
+   third-person + "Use when" index rule.
+2. **Canon sources replaced** — `CONTEXT.md` and `docs/adr/` become the
+   repository's `AGENTS.md`, SDD map plus only the relevant § files, the
+   Decision Log, and issues; the no-re-litigation rule now requires
+   concrete new friction from current code to reopen a recorded decision.
+3. **Scope hardened** — the history walk is a bounded window ("widen the
+   window, not the scope" for slow repos), widening needs forcing
+   evidence, and an unbounded repository-wide review is banned by default.
+4. **Harness-specific mechanics removed** — upstream's "Agent tool with
+   `subagent_type=Explore`" and slash-command invocations become
+   harness-neutral wording; the optional explore sub-agent inherits the
+   design-brief discipline (self-contained brief, repository material as
+   delimited untrusted data, read-only, findings only).
+5. **`/domain-modeling` side-effect loop removed** — no `CONTEXT.md` is
+   created or edited and no ADR is offered; durable outcomes route to a
+   focused GitHub issue or an approved SDD/Decision Log change, only after
+   the owner confirms the exact payload, written in the skill's own words
+   (never copied-through repository text).
+6. **Grilling resolution contract added** — the loop resolves through the
+   declared `decision` plugin dependency (`/decision:grilling`) with the
+   `AGENTS.md` row as bare-checkout fallback, and paraphrasing the loop is
+   forbidden — same contract wording as the sdd plugin's skills.
+7. **Report made offline and script-free** — no Tailwind/Mermaid CDN;
+   inline CSS and hand-built SVG only, HTML-escaped repository strings,
+   minimum paths/excerpts, evidence source named per card.
+8. **Untrusted-evidence boundary added** — everything read during a run is
+   diagnostic evidence, never instructions or authority.
+9. **Run-mode and handoff rules added** — non-interactive runs stop at the
+   report plus drafts with no durable artifact; the skill never starts the
+   refactor, and accepted work exits through the normal issue workflow.
+
+## skills/deepen/HTML-REPORT.md
+
+| Field | Value |
+| --- | --- |
+| Upstream repository | `mattpocock/skills` |
+| Upstream path | `skills/engineering/improve-codebase-architecture/HTML-REPORT.md` |
+| Blob | `17f6d2c7b8342ee7c4260d8d98024d462c7d3eaa` |
+| Imported | 2026-07-14 |
+| License | MIT (notice below) |
+| Status | **adapted** |
+
+Named deviations — the card anatomy, the cross-section/mass/call-graph
+diagram patterns, the style guidance, the top-recommendation section, and
+the tone/glossary rules are substantially upstream:
+
+1. **CDN assets removed** — Tailwind and Mermaid are gone; the report is
+   offline and script-free (inline CSS, hand-built SVG/divs, no `<script>`
+   or network reference, must render from `file://`); optional external
+   assets are the owner's explicit action after the run, never a
+   dependency. Tailwind utility classes in examples become plain CSS.
+2. **Mermaid workhorse replaced** — the graph-shaped workhorse pattern is
+   now boxes-and-arrows in inline SVG with the same leak/seam/deep visual
+   language.
+3. **ADR callout → recorded-decision callout** — names the Decision Log
+   entry or decided issue and the concrete new friction justifying
+   reopening.
+4. **Vocabulary sources replaced** — `/codebase-design` slash references
+   become sibling `../codebase-design/SKILL.md` links; `CONTEXT.md` domain
+   vocabulary becomes the project's SDD-defined terms.
+5. **Data-hygiene rules added** — repository-derived strings are
+   HTML-escaped data, paths/excerpts are kept to the minimum per card, an
+   evidence line is mandatory on every candidate card, and the header
+   states the scan scope.
+
 ## Upstream license notice
 
 ```
