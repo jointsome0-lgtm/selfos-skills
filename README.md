@@ -63,9 +63,9 @@ Install once at user scope; the plugin is then available in all projects:
 /plugin install learning@selfos
 ```
 
-The marketplace inside is named `selfos`, so plugins install as `<plugin>@selfos`.
+The marketplace inside is named `selfos`, so plugins install as `<plugin>@selfos`. `sdd`'s `grill-sdd` wraps `decision`'s `grilling` interview loop; `sdd` declares that dependency in its manifest, so installing `sdd@selfos` pulls `decision@selfos` in automatically (Claude Code ≥ 2.1.110 — on older versions, install both explicitly).
 
-Skills become available as `/sdd:grill-sdd`, and Claude invokes them by description when relevant — except skills marked `disable-model-invocation: true` (side-effecting workflows like learning's `teach`), which run only when you invoke them explicitly.
+Skills become available as `/sdd:grill-sdd`, and Claude invokes them by description when relevant — except skills marked `disable-model-invocation: true` (owner-facing or side-effecting workflows like learning's `teach` and sdd's `grill-sdd`), which run only when you invoke them explicitly.
 
 ### Codex
 
