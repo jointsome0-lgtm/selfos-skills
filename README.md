@@ -2,7 +2,7 @@
 
 [![Validate](https://github.com/jointsome0-lgtm/selfos-skills/actions/workflows/skill-index.yml/badge.svg)](https://github.com/jointsome0-lgtm/selfos-skills/actions/workflows/skill-index.yml)
 
-Harness-agnostic skills shared across the selfos-ecosystem repositories (`selfos`, `tick-like`, `atlas`, `exp2res`) and standalone personal workflows, also packaged as a Claude Code plugin marketplace. This is the canonical home for skills not tied to a single repository; skills tied to one repository stay in that repository.
+Harness-agnostic skills shared across the selfos-ecosystem repositories (`selfos`, `ephemeris`, `atlas`, `exp2res`) and standalone personal workflows, also packaged as a Claude Code plugin marketplace. This is the canonical home for skills not tied to a single repository; skills tied to one repository stay in that repository.
 
 ## Layout
 
@@ -48,6 +48,8 @@ plugins/
       codebase-design/SKILL.md    ← deep modules, seams, adapters, deletion test
         DEEPENING.md              ← dependency categories, seam discipline
         DESIGN-IT-TWICE.md        ← 3+ independent interface designs, then compare
+      deepen/SKILL.md             ← scoped scan → ephemeral offline report → owner decision loop
+        HTML-REPORT.md            ← script-free offline report scaffold + diagram patterns
   learning/                       ← multi-session teaching workspaces
     .claude-plugin/plugin.json
     PROVENANCE.md                 ← upstream pin + license notice for vendored content
@@ -73,7 +75,7 @@ Install once at user scope; the plugin is then available in all projects:
 /plugin install learning@selfos
 ```
 
-The marketplace inside is named `selfos`, so plugins install as `<plugin>@selfos`. `sdd`'s `grill-sdd` wraps `decision`'s `grilling` interview loop; `sdd` declares that dependency in its manifest, so installing `sdd@selfos` pulls `decision@selfos` in automatically (Claude Code ≥ 2.1.110 — on older versions, install both explicitly).
+The marketplace inside is named `selfos`, so plugins install as `<plugin>@selfos`. `sdd`'s `grill-sdd` and `design`'s `deepen` wrap `decision`'s `grilling` interview loop; both plugins declare that dependency in their manifests, so installing `sdd@selfos` or `design@selfos` pulls `decision@selfos` in automatically (Claude Code ≥ 2.1.110 — on older versions, install both explicitly).
 
 Skills become available as `/sdd:grill-sdd`, and Claude invokes them by description when relevant — except skills marked `disable-model-invocation: true` (owner-facing or side-effecting workflows like learning's `teach` and sdd's `grill-sdd`), which run only when you invoke them explicitly.
 
