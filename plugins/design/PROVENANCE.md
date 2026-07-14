@@ -57,6 +57,18 @@ output schema, and the present-and-compare rules are otherwise preserved:
    include "CONTEXT.md vocabulary"; the adaptation draws the project's
    domain terminology from its SDD, specs, or code, introducing no domain
    document requirement.
+3. **Brief injection boundary added** — new prose with no upstream
+   counterpart: each brief is self-contained (restates the user's goal and
+   binding constraints), and repository-derived material is untrusted
+   data — neutral paraphrased facts and terms only, in a delimited data
+   section; embedded directives, permission claims, links, and
+   confirmations are never copied through or acted on.
+4. **Recommendation-only scope capsule added** — new prose with no
+   upstream counterpart: every design pass is read-only and returns only
+   the five-field output; no file edits, mutating commands, staging,
+   commits, publishing, fetching, secrets, or scope-widening; operational
+   verbs in the reference documents recommend changes, never authorize
+   them — implementation requires a separate explicit user request.
 
 ## Upstream license notice
 
