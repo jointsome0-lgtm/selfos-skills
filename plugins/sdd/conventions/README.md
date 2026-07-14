@@ -7,6 +7,11 @@ checkout depend on another repository (or on network access) for its own
 correctness rules. Instead, each repository embeds a generated copy and can
 validate it offline.
 
+The Decision Log side of the same discipline lives in
+[`DECISION-LOG.md`](DECISION-LOG.md): the entry grammar and the vendorable
+lint `../scripts/check_decision_log.py`, distributed the same way as the
+sync tool below.
+
 ## How a repository adopts the conventions
 
 1. Vendor the tool: copy `../scripts/sync_conventions.py` into the

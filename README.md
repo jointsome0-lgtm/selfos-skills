@@ -17,9 +17,11 @@ plugins/
     .claude-plugin/plugin.json
     conventions/
       SDD-CONVENTIONS.md          ← versioned cross-repo template SDD repos vendor
+      DECISION-LOG.md             ← decision-log entry grammar + lint semantics
       README.md                   ← distribution model: embed, sync, offline check
     scripts/
       sync_conventions.py         ← stdlib sync/check tool (single file, vendorable)
+      check_decision_log.py       ← decision-log lint (graduated size thresholds)
     skills/
       grill-sdd/SKILL.md          ← grill an SDD by section; outcomes → SDD edits + issues
   codex-pr/                       ← Codex cloud PR-review loop
@@ -94,6 +96,7 @@ python scripts/build_index.py
 python scripts/build_index.py --check
 python scripts/validate_plugins.py
 python plugins/sdd/scripts/test_sync_conventions.py
+python plugins/sdd/scripts/test_check_decision_log.py
 ```
 
 ## Versioning and update flow

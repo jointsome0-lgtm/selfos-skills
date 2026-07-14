@@ -18,3 +18,4 @@ jobs:
       - run: python scripts/build_index.py --check
       - run: python scripts/validate_plugins.py
       - run: python plugins/sdd/scripts/test_sync_conventions.py
+      - run: python plugins/sdd/scripts/test_check_decision_log.py
