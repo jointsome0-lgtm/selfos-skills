@@ -1,5 +1,5 @@
 {
   "name": "sdd",
-  "version": "0.2.0",
-  "description": "SDD-stage workflow skills and shared conventions: grill a spec by section, vendor the cross-repository conventions template, keep the SDD the single durable artifact"
+  "version": "0.3.0",
+  "description": "SDD-stage workflow skills and shared conventions: grill a spec by section, vendor the cross-repository conventions template and decision-log lint, keep the SDD the single durable artifact"
 }
