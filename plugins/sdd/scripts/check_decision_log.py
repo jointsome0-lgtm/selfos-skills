@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Lint the compact, vendorable selfos Decision Log format."""
+"""Lint the compact, vendorable selfos Decision Log format.
+
+Entries on or before ``--baseline`` keep parsing-critical checks but are exempt
+from word, reference, stale-waiver, and missing-rejected-clause checks.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +16,7 @@ import sys
 from typing import Iterable, Optional, Sequence
 
 
-CHECKER_VERSION = "1.0.0"
+CHECKER_VERSION = "1.1.0"
 
 ENTRY_RE = re.compile(r"^- (?P<date>\d{4}-\d{2}-\d{2}) — (?P<text>.*)$")
 ATX_HEADING_RE = re.compile(
@@ -27,7 +31,7 @@ WAIVER_COMMENT_RE = re.compile(
 )
 WAIVER_MARKER_RE = re.compile(r"<!-- decision-log: allow-long")
 REJECTED_CANONICAL_RE = re.compile(
-    r"\bRejected:\s+"
+    r"\b(?:Rejected:|Rejected alternative:|Rejected alternatives:)\s+"
     r"(?P<alternative>\S(?:.*?\S)?)\s+—\s+"
     r"(?P<reason>\S(?:.*?\S)?)\."
     r"(?=\s|$)"
@@ -400,6 +404,10 @@ def validate_entry(
             )
         )
 
+    is_historical = (
+        baseline is not None and parsed_date is not None and parsed_date <= baseline
+    )
+
     text = visible_entry_text(entry)
     if not visible_first_line_text(entry):
         diagnostics.append(
@@ -409,7 +417,7 @@ def validate_entry(
         )
 
     rejected_clause = find_rejected_clause(text)
-    if rejected_clause is None:
+    if rejected_clause is None and not is_historical:
         diagnostics.append(
             make_diagnostic(
                 "ERROR",
@@ -425,9 +433,6 @@ def validate_entry(
         for line, message in waiver.diagnostics
     )
 
-    is_historical = (
-        baseline is not None and parsed_date is not None and parsed_date <= baseline
-    )
     count = word_count(entry)
     if not is_historical:
         if count > max_words and not waiver.valid:
@@ -507,7 +512,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--baseline",
         type=baseline_argument,
         metavar="YYYY-MM-DD",
-        help="exempt entries on or before this date from threshold and reference checks",
+        help=(
+            "exempt entries on or before this date from missing-rejected-clause, "
+            "threshold, stale-waiver, and reference checks"
+        ),
     )
     parser.add_argument(
         "--max-words",

@@ -14,13 +14,15 @@ CONTINUATION := "  " TEXT | "  " WAIVER
 DATE         := a calendar-valid date written exactly as YYYY-MM-DD
 WAIVER       := "<!-- decision-log: allow-long — " REASON " -->"
 REJECTED     := "Rejected: " ALTERNATIVE " — " REASON "."
+             | "Rejected alternative: " ALTERNATIVE " — " REASON "."
+             | "Rejected alternatives: " ALTERNATIVE " — " REASON "."
              | "Rejected " ALTERNATIVE " because " REASON "."
 ```
 
 `SPACE` is an ASCII space; `TEXT`, `ALTERNATIVE`, and `REASON` contain
-non-whitespace text. `Rejected` and the waiver are case-sensitive. The
-clause may cross continuations; all other non-blank lines are malformed.
-ASCII `-` or `--` cannot replace the em dash.
+non-whitespace text. The rejected-clause labels and the waiver are
+case-sensitive. The clause may cross continuations; all other non-blank lines
+are malformed. ASCII `-` or `--` cannot replace the em dash.
 
 Valid examples (invented):
 
@@ -66,15 +68,16 @@ case-insensitively, all such sections are linted; otherwise the whole file
 is the log. A section ends at the next heading of equal or higher level;
 headings inside fenced code do not count.
 
-`--baseline YYYY-MM-DD` keeps entries on or before that date
-structure-checked but exempts their word thresholds, stale-waiver check, and
-reference warning. It exists for adopting repositories with history; any
-one-time compression of historical entries is a separate owner decision, not
-this tool's job.
+`--baseline YYYY-MM-DD` exempts entries on or before that date from the
+missing-rejected-clause error, word thresholds, stale-waiver check, and
+reference warning. Their entry prefix and calendar-valid date, continuation
+shape, and waiver placement and duplication rules remain checked. It exists
+for adopting repositories with history; any one-time compression of historical
+entries is a separate owner decision, not this tool's job.
 
 Vendor the lint the same way as the conventions tool (see `README.md` in
 this folder): copy `../scripts/check_decision_log.py` into the consuming
-repository, record its `CHECKER_VERSION` (currently `1.0.0`), wire it into
+repository, record its `CHECKER_VERSION` (currently `1.1.0`), wire it into
 local CI, and update the copy only through an explicit PR. The file is
 Python 3.9-compatible, stdlib-only, offline, and imports nothing from this
 repository — a fresh subsystem checkout lints with no plugin installed.
