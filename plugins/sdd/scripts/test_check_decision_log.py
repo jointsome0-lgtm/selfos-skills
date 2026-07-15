@@ -156,6 +156,40 @@ class DecisionLogCheckerTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 1)
                 self.assertIn("missing explicit rejected-alternative-with-reason clause", result.stderr)
 
+    def test_rejected_alternative_labels_are_exact_and_post_baseline(self) -> None:
+        valid = self.write_fixture(
+            "rejected-labels-valid.md",
+            "- 2042-07-04 — Use Fir manifests. Rejected alternative: implicit discovery — manifests expose scope. #605\n"
+            "- 2042-07-05 — Keep Grove exports local. Rejected alternatives: hosted assembly — it breaks offline builds; shared storage — it hides ownership. GH-606\n",
+        )
+        self.assert_clean(self.run_checker("--baseline", "2042-07-01", valid))
+
+        invalid_labels = {
+            "misspelled": "Rejected alternativez:",
+            "other": "Rejected option:",
+        }
+        for name, label in invalid_labels.items():
+            with self.subTest(name=name):
+                path = self.write_fixture(
+                    f"rejected-label-{name}.md",
+                    f"- 2042-07-04 — Use Fir manifests. {label} implicit discovery — manifests expose scope. #605\n",
+                )
+                result = self.run_checker("--baseline", "2042-07-01", path)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(
+                    "missing explicit rejected-alternative-with-reason clause",
+                    result.stderr,
+                )
+
+        paragraph = self.write_fixture(
+            "rejected-label-paragraph.md",
+            "- 2042-07-04 — Use Fir manifests. Rejected alternative: folder scans — manifests expose scope. "
+            "One tool writes them. Another reads them. Reviewers diff them. #605\n",
+        )
+        heuristic = self.run_checker("--baseline", "2042-07-01", paragraph)
+        self.assertEqual(heuristic.returncode, 0, heuristic.stderr)
+        self.assertIn("paragraph-style duplication heuristic", heuristic.stderr)
+
     def test_continuation_indentation_and_multi_entry_ambiguity(self) -> None:
         valid = self.write_fixture(
             "continuation-valid.md",
@@ -399,14 +433,47 @@ class DecisionLogCheckerTests(unittest.TestCase):
             )
         )
 
-        historical_bad_structure = self.write_fixture(
-            "baseline-structure.md",
+        historical_missing_clause = self.write_fixture(
+            "baseline-missing-clause.md",
             "- 2042-07-01 — Keep Oak output beside source files.\n",
         )
-        structural = self.run_checker("--baseline", "2042-07-01", historical_bad_structure)
-        self.assertEqual(structural.returncode, 1)
-        self.assertIn("missing explicit rejected-alternative", structural.stderr)
-        self.assertNotIn("no issue/PR/SHA reference", structural.stderr)
+        self.assert_clean(
+            self.run_checker("--baseline", "2042-07-01", historical_missing_clause)
+        )
+        unbaselined = self.run_checker(historical_missing_clause)
+        self.assertEqual(unbaselined.returncode, 1)
+        self.assertIn("missing explicit rejected-alternative", unbaselined.stderr)
+
+        current_missing_clause = self.write_fixture(
+            "baseline-current-missing-clause.md",
+            "- 2042-07-02 — Keep Oak output beside source files. #710\n",
+        )
+        current_structure = self.run_checker(
+            "--baseline", "2042-07-01", current_missing_clause
+        )
+        self.assertEqual(current_structure.returncode, 1)
+        self.assertIn("missing explicit rejected-alternative", current_structure.stderr)
+
+        historical_bad_date = self.write_fixture(
+            "baseline-bad-date.md",
+            "- 2042-02-30 — Keep Oak output beside source files.\n",
+        )
+        bad_date = self.run_checker(
+            "--baseline", "2042-07-01", historical_bad_date
+        )
+        self.assertEqual(bad_date.returncode, 1)
+        self.assertIn("calendar-invalid date '2042-02-30'", bad_date.stderr)
+
+        historical_bad_continuation = self.write_fixture(
+            "baseline-bad-continuation.md",
+            "- 2042-07-01 — Keep Oak output beside source files.\n"
+            " Rejected alternative: central storage — colocated files stay portable.\n",
+        )
+        bad_continuation = self.run_checker(
+            "--baseline", "2042-07-01", historical_bad_continuation
+        )
+        self.assertEqual(bad_continuation.returncode, 1)
+        self.assertIn("malformed continuation indentation", bad_continuation.stderr)
 
         historical_paragraph = self.write_fixture(
             "baseline-paragraph.md",
