@@ -19,3 +19,15 @@ jobs:
       - run: python scripts/validate_plugins.py
       - run: python plugins/sdd/scripts/test_sync_conventions.py
       - run: python plugins/sdd/scripts/test_check_decision_log.py
+      - run: shellcheck scripts/*.sh plugins/*/scripts/*.sh
+      - name: Watcher tests
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q bats
+          bats plugins/codex-pr/scripts/test_codex_pr_watch.bats
+      # deliberately unpinned: the point is to catch the marketplace breaking
+      # against the Claude Code version users actually install today
+      - name: Marketplace install check
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          ./scripts/check_plugin_install.sh
