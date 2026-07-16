@@ -17,8 +17,8 @@ TEMPLATE = SCRIPTS_DIR.parent / "conventions" / "SDD-CONVENTIONS.md"
 # Editing the template requires bumping these pins in the same change — that
 # is the intended drift detection, not an inconvenience: a body edit without
 # a version bump must fail CI here instead of drifting silently.
-PINNED_VERSION = "1.0.0"
-PINNED_DIGEST = "30cba528aee9a6ebbb08c24739d0269bb12768fd368043ce2b63e73f1480bfda"
+PINNED_VERSION = "1.1.0"
+PINNED_DIGEST = "3003d86d310122af19c0c89da88f7087e682eab9f086dda9e245cfdad0833072"
 
 ATLAS_PREAMBLE = (
     "# atlas — agent guide\n"
@@ -41,7 +41,7 @@ def run(*argv: object, cwd: Path | None = None) -> subprocess.CompletedProcess[s
 
 def bumped_template(directory: Path) -> Path:
     lines = TEMPLATE.read_text(encoding="utf-8").splitlines()
-    lines[0] = "<!-- sdd-conventions-template v1.1.0 -->"
+    lines[0] = "<!-- sdd-conventions-template v1.2.0 -->"
     lines.append("- **Invented extra rule.** Added by the fixture to model an update.")
     path = directory / "SDD-CONVENTIONS.md"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -65,11 +65,11 @@ class SyncConventionsTest(unittest.TestCase):
         self.assertEqual(sync.returncode, 0, sync.stderr)
         content = target.read_text(encoding="utf-8")
         self.assertTrue(content.startswith(ATLAS_PREAMBLE))
-        self.assertIn("<!-- BEGIN SDD-CONVENTIONS v1.0.0 sha256:", content)
+        self.assertIn("<!-- BEGIN SDD-CONVENTIONS v1.1.0 sha256:", content)
 
         check = run(SCRIPT, "check", target)
         self.assertEqual(check.returncode, 0, check.stderr)
-        self.assertIn("matches template v1.0.0", check.stdout)
+        self.assertIn("matches template v1.1.0", check.stdout)
 
     def test_sync_is_idempotent_and_preserves_local_content(self) -> None:
         target = self.agents_file()
@@ -91,7 +91,7 @@ class SyncConventionsTest(unittest.TestCase):
 
         check = run(SCRIPT, "check", target, "--template", updated_template)
         self.assertEqual(check.returncode, 1)
-        self.assertIn("stale against template v1.1.0", check.stderr)
+        self.assertIn("stale against template v1.2.0", check.stderr)
 
     def test_sync_applies_template_update_preserving_content(self) -> None:
         target = self.agents_file()
