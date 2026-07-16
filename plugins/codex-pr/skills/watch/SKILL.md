@@ -19,7 +19,7 @@ Background: on every push to an open PR the Codex bot reacts 👀 on the PR body
    The script path is relative to this skill folder. Defaults: current repo, the current branch's PR, expected head = local `git rev-parse HEAD`, poll every 30 s, timeout 25 min. See `--help` for flags (`--pr`, `--repo`, `--trigger`, …).
 3. Act on the exit code:
    - **0 APPROVED** — 👍 from the review bot. Report the clean verdict to the user; the loop is over.
-   - **2 FINDINGS** — stdout carries the review body plus every inline comment as `path:line`. Read them all. Fix each finding, or — if after honest consideration you disagree — rebut it explicitly in your round summary; never silently drop one. Then commit (per the repo's commit conventions), push, and start the next round at step 2.
+   - **2 FINDINGS** — stdout carries the review body plus every inline comment as `path:line`. Read them all. Fix each finding, or — if after honest consideration you disagree — rebut it explicitly in your round summary; never silently drop one. Then commit (per the repo's commit conventions), push, and start the next round at step 2. If the round changed nothing (every finding rebutted in-thread, no new commit), start the next round with `--trigger`: it re-requests the review **and** anchors the verdict cutoff to that run, so the previous round's review of the same head is not re-accepted.
    - **3 TIMEOUT** — no verdict arrived. Re-run once with `--trigger` (posts an "@codex review" comment). If it times out again, stop and tell the user.
    - **4 PR_NOT_OPEN** — the PR was merged or closed meanwhile; stop and report.
 
@@ -29,4 +29,5 @@ Background: on every push to an open PR the Codex bot reacts 👀 on the PR body
 - Judge findings on the merits — the reviewer is sometimes wrong. Disagreeing is allowed; ignoring is not.
 - No force-pushes mid-loop: one ordinary commit per round keeps review rounds mapped 1:1 to commits.
 - The watcher polls politely (30 s) and needs no manual PR-page polling. Run it in the background when the agent environment can surface completion; otherwise wait for it in the foreground.
+- A late watcher start is fine: verdict freshness is anchored to the push (head commit's committer date), or to the run itself when `--trigger` is passed — not to when the watcher was launched. A verdict that landed before a delayed start is still caught.
 - If the loop must end before a clean verdict (deadline, "merge now"), file the last round's unaddressed findings as an issue before merging. Cutting the loop short is allowed; losing its findings is not.

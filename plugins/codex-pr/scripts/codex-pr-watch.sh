@@ -6,6 +6,20 @@
 #   either 👍 reaction on the PR body (all clear)
 #   or a PR review tied to the pushed commit (findings, mostly inline comments).
 #
+# "Fresh" is anchored to the round, not to watcher start: by default events
+# count from the push of the expected head (PushEvent, or the head-changing
+# PullRequestEvent); with --trigger, from script start — the trigger opens a
+# new round on the same head; an explicit --since overrides both. Reviews
+# must also match the expected head (.commit_id), so a previous head's
+# review still finishing after the push cannot deliver stale findings, and a
+# previous round's same-head review is not re-accepted. When no push event
+# is found, reviews anchor to the head commit's committer date (safe: they
+# are commit-tied) while reactions fall back to the conservative
+# start − 90 s cutoff (a 👍 is not commit-tied, and one created between an
+# old commit's date and its late push could belong to a previous round).
+# A 👍 is additionally ignored while 👀 is up: a verdict 👍 only appears
+# after 👀 is removed.
+#
 # Exit codes:
 #   0  APPROVED    — fresh 👍 reaction from the review bot
 #   2  FINDINGS    — bot posted a review; body + inline comments on stdout
@@ -30,8 +44,10 @@ Options:
   --pr N             PR number         (default: the current branch's PR)
   --repo OWNER/NAME  repository        (default: the current directory's repo)
   --sha SHA          expected head     (default: local git HEAD, else PR head)
-  --since ISO8601Z   count events after this instant
-                     (default: reviews — script start; reactions — start − 90 s)
+  --since ISO8601Z   count events (reviews and reactions) after this instant
+                     (default: the push of the expected head; if no push event
+                      is found, reviews — its committer date − 60 s, reactions —
+                      start − 90 s; with --trigger: script start)
   --bot REGEX        reviewer login regex, case-insensitive (default: codex)
   --interval SEC     poll interval     (default: 30)
   --timeout SEC      give up after     (default: 1500)
@@ -87,22 +103,76 @@ fi
 
 START_ISO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 start_epoch=$(date +%s)
-if [[ -n "$SINCE" ]]; then
-  RSINCE="$SINCE"                 # explicit --since applies to reviews too
-else
-  RSINCE="$START_ISO"             # reviews: only ones submitted after start
-  SINCE=$(date -u -d '90 seconds ago' +%Y-%m-%dT%H:%M:%SZ)  # reactions: push→start buffer
-fi
 
-log "watching $REPO#$PR — head ${SHA:0:10}, bot /$BOT/i, every ${INTERVAL}s, timeout ${TIMEOUT}s"
-
+# post the trigger before computing cutoffs, so the requested round provably
+# starts after them — a previous round's same-head review landing between
+# script start and the comment post must not satisfy the new round's cutoff
+TRIGGER_ISO=""
 if [[ $TRIGGER -eq 1 ]]; then
-  if gh pr comment "$PR" -R "$REPO" --body "@codex review" >/dev/null 2>&1; then
-    log "posted '@codex review' trigger comment"
+  TRIGGER_ISO=$(api -X POST "repos/$REPO/issues/$PR/comments" -f body="@codex review" \
+                  | jq -r '.created_at // empty' 2>/dev/null) || TRIGGER_ISO=""
+  if [[ -n "$TRIGGER_ISO" ]]; then
+    log "posted '@codex review' trigger comment at $TRIGGER_ISO"
   else
     log "WARNING: failed to post the trigger comment"
   fi
 fi
+
+if [[ -n "$SINCE" ]]; then
+  RSINCE="$SINCE"                 # explicit --since applies to both paths
+elif [[ $TRIGGER -eq 1 ]]; then
+  # a re-review round on the same head: the verdict follows the trigger
+  # comment; anchor to its server-side timestamp (script start if the post
+  # failed and the round may not have been requested at all)
+  SINCE="${TRIGGER_ISO:-$START_ISO}"; RSINCE="$SINCE"
+else
+  # anchor to the round boundary: the event that made the expected head the
+  # PR head — a PushEvent (later pushes) or a PullRequestEvent (opened /
+  # synchronize; the first push of a new branch emits no PushEvent). The
+  # commit date alone is not enough — an old local commit pushed late would
+  # set the cutoff before a previous round's 👍 and let it pass as fresh.
+  # only head-changing PR actions count: a later labeled/edited event carries
+  # the same head.sha but postdates the round and could mask its verdict;
+  # likewise a PushEvent only counts on the PR's own head ref — the same SHA
+  # pushed to another branch later must not advance the cutoff
+  headref=$(api "repos/$REPO/pulls/$PR" | jq -r '.head.ref // empty' 2>/dev/null) || headref=""
+  # fetch paginates: in a busy repository the anchoring event can sit past
+  # the first page of the events feed (up to 300 events are retained)
+  push_iso=$(fetch "repos/$REPO/events?per_page=100" | jq -r --arg sha "$SHA" --arg pr "$PR" --arg ref "$headref" '
+      [.[] | select((.type == "PushEvent" and $ref != ""
+                     and .payload.ref == ("refs/heads/" + $ref)
+                     and .payload.head == $sha)
+                    or (.type == "PullRequestEvent"
+                        and (.payload.action == "opened" or .payload.action == "synchronize")
+                        and ((.payload.pull_request.number | tostring) == $pr)
+                        and .payload.pull_request.head.sha == $sha))]
+      | sort_by(.created_at) | last | .created_at // empty' 2>/dev/null) || push_iso=""
+  if [[ -n "$push_iso" ]]; then
+    SINCE="$push_iso"; RSINCE="$push_iso"
+  else
+    # no push event (feed lag or retention). Reviews can still anchor to the
+    # head commit's committer date (− 60 s clock skew): a review must match
+    # .commit_id, and a review of this head cannot predate the head itself.
+    # Reactions are not commit-tied — a 👍 created between an old commit's
+    # date and its late push could be a previous round's — so they keep the
+    # conservative start − 90 s cutoff here.
+    commit_iso=$(api "repos/$REPO/commits/$SHA" | jq -r '.commit.committer.date // empty' 2>/dev/null) || commit_iso=""
+    commit_epoch=""
+    if [[ -n "$commit_iso" ]]; then
+      commit_epoch=$(date -d "$commit_iso" +%s 2>/dev/null) || commit_epoch=""
+    fi
+    if [[ -n "$commit_epoch" ]]; then
+      RSINCE=$(date -u -d "@$(( commit_epoch - 60 ))" +%Y-%m-%dT%H:%M:%SZ)
+      log "note: no push event found for ${SHA:0:10} — reviews anchored to its commit date ($RSINCE), reactions to start − 90 s"
+    else
+      RSINCE="$START_ISO"
+      log "WARNING: cannot resolve a push event or commit date for ${SHA:0:10} — falling back to start-anchored cutoffs"
+    fi
+    SINCE=$(date -u -d '90 seconds ago' +%Y-%m-%dT%H:%M:%SZ)
+  fi
+fi
+
+log "watching $REPO#$PR — head ${SHA:0:10}, bot /$BOT/i, every ${INTERVAL}s, timeout ${TIMEOUT}s"
 
 # --- findings report ---------------------------------------------------------
 report_review() {
@@ -148,9 +218,13 @@ while :; do
 
   # 1) a review from the bot for this push?
   reviews=$(fetch "repos/$REPO/pulls/$PR/reviews?per_page=100")
+  # both conditions are mandatory: freshness — a same-head review from a
+  # previous round must not be re-accepted just because .commit_id still
+  # matches (issue #34) — and the expected head — a previous head's review
+  # still finishing after the push must not deliver stale findings
   review=$(jq -c --arg bot "$BOT" --arg sha "$SHA" --arg since "$RSINCE" '
       [.[] | select((.user.login | test($bot; "i"))
-                    and ((.commit_id == $sha) or (.submitted_at > $since)))]
+                    and (.commit_id == $sha) and (.submitted_at > $since))]
       | sort_by(.submitted_at) | last // empty' <<<"$reviews" 2>/dev/null) || review=""
   if [[ -n "$review" ]]; then
     report_review "$review"
@@ -159,10 +233,14 @@ while :; do
 
   # 2) a fresh 👍 on the PR body?
   reacts=$(fetch "repos/$REPO/issues/$PR/reactions?per_page=100")
+  eyes=$(jq -r --arg bot "$BOT" '
+      [.[] | select((.user.login | test($bot; "i")) and .content == "eyes")] | length' <<<"$reacts" 2>/dev/null) || eyes=0
   thumb=$(jq -r --arg bot "$BOT" --arg since "$SINCE" '
       [.[] | select((.user.login | test($bot; "i")) and .content == "+1" and .created_at > $since)]
       | last | if . == null then "" else "\(.user.login) at \(.created_at)" end' <<<"$reacts" 2>/dev/null) || thumb=""
-  if [[ -n "$thumb" ]]; then
+  # a verdict 👍 appears only after 👀 is removed; while 👀 is up the round's
+  # review is still running and any visible 👍 is a previous round's leftover
+  if [[ -n "$thumb" && "$eyes" -eq 0 ]]; then
     echo "VERDICT: APPROVED"
     echo "👍 reaction on the PR body from $thumb"
     exit 0
@@ -172,11 +250,9 @@ while :; do
     stale=$(jq -r --arg bot "$BOT" --arg since "$SINCE" '
         [.[] | select((.user.login | test($bot; "i")) and .content == "+1" and .created_at <= $since)]
         | last | if . == null then "" else .created_at end' <<<"$reacts" 2>/dev/null) || stale=""
-    [[ -n "$stale" ]] && log "note: stale 👍 from before this push ($stale) — ignored"
+    [[ -n "$stale" ]] && log "note: 👍 from before the cutoff ($stale) — ignored; if it is this head's verdict (late start, no push event found), verify manually or re-run with --since set to the push instant"
   fi
 
-  eyes=$(jq -r --arg bot "$BOT" '
-      [.[] | select((.user.login | test($bot; "i")) and .content == "eyes")] | length' <<<"$reacts" 2>/dev/null) || eyes=0
   if [[ "$eyes" -gt 0 && $eyes_seen -eq 0 ]]; then
     eyes_seen=1
     log "👀 — review in progress"
