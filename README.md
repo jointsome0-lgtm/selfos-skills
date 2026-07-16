@@ -109,11 +109,22 @@ python scripts/build_index.py --check
 python scripts/validate_plugins.py
 python plugins/sdd/scripts/test_sync_conventions.py
 python plugins/sdd/scripts/test_check_decision_log.py
+shellcheck scripts/*.sh plugins/*/scripts/*.sh
+bats plugins/codex-pr/scripts/test_codex_pr_watch.bats
+./scripts/check_plugin_install.sh
 ```
 
 ## Versioning and update flow
 
-Each plugin has an independent semantic version in its `.claude-plugin/plugin.json`; bump the affected plugin's version whenever that plugin changes. For a notable release, tag the committed change as `<plugin>-v<version>` (for example, `sdd-v0.2.0`) before pushing the commit and tag. Claude Code users can then run `/plugin update sdd@selfos` or enable auto-update.
+Each plugin has an independent semantic version in its `.claude-plugin/plugin.json`; bump the affected plugin's version whenever that plugin changes. Every version bump gets a tag on the commit that lands it, created with the CLI so plugin.json and the marketplace entry are validated to agree:
+
+```
+claude plugin tag plugins/sdd --push
+```
+
+Tags follow the CLI's `{name}--v{version}` format (for example, `sdd--v0.6.2`); pass `--dry-run` to preview the tag and the validation result without creating anything. Claude Code users can then run `/plugin update sdd@selfos` or enable auto-update.
+
+Periodically — after a batch of related bumps lands — a `bundle-YYYY-MM-DD` tag plus a GitHub Release records which plugin versions were validated together; the latest Release is the stable distribution point.
 
 For live marketplace iteration without reinstalling: `claude --plugin-dir /path/to/selfos-skills/plugins/sdd`.
 
