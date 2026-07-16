@@ -109,9 +109,12 @@ else
   # synchronize; the first push of a new branch emits no PushEvent). The
   # commit date alone is not enough — an old local commit pushed late would
   # set the cutoff before a previous round's 👍 and let it pass as fresh.
+  # only head-changing PR actions count: a later labeled/edited event carries
+  # the same head.sha but postdates the round and could mask its verdict
   push_iso=$(api "repos/$REPO/events?per_page=100" | jq -r --arg sha "$SHA" --arg pr "$PR" '
       [.[] | select((.type == "PushEvent" and .payload.head == $sha)
                     or (.type == "PullRequestEvent"
+                        and (.payload.action == "opened" or .payload.action == "synchronize")
                         and ((.payload.pull_request.number | tostring) == $pr)
                         and .payload.pull_request.head.sha == $sha))]
       | sort_by(.created_at) | last | .created_at // empty' 2>/dev/null) || push_iso=""
