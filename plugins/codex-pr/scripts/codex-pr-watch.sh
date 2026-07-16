@@ -12,7 +12,10 @@
 # new round on the same head; an explicit --since overrides both. Reviews
 # must also match the expected head (.commit_id), so a previous head's
 # review still finishing after the push cannot deliver stale findings, and a
-# previous round's same-head review is not re-accepted. When no push event
+# previous round's same-head review is not re-accepted — except that a
+# fresh review for a different head is surfaced (with a head warning) once
+# no 👀 round is running: a push racing the bot leaves the verdict on the
+# older head, and only that verdict will ever arrive. When no push event
 # is found, reviews anchor to the head commit's committer date (safe: they
 # are commit-tied) while reactions fall back to the conservative
 # start − 90 s cutoff (a 👍 is not commit-tied, and one created between an
@@ -244,6 +247,28 @@ while :; do
     echo "VERDICT: APPROVED"
     echo "👍 reaction on the PR body from $thumb"
     exit 0
+  fi
+
+  # 2b) a fresh bot review for a DIFFERENT head of this PR, with no round in
+  #     progress? A push can race the bot before its round starts (e.g. a
+  #     bookkeeping commit moments after opening the PR): the bot then
+  #     reviews the older head and never opens a round for the expected one.
+  #     When no 👀 is up after two full intervals' grace (time for a real
+  #     new round to raise 👀), that post-cutoff stale-head review is this
+  #     round's only verdict — surface it through report_review, whose head
+  #     warning tells the operator the findings target an older commit,
+  #     instead of sitting silent until timeout while the PR page shows a
+  #     delivered review. An old round's late review stays ignored while
+  #     the expected head's own round is visibly running.
+  if [[ $poll -ge 3 && "$eyes" -eq 0 ]]; then
+    other=$(jq -c --arg bot "$BOT" --arg sha "$SHA" --arg since "$RSINCE" '
+        [.[] | select((.user.login | test($bot; "i"))
+                      and (.commit_id != $sha) and (.submitted_at > $since))]
+        | sort_by(.submitted_at) | last // empty' <<<"$reviews" 2>/dev/null) || other=""
+    if [[ -n "$other" ]]; then
+      report_review "$other"
+      exit 2
+    fi
   fi
 
   if [[ $poll -eq 1 ]]; then

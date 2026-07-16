@@ -25,6 +25,7 @@ Background: on every push to an open PR the Codex bot reacts 👀 on the PR body
 
 ## Guard-rails
 
+- Push everything a round should contain **before** opening the PR or re-triggering: a push racing the bot leaves the verdict on the older head. The watcher surfaces such a stale-head review (exit 2 with a "reviewed commit ≠ expected head" warning) once no 👀 round is running — read the warning and re-check the findings against the current head before fixing.
 - Cap the loop at **5 rounds** without approval; then stop, summarize what keeps coming back, and hand the decision to the user.
 - Judge findings on the merits — the reviewer is sometimes wrong. Disagreeing is allowed; ignoring is not.
 - No force-pushes mid-loop: one ordinary commit per round keeps review rounds mapped 1:1 to commits.
