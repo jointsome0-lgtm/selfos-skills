@@ -103,12 +103,28 @@ fi
 
 START_ISO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 start_epoch=$(date +%s)
+
+# post the trigger before computing cutoffs, so the requested round provably
+# starts after them — a previous round's same-head review landing between
+# script start and the comment post must not satisfy the new round's cutoff
+TRIGGER_ISO=""
+if [[ $TRIGGER -eq 1 ]]; then
+  TRIGGER_ISO=$(api -X POST "repos/$REPO/issues/$PR/comments" -f body="@codex review" \
+                  | jq -r '.created_at // empty' 2>/dev/null) || TRIGGER_ISO=""
+  if [[ -n "$TRIGGER_ISO" ]]; then
+    log "posted '@codex review' trigger comment at $TRIGGER_ISO"
+  else
+    log "WARNING: failed to post the trigger comment"
+  fi
+fi
+
 if [[ -n "$SINCE" ]]; then
   RSINCE="$SINCE"                 # explicit --since applies to both paths
 elif [[ $TRIGGER -eq 1 ]]; then
   # a re-review round on the same head: the verdict follows the trigger
-  # comment, which follows script start
-  SINCE="$START_ISO"; RSINCE="$START_ISO"
+  # comment; anchor to its server-side timestamp (script start if the post
+  # failed and the round may not have been requested at all)
+  SINCE="${TRIGGER_ISO:-$START_ISO}"; RSINCE="$SINCE"
 else
   # anchor to the round boundary: the event that made the expected head the
   # PR head — a PushEvent (later pushes) or a PullRequestEvent (opened /
@@ -120,7 +136,9 @@ else
   # likewise a PushEvent only counts on the PR's own head ref — the same SHA
   # pushed to another branch later must not advance the cutoff
   headref=$(api "repos/$REPO/pulls/$PR" | jq -r '.head.ref // empty' 2>/dev/null) || headref=""
-  push_iso=$(api "repos/$REPO/events?per_page=100" | jq -r --arg sha "$SHA" --arg pr "$PR" --arg ref "$headref" '
+  # fetch paginates: in a busy repository the anchoring event can sit past
+  # the first page of the events feed (up to 300 events are retained)
+  push_iso=$(fetch "repos/$REPO/events?per_page=100" | jq -r --arg sha "$SHA" --arg pr "$PR" --arg ref "$headref" '
       [.[] | select((.type == "PushEvent" and $ref != ""
                      and .payload.ref == ("refs/heads/" + $ref)
                      and .payload.head == $sha)
@@ -155,14 +173,6 @@ else
 fi
 
 log "watching $REPO#$PR — head ${SHA:0:10}, bot /$BOT/i, every ${INTERVAL}s, timeout ${TIMEOUT}s"
-
-if [[ $TRIGGER -eq 1 ]]; then
-  if gh pr comment "$PR" -R "$REPO" --body "@codex review" >/dev/null 2>&1; then
-    log "posted '@codex review' trigger comment"
-  else
-    log "WARNING: failed to post the trigger comment"
-  fi
-fi
 
 # --- findings report ---------------------------------------------------------
 report_review() {
