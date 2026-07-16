@@ -110,6 +110,33 @@ class SyncConventionsTest(unittest.TestCase):
         check = run(SCRIPT, "check", target, "--template", updated_template)
         self.assertEqual(check.returncode, 0, check.stderr)
 
+    def test_sync_preserves_crlf_outside_block(self) -> None:
+        target = self.agents_file()
+        crlf_preamble = ATLAS_PREAMBLE.replace("\n", "\r\n")
+        target.write_bytes(crlf_preamble.encode("utf-8"))
+
+        sync = run(SCRIPT, "sync", target)
+        self.assertEqual(sync.returncode, 0, sync.stderr)
+        raw = target.read_bytes().decode("utf-8")
+        self.assertTrue(raw.startswith(crlf_preamble))
+
+        crlf_addendum = LOCAL_ADDENDUM.replace("\n", "\r\n")
+        target.write_bytes((raw + crlf_addendum).encode("utf-8"))
+        updated_template = bumped_template(self.directory)
+
+        refresh = run(SCRIPT, "sync", target, "--template", updated_template)
+        self.assertEqual(refresh.returncode, 0, refresh.stderr)
+        raw = target.read_bytes().decode("utf-8")
+        self.assertTrue(raw.startswith(crlf_preamble))
+        self.assertTrue(raw.endswith(crlf_addendum))
+        self.assertIn("Invented extra rule", raw)
+
+        again = run(SCRIPT, "sync", target, "--template", updated_template)
+        self.assertEqual(again.returncode, 0, again.stderr)
+        self.assertIn("already up to date", again.stdout)
+        check = run(SCRIPT, "check", target, "--template", updated_template)
+        self.assertEqual(check.returncode, 0, check.stderr)
+
     def test_check_detects_tampered_block(self) -> None:
         target = self.agents_file()
         run(SCRIPT, "sync", target)
