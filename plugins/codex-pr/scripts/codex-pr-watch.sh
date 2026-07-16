@@ -6,6 +6,13 @@
 #   either 👍 reaction on the PR body (all clear)
 #   or a PR review tied to the pushed commit (findings, mostly inline comments).
 #
+# "Fresh" is anchored to the round, not to watcher start: by default events
+# count from the expected head commit's committer date (− 60 s clock-skew
+# guard); with --trigger, from script start — the trigger opens a new round
+# on the same head; an explicit --since overrides both. Reviews and reactions
+# share the cutoff, so a verdict that lands before a late-started watcher is
+# still caught, and a previous round's same-head review is not re-accepted.
+#
 # Exit codes:
 #   0  APPROVED    — fresh 👍 reaction from the review bot
 #   2  FINDINGS    — bot posted a review; body + inline comments on stdout
@@ -30,8 +37,9 @@ Options:
   --pr N             PR number         (default: the current branch's PR)
   --repo OWNER/NAME  repository        (default: the current directory's repo)
   --sha SHA          expected head     (default: local git HEAD, else PR head)
-  --since ISO8601Z   count events after this instant
-                     (default: reviews — script start; reactions — start − 90 s)
+  --since ISO8601Z   count events (reviews and reactions) after this instant
+                     (default: the expected head commit's committer date − 60 s;
+                      with --trigger: script start)
   --bot REGEX        reviewer login regex, case-insensitive (default: codex)
   --interval SEC     poll interval     (default: 30)
   --timeout SEC      give up after     (default: 1500)
@@ -88,10 +96,27 @@ fi
 START_ISO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 start_epoch=$(date +%s)
 if [[ -n "$SINCE" ]]; then
-  RSINCE="$SINCE"                 # explicit --since applies to reviews too
+  RSINCE="$SINCE"                 # explicit --since applies to both paths
+elif [[ $TRIGGER -eq 1 ]]; then
+  # a re-review round on the same head: the verdict follows the trigger
+  # comment, which follows script start
+  SINCE="$START_ISO"; RSINCE="$START_ISO"
 else
-  RSINCE="$START_ISO"             # reviews: only ones submitted after start
-  SINCE=$(date -u -d '90 seconds ago' +%Y-%m-%dT%H:%M:%SZ)  # reactions: push→start buffer
+  # anchor to the push: a verdict for the expected head cannot predate the
+  # head commit itself (committer clocks may skew, hence the 60 s guard)
+  commit_iso=$(api "repos/$REPO/commits/$SHA" | jq -r '.commit.committer.date // empty' 2>/dev/null) || commit_iso=""
+  commit_epoch=""
+  if [[ -n "$commit_iso" ]]; then
+    commit_epoch=$(date -d "$commit_iso" +%s 2>/dev/null) || commit_epoch=""
+  fi
+  if [[ -n "$commit_epoch" ]]; then
+    SINCE=$(date -u -d "@$(( commit_epoch - 60 ))" +%Y-%m-%dT%H:%M:%SZ)
+    RSINCE="$SINCE"
+  else
+    log "WARNING: cannot resolve the commit date of ${SHA:0:10} — falling back to start-anchored cutoffs"
+    RSINCE="$START_ISO"             # reviews: only ones submitted after start
+    SINCE=$(date -u -d '90 seconds ago' +%Y-%m-%dT%H:%M:%SZ)  # reactions: push→start buffer
+  fi
 fi
 
 log "watching $REPO#$PR — head ${SHA:0:10}, bot /$BOT/i, every ${INTERVAL}s, timeout ${TIMEOUT}s"
@@ -148,9 +173,10 @@ while :; do
 
   # 1) a review from the bot for this push?
   reviews=$(fetch "repos/$REPO/pulls/$PR/reviews?per_page=100")
-  review=$(jq -c --arg bot "$BOT" --arg sha "$SHA" --arg since "$RSINCE" '
-      [.[] | select((.user.login | test($bot; "i"))
-                    and ((.commit_id == $sha) or (.submitted_at > $since)))]
+  # freshness is mandatory here too: a same-head review from a previous round
+  # must not be re-accepted just because .commit_id still matches (issue #34)
+  review=$(jq -c --arg bot "$BOT" --arg since "$RSINCE" '
+      [.[] | select((.user.login | test($bot; "i")) and (.submitted_at > $since))]
       | sort_by(.submitted_at) | last // empty' <<<"$reviews" 2>/dev/null) || review=""
   if [[ -n "$review" ]]; then
     report_review "$review"
