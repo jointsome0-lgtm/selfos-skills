@@ -12,6 +12,7 @@ Harness-agnostic skills shared across the selfos-ecosystem repositories (`selfos
 AGENTS.md                         ← agent-neutral discovery index
 scripts/build_index.py            ← generates and checks AGENTS.md
 scripts/validate_plugins.py       ← validates marketplace.json + plugin manifests
+scripts/check_version_bump.py     ← fails PRs that change a plugin without a version bump
 plugins/
   sdd/                            ← SDD-stage workflow skills + shared conventions
     .claude-plugin/plugin.json
@@ -107,6 +108,8 @@ Regenerate the discovery table after adding or changing skill metadata, then run
 python scripts/build_index.py
 python scripts/build_index.py --check
 python scripts/validate_plugins.py
+python scripts/test_check_version_bump.py
+python scripts/check_version_bump.py
 python plugins/sdd/scripts/test_sync_conventions.py
 python plugins/sdd/scripts/test_check_decision_log.py
 shellcheck scripts/*.sh plugins/*/scripts/*.sh
@@ -116,7 +119,7 @@ bats plugins/codex-pr/scripts/test_codex_pr_watch.bats
 
 ## Versioning and update flow
 
-Each plugin has an independent semantic version in its `.claude-plugin/plugin.json`; bump the affected plugin's version whenever that plugin changes. Every version bump gets a tag on the commit that lands it, created with the CLI so plugin.json and the marketplace entry are validated to agree:
+Each plugin has an independent semantic version in its `.claude-plugin/plugin.json`; bump the affected plugin's version whenever that plugin changes — CI fails a PR that touches `plugins/<plugin>/` without bumping that plugin's version (`scripts/check_version_bump.py`). Every version bump gets a tag on the commit that lands it, created with the CLI so plugin.json and the marketplace entry are validated to agree:
 
 ```
 claude plugin tag plugins/sdd --push
