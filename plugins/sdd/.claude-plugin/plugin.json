@@ -1,6 +1,6 @@
 {
   "name": "sdd",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "dependencies": ["decision"],
   "description": "SDD-stage workflow skills and shared conventions: grill a spec by section, slice approved scopes into vertical tickets, vendor the cross-repository conventions template and decision-log lint, keep the SDD the single durable artifact"
 }
