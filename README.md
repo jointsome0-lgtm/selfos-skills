@@ -122,7 +122,7 @@ Each plugin has an independent semantic version in its `.claude-plugin/plugin.js
 claude plugin tag plugins/sdd --push
 ```
 
-Tags follow the CLI's `{name}--v{version}` format (for example, `sdd--v0.6.2`). Claude Code users can then run `/plugin update sdd@selfos` or enable auto-update.
+Tags follow the CLI's `{name}--v{version}` format (for example, `sdd--v0.6.2`); pass `--dry-run` to preview the tag and the validation result without creating anything. Claude Code users can then run `/plugin update sdd@selfos` or enable auto-update.
 
 Periodically — after a batch of related bumps lands — a `bundle-YYYY-MM-DD` tag plus a GitHub Release records which plugin versions were validated together; the latest Release is the stable distribution point.
 
