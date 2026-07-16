@@ -116,9 +116,14 @@ else
   # commit date alone is not enough — an old local commit pushed late would
   # set the cutoff before a previous round's 👍 and let it pass as fresh.
   # only head-changing PR actions count: a later labeled/edited event carries
-  # the same head.sha but postdates the round and could mask its verdict
-  push_iso=$(api "repos/$REPO/events?per_page=100" | jq -r --arg sha "$SHA" --arg pr "$PR" '
-      [.[] | select((.type == "PushEvent" and .payload.head == $sha)
+  # the same head.sha but postdates the round and could mask its verdict;
+  # likewise a PushEvent only counts on the PR's own head ref — the same SHA
+  # pushed to another branch later must not advance the cutoff
+  headref=$(api "repos/$REPO/pulls/$PR" | jq -r '.head.ref // empty' 2>/dev/null) || headref=""
+  push_iso=$(api "repos/$REPO/events?per_page=100" | jq -r --arg sha "$SHA" --arg pr "$PR" --arg ref "$headref" '
+      [.[] | select((.type == "PushEvent" and $ref != ""
+                     and .payload.ref == ("refs/heads/" + $ref)
+                     and .payload.head == $sha)
                     or (.type == "PullRequestEvent"
                         and (.payload.action == "opened" or .payload.action == "synchronize")
                         and ((.payload.pull_request.number | tostring) == $pr)
