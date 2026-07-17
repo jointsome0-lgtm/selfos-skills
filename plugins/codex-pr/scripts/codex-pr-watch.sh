@@ -40,9 +40,11 @@ set -uo pipefail
 
 REPO="" PR="" SHA="" SINCE="" BOT="codex"
 INTERVAL=30 TIMEOUT=1500 TRIGGER=0 REPO_FLAG=0
-# seconds after the last observed 👀 before step 2b may surface a
-# different-head review: an imminent same-head verdict must win that gap.
-# Env-tunable so tests need not wait a real minute.
+# seconds without evidence of a running round (👀 up, or the poll first
+# observing its removal) before step 2b may surface a different-head
+# review: an imminent same-head verdict must win that gap, and the grace
+# must be a full GAP_GRACE from observed removal — never shortened by the
+# poll interval. Env-tunable so tests need not wait a real minute.
 GAP_GRACE="${CODEX_PR_WATCH_GAP_GRACE:-60}"
 
 usage() {
@@ -237,7 +239,8 @@ report_review() {
 # --- poll loop ----------------------------------------------------------------
 deadline=$(( start_epoch + TIMEOUT ))
 eyes_seen=0
-eyes_up_epoch=0   # last instant 👀 was seen up; step 2b's grace counts from it
+eyes_up_epoch=0   # last evidence of a running round; step 2b's grace counts from it
+prev_eyes=0
 poll=0
 
 while :; do
@@ -262,8 +265,12 @@ while :; do
   reacts=$(fetch "repos/$REPO/issues/$PR/reactions?per_page=100")
   eyes=$(jq -r --arg bot "$BOT" '
       [.[] | select((.user.login | test($bot; "i")) and .content == "eyes")] | length' <<<"$reacts" 2>/dev/null) || eyes=0
-  # a visible 👀 continuously restarts step 2b's verdict-gap grace
-  [[ "$eyes" -gt 0 ]] && eyes_up_epoch=$(date +%s)
+  # a visible 👀 — and the poll that first observes its removal — restart
+  # step 2b's verdict-gap grace: measured from the last up-poll instead,
+  # a removal landing just before a poll would shrink the real
+  # post-removal window by up to a full interval
+  if [[ "$eyes" -gt 0 || "$prev_eyes" -gt 0 ]]; then eyes_up_epoch=$(date +%s); fi
+  prev_eyes="$eyes"
   thumb=$(jq -r --arg bot "$BOT" --arg since "$SINCE" '
       [.[] | select((.user.login | test($bot; "i")) and .content == "+1" and .created_at > $since)]
       | last | if . == null then "" else "\(.user.login) at \(.created_at)" end' <<<"$reacts" 2>/dev/null) || thumb=""
@@ -288,7 +295,8 @@ while :; do
   #     ROUND_BOUNDARY — the commit-date/start fallback cutoffs are not
   #     boundaries that apply to other heads, and an old head's review can
   #     legitimately postdate them — and GAP_GRACE seconds of silence after
-  #     the last observed 👀: in the 👀-removed→verdict gap the finishing
+  #     the last evidence of a running round (restarted at the poll first
+  #     observing 👀 gone): in the 👀-removed→verdict gap the finishing
   #     round's own verdict is imminent and must win (it may be the expected
   #     head's 👍 or review); only when nothing lands within the grace was
   #     the observed round itself reviewing another head (e.g. one already
