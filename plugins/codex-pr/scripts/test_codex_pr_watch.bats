@@ -19,7 +19,15 @@ for a in "$@"; do case "$a" in repos/*) path="$a" ;; esac; done
 case "$path" in
   */pulls/*/reviews*)    cat "$GH_FIXTURES/reviews.json" ;;
   */pulls/*/comments*)   cat "$GH_FIXTURES/comments.json" ;;
-  */issues/*/reactions*) cat "$GH_FIXTURES/reactions.json" ;;
+  */issues/*/reactions*)
+    # reactions.json.2, when present, is served from the second call on —
+    # lets a test change the PR state between polls (e.g. a post-trigger 👍)
+    if [[ -f "$GH_FIXTURES/reactions.json.2" && -f "$GH_FIXTURES/.reactions_served" ]]; then
+      cat "$GH_FIXTURES/reactions.json.2"
+    else
+      : >"$GH_FIXTURES/.reactions_served"
+      cat "$GH_FIXTURES/reactions.json"
+    fi ;;
   */issues/*/comments*)  cat "$GH_FIXTURES/trigger.json" ;;
   */events*)             cat "$GH_FIXTURES/events.json" ;;
   */commits/*)           cat "$GH_FIXTURES/commit.json" ;;
@@ -167,4 +175,75 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   run_watch --trigger
   [ "$status" -eq 3 ]
   [[ "$output" == *"posted '@codex review' trigger"* ]]
+}
+
+# --- issue #47: auto-trigger --------------------------------------------------
+
+@test "issue #47: no bot activity after the push → the watcher posts '@codex review' itself and accepts the post-trigger 👍" {
+  push_event 600
+  printf '{"created_at":"%s"}' "$(iso 5)" >"$GH_FIXTURES/trigger.json"
+  printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"+1","created_at":"%s"}]' \
+    "$(iso 2)" >"$GH_FIXTURES/reactions.json.2"
+  run_watch --grace 0
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"posted '@codex review' trigger comment"* ]]
+  [[ "$output" == *"VERDICT: APPROVED"* ]]
+}
+
+@test "issue #47: the auto-trigger re-anchors the cutoffs — a 👍 predating the trigger comment is not accepted" {
+  push_event 600
+  thumb 900
+  printf '{"created_at":"%s"}' "$(iso 5)" >"$GH_FIXTURES/trigger.json"
+  run_watch --grace 0
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"posted '@codex review' trigger comment"* ]]
+  [[ "$output" == *"An '@codex review' trigger was posted"* ]]
+}
+
+@test "issue #47: --no-trigger keeps the watcher read-only" {
+  push_event 600
+  run_watch --no-trigger --grace 0
+  [ "$status" -eq 3 ]
+  [[ "$output" != *"posted '@codex review'"* ]]
+  [[ "$output" == *"re-run with --trigger"* ]]
+}
+
+@test "issue #47: 👀 up means a review is in progress — no auto-trigger" {
+  push_event 600
+  printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"eyes","created_at":"%s"}]' \
+    "$(iso 60)" >"$GH_FIXTURES/reactions.json"
+  run_watch --grace 0
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"review in progress"* ]]
+  [[ "$output" != *"posted '@codex review'"* ]]
+}
+
+@test "issue #47: no push event + a 👍 before the conservative cutoff → auto-trigger is skipped, not a silent re-review" {
+  printf '{"commit":{"committer":{"date":"%s"}}}' "$(iso 600)" >"$GH_FIXTURES/commit.json"
+  thumb 300
+  run_watch --grace 0
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"skipping auto-trigger"* ]]
+  [[ "$output" != *"posted '@codex review'"* ]]
+}
+
+@test "issue #47: an explicit --since pins the round — no auto-trigger" {
+  push_event 600
+  run_watch --since "$(iso 60)" --grace 0
+  [ "$status" -eq 3 ]
+  [[ "$output" != *"posted '@codex review'"* ]]
+}
+
+@test "issue #47: within the grace period the watcher still just waits" {
+  push_event 10
+  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
+  run_watch --grace 300
+  [ "$status" -eq 3 ]
+  [[ "$output" != *"posted '@codex review'"* ]]
+}
+
+@test "issue #47: --trigger and --no-trigger together are rejected" {
+  run_watch --trigger --no-trigger
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"mutually exclusive"* ]]
 }

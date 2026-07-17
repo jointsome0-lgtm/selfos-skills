@@ -16,11 +16,13 @@ Background: on every push to an open PR the Codex bot reacts 👀 on the PR body
    ../../scripts/codex-pr-watch.sh
    ```
 
-   The script path is relative to this skill folder. Defaults: current repo, the current branch's PR, expected head = local `git rev-parse HEAD`, poll every 30 s, timeout 25 min. See `--help` for flags (`--pr`, `--repo`, `--trigger`, …).
+   The script path is relative to this skill folder. Defaults: current repo, the current branch's PR, expected head = local `git rev-parse HEAD`, poll every 30 s, timeout 25 min. See `--help` for flags (`--pr`, `--repo`, `--trigger`, `--no-trigger`, …).
+
+   The watcher inspects the PR's review state itself: an already-delivered fresh verdict is reported immediately, and if the grace period after the push (default 2 min) passes with no bot activity — typical for repos where a push does not auto-trigger the Codex review — it posts "@codex review" on its own and anchors the verdict cutoff to that comment. Pass `--no-trigger` when the watcher must not post comments (e.g. no write access).
 3. Act on the exit code:
    - **0 APPROVED** — 👍 from the review bot. Report the clean verdict to the user; the loop is over.
    - **2 FINDINGS** — stdout carries the review body plus every inline comment as `path:line`. Read them all. Fix each finding, or — if after honest consideration you disagree — rebut it explicitly in your round summary; never silently drop one. Then commit (per the repo's commit conventions), push, and start the next round at step 2. If the round changed nothing (every finding rebutted in-thread, no new commit), start the next round with `--trigger`: it re-requests the review **and** anchors the verdict cutoff to that run, so the previous round's review of the same head is not re-accepted.
-   - **3 TIMEOUT** — no verdict arrived. Re-run once with `--trigger` (posts an "@codex review" comment). If it times out again, stop and tell the user.
+   - **3 TIMEOUT** — no verdict arrived even though the watcher requested a review (it auto-posts "@codex review" when the bot shows no activity). If the log says the trigger post failed (no write access), re-run once with `--trigger` after fixing access; otherwise stop and tell the user — the Codex integration on the repo likely needs a look.
    - **4 PR_NOT_OPEN** — the PR was merged or closed meanwhile; stop and report.
 
 ## Guard-rails
