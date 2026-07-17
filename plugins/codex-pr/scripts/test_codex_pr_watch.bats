@@ -38,7 +38,7 @@ STUB
   chmod +x "$BATS_TEST_TMPDIR/bin/gh"
   PATH="$BATS_TEST_TMPDIR/bin:$PATH"
 
-  printf '{"head":{"ref":"feat"},"state":"open","merged":false}' >"$GH_FIXTURES/pr.json"
+  printf '{"head":{"ref":"feat","sha":"%s"},"state":"open","merged":false}' "$SHA" >"$GH_FIXTURES/pr.json"
   echo '[]' >"$GH_FIXTURES/events.json"
   echo '[]' >"$GH_FIXTURES/reviews.json"
   echo '[]' >"$GH_FIXTURES/reactions.json"
@@ -260,6 +260,16 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   run_watch --grace 0
   [ "$status" -eq 3 ]
   [[ "$output" == *"the PR head moved"* ]]
+  [[ "$output" != *"posted '@codex review'"* ]]
+}
+
+@test "issue #47: an unreadable PR head postpones the auto-trigger instead of posting blind" {
+  push_event 600
+  rm -f "$GH_FIXTURES/pr.json"   # every pulls/N read fails
+  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
+  run_watch --grace 0
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"postponing the auto-trigger"* ]]
   [[ "$output" != *"posted '@codex review'"* ]]
 }
 

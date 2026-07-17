@@ -329,19 +329,25 @@ while :; do
   # the review was most likely never requested, so request it and re-anchor
   # both cutoffs to the trigger comment, exactly like the --trigger path
   if [[ $AUTO_TRIGGER -eq 1 && "$eyes" -eq 0 && $eyes_seen -eq 0 && $now -ge $trigger_after ]]; then
-    AUTO_TRIGGER=0    # one shot, whatever the outcome
     cur_head=$(jq -r '.head.sha // empty' <<<"$prjson" 2>/dev/null) || cur_head=""
     if [[ $fallback_anchor -eq 1 && -n "$stale_thumb" ]]; then
       # ambiguous: with no push event the reaction cutoff is conservative and
       # that 👍 may be this head's verdict — a silent re-review would be
       # redundant; leave the decision to the caller
+      AUTO_TRIGGER=0
       log "note: skipping auto-trigger — a 👍 from before the conservative cutoff exists and may be this head's verdict; verify manually, or force a new round with --trigger"
-    elif [[ -n "$cur_head" && "$cur_head" != "$SHA" ]]; then
+    elif [[ -z "$cur_head" ]]; then
+      # the pulls/$PR read failed: without a fresh head we cannot prove the
+      # PR is still open or still at $SHA — hold the shot and retry next poll
+      log "note: cannot read the PR head (transient API failure?) — postponing the auto-trigger"
+    elif [[ "$cur_head" != "$SHA" ]]; then
       # a newer push moved the PR head: a trigger would request a review of
       # that head, which this watcher (pinned to $SHA by design) would then
       # ignore — worse than not posting at all
+      AUTO_TRIGGER=0
       log "note: skipping auto-trigger — the PR head moved to ${cur_head:0:10} while this watcher is pinned to ${SHA:0:10}; restart the watcher for the new head"
     else
+      AUTO_TRIGGER=0    # one shot, posted or failed
       post_trigger
       if [[ -n "$TRIGGER_ISO" ]]; then
         SINCE="$TRIGGER_ISO"; RSINCE="$TRIGGER_ISO"
