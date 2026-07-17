@@ -213,6 +213,15 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [[ "$output" == *"failed to post the trigger comment"* ]]
 }
 
+@test "a posted --trigger requests this head's own review: an other-head review is not surfaced" {
+  push_event 600
+  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
+  review -5 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5 --trigger
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"posted '@codex review' trigger"* ]]
+}
+
 @test "--trigger: the cutoff anchors to the trigger comment, not the earlier push" {
   push_event 600
   thumb 300

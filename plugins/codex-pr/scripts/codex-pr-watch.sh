@@ -14,9 +14,10 @@
 # review still finishing after the push cannot deliver stale findings, and a
 # previous round's same-head review is not re-accepted — except that a
 # fresh review for a different head is surfaced (with a head warning) when
-# the cutoff sits on a real round boundary (push/PR event, a successfully
-# posted --trigger, --since) and no 👀 round is running: immediately if
-# none was observed,
+# the cutoff sits on a boundary that applies to other heads (push/PR event
+# or explicit --since — never a --trigger, which requests this head's own
+# review, nor the fallback cutoffs) and no 👀 round is running: immediately
+# if none was observed,
 # else only after a short verdict-gap grace so a finishing round's own
 # same-head verdict wins the race. A push racing the bot leaves the verdict
 # on the older head, and only that verdict will ever arrive. When no push
@@ -130,9 +131,8 @@ if [[ $TRIGGER -eq 1 ]]; then
   fi
 fi
 
-# ROUND_BOUNDARY: the cutoff marks a real round boundary — explicit --since,
-# the posted --trigger comment's server timestamp, or the push/PR event that
-# made $SHA the head. The
+# ROUND_BOUNDARY: the cutoff marks a boundary that applies to OTHER heads —
+# an explicit --since or the push/PR event that made $SHA the head. The
 # commit-date and start-anchored fallbacks below are sound for commit-tied
 # same-head reviews only; a different-head review has no tie to this head's
 # commit date, so poll-loop step 2b stays disabled without a real boundary.
@@ -144,12 +144,12 @@ if [[ -n "$SINCE" ]]; then
 elif [[ $TRIGGER -eq 1 ]]; then
   # a re-review round on the same head: the verdict follows the trigger
   # comment; anchor to its server-side timestamp (script start if the post
-  # failed and the round may not have been requested at all)
+  # failed and the round may not have been requested at all). Deliberately
+  # NOT a step-2b boundary in either case: a posted trigger requests a
+  # review of $SHA itself, so the same-head verdict is pending by
+  # construction and a previous round's different-head review draining in
+  # after the trigger must not preempt it; a failed post requested nothing.
   SINCE="${TRIGGER_ISO:-$START_ISO}"; RSINCE="$SINCE"
-  # a failed post is no boundary: no round was requested, so a lingering
-  # different-head review postdating script start proves nothing — step 2b
-  # stays off and the trigger-failure warning tells the operator to re-run
-  [[ -n "$TRIGGER_ISO" ]] && ROUND_BOUNDARY=1
 else
   # anchor to the round boundary: the event that made the expected head the
   # PR head — a PushEvent (later pushes) or a PullRequestEvent (opened /
