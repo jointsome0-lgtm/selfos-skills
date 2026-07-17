@@ -205,6 +205,14 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [[ "$output" == *"VERDICT: PR_NOT_OPEN"* ]]
 }
 
+@test "--trigger post failure is no round boundary: a fresh other-head review is not surfaced" {
+  push_event 600
+  review -5 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5 --trigger
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"failed to post the trigger comment"* ]]
+}
+
 @test "--trigger: the cutoff anchors to the trigger comment, not the earlier push" {
   push_event 600
   thumb 300
