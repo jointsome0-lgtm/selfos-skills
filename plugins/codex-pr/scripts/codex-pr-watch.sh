@@ -13,15 +13,19 @@
 # must also match the expected head (.commit_id), so a previous head's
 # review still finishing after the push cannot deliver stale findings, and a
 # previous round's same-head review is not re-accepted — except that a
-# fresh review for a different head is surfaced (with a head warning) once
-# no 👀 round is running: a push racing the bot leaves the verdict on the
-# older head, and only that verdict will ever arrive. When no push event
-# is found, reviews anchor to the head commit's committer date (safe: they
-# are commit-tied) while reactions fall back to the conservative
+# fresh review for a different head is surfaced (with a head warning) when
+# the cutoff sits on a real round boundary (push/PR event, --trigger,
+# --since) and no 👀 round is running: immediately if none was observed,
+# else only after a short verdict-gap grace so a finishing round's own
+# same-head verdict wins the race. A push racing the bot leaves the verdict
+# on the older head, and only that verdict will ever arrive. When no push
+# event is found, reviews anchor to the head commit's committer date (safe:
+# they are commit-tied) while reactions fall back to the conservative
 # start − 90 s cutoff (a 👍 is not commit-tied, and one created between an
-# old commit's date and its late push could belong to a previous round).
-# A 👍 is additionally ignored while 👀 is up: a verdict 👍 only appears
-# after 👀 is removed.
+# old commit's date and its late push could belong to a previous round);
+# those fallback cutoffs are no round boundary, so the different-head
+# surfacing stays disabled on them. A 👍 is additionally ignored while 👀
+# is up: a verdict 👍 only appears after 👀 is removed.
 #
 # Exit codes:
 #   0  APPROVED    — fresh 👍 reaction from the review bot
@@ -34,6 +38,10 @@ set -uo pipefail
 
 REPO="" PR="" SHA="" SINCE="" BOT="codex"
 INTERVAL=30 TIMEOUT=1500 TRIGGER=0 REPO_FLAG=0
+# seconds after the last observed 👀 before step 2b may surface a
+# different-head review: an imminent same-head verdict must win that gap.
+# Env-tunable so tests need not wait a real minute.
+GAP_GRACE="${CODEX_PR_WATCH_GAP_GRACE:-60}"
 
 usage() {
   cat <<'EOF'
@@ -121,13 +129,22 @@ if [[ $TRIGGER -eq 1 ]]; then
   fi
 fi
 
+# ROUND_BOUNDARY: the cutoff marks a real round boundary — explicit --since,
+# the --trigger instant, or the push/PR event that made $SHA the head. The
+# commit-date and start-anchored fallbacks below are sound for commit-tied
+# same-head reviews only; a different-head review has no tie to this head's
+# commit date, so poll-loop step 2b stays disabled without a real boundary.
+ROUND_BOUNDARY=0
+
 if [[ -n "$SINCE" ]]; then
   RSINCE="$SINCE"                 # explicit --since applies to both paths
+  ROUND_BOUNDARY=1
 elif [[ $TRIGGER -eq 1 ]]; then
   # a re-review round on the same head: the verdict follows the trigger
   # comment; anchor to its server-side timestamp (script start if the post
   # failed and the round may not have been requested at all)
   SINCE="${TRIGGER_ISO:-$START_ISO}"; RSINCE="$SINCE"
+  ROUND_BOUNDARY=1
 else
   # anchor to the round boundary: the event that made the expected head the
   # PR head — a PushEvent (later pushes) or a PullRequestEvent (opened /
@@ -152,6 +169,7 @@ else
       | sort_by(.created_at) | last | .created_at // empty' 2>/dev/null) || push_iso=""
   if [[ -n "$push_iso" ]]; then
     SINCE="$push_iso"; RSINCE="$push_iso"
+    ROUND_BOUNDARY=1
   else
     # no push event (feed lag or retention). Reviews can still anchor to the
     # head commit's committer date (− 60 s clock skew): a review must match
@@ -214,6 +232,7 @@ report_review() {
 # --- poll loop ----------------------------------------------------------------
 deadline=$(( start_epoch + TIMEOUT ))
 eyes_seen=0
+eyes_up_epoch=0   # last instant 👀 was seen up; step 2b's grace counts from it
 poll=0
 
 while :; do
@@ -238,6 +257,8 @@ while :; do
   reacts=$(fetch "repos/$REPO/issues/$PR/reactions?per_page=100")
   eyes=$(jq -r --arg bot "$BOT" '
       [.[] | select((.user.login | test($bot; "i")) and .content == "eyes")] | length' <<<"$reacts" 2>/dev/null) || eyes=0
+  # a visible 👀 continuously restarts step 2b's verdict-gap grace
+  [[ "$eyes" -gt 0 ]] && eyes_up_epoch=$(date +%s)
   thumb=$(jq -r --arg bot "$BOT" --arg since "$SINCE" '
       [.[] | select((.user.login | test($bot; "i")) and .content == "+1" and .created_at > $since)]
       | last | if . == null then "" else "\(.user.login) at \(.created_at)" end' <<<"$reacts" 2>/dev/null) || thumb=""
@@ -258,9 +279,17 @@ while :; do
   #     round's only verdict — surface it through report_review, whose head
   #     warning tells the operator the findings target an older commit,
   #     instead of sitting silent until timeout while the PR page shows a
-  #     delivered review. An old round's late review stays ignored while
-  #     the expected head's own round is visibly running.
-  if [[ $poll -ge 3 && "$eyes" -eq 0 ]]; then
+  #     delivered review. Two guards keep a previous round's review out:
+  #     ROUND_BOUNDARY — the commit-date/start fallback cutoffs are not
+  #     boundaries that apply to other heads, and an old head's review can
+  #     legitimately postdate them — and GAP_GRACE seconds of silence after
+  #     the last observed 👀: in the 👀-removed→verdict gap the finishing
+  #     round's own verdict is imminent and must win (it may be the expected
+  #     head's 👍 or review); only when nothing lands within the grace was
+  #     the observed round itself reviewing another head (e.g. one already
+  #     running for the pre-push head when this watcher started).
+  if [[ $poll -ge 3 && "$eyes" -eq 0 && $ROUND_BOUNDARY -eq 1 ]] \
+     && (( $(date +%s) - eyes_up_epoch >= GAP_GRACE )); then
     other=$(jq -c --arg bot "$BOT" --arg sha "$SHA" --arg since "$RSINCE" '
         [.[] | select((.user.login | test($bot; "i"))
                       and (.commit_id != $sha) and (.submitted_at > $since))]

@@ -130,6 +130,38 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [[ "$output" == *"Found a bug."* ]]
 }
 
+@test "commit-date fallback: a fresh other-head review is not surfaced (no round boundary)" {
+  printf '{"commit":{"committer":{"date":"%s"}}}' "$(iso 600)" >"$GH_FIXTURES/commit.json"
+  review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"no push event found"* ]]
+}
+
+@test "👀-removed verdict gap: an other-head review is not surfaced before the grace expires" {
+  push_event 120
+  review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"eyes","created_at":"%s"}]' \
+    "$(iso 30)" >"$GH_FIXTURES/reactions.json"
+  ( sleep 3; echo '[]' >"$GH_FIXTURES/reactions.json" ) &
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 7
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"verdict imminent"* ]]
+}
+
+@test "a round observed reviewing the pre-push head: its review is surfaced once the grace expires" {
+  push_event 120
+  review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  echo '[]' >"$GH_FIXTURES/comments.json"
+  printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"eyes","created_at":"%s"}]' \
+    "$(iso 30)" >"$GH_FIXTURES/reactions.json"
+  ( sleep 2; echo '[]' >"$GH_FIXTURES/reactions.json" ) &
+  export CODEX_PR_WATCH_GAP_GRACE=3
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 30
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"WARNING: reviewed commit"* ]]
+}
+
 @test "no push event: reactions keep the conservative start − 90 s cutoff" {
   printf '{"commit":{"committer":{"date":"%s"}}}' "$(iso 600)" >"$GH_FIXTURES/commit.json"
   thumb 300
