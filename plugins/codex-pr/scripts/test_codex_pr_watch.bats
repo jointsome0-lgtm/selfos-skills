@@ -110,11 +110,24 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [ "$status" -eq 3 ]
 }
 
-@test "a previous head's review finishing after the push does not deliver stale findings" {
+@test "a previous head's review stays ignored while the new round is visibly running" {
   push_event 120
   review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"eyes","created_at":"%s"}]' \
+    "$(iso 30)" >"$GH_FIXTURES/reactions.json"
   run_watch
   [ "$status" -eq 3 ]
+}
+
+@test "a fresh stale-head review with no round running is surfaced with a head warning" {
+  push_event 120
+  review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  echo '[]' >"$GH_FIXTURES/comments.json"
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"VERDICT: FINDINGS"* ]]
+  [[ "$output" == *"WARNING: reviewed commit"* ]]
+  [[ "$output" == *"Found a bug."* ]]
 }
 
 @test "no push event: reactions keep the conservative start − 90 s cutoff" {
