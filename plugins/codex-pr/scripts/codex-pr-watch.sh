@@ -304,6 +304,24 @@ while :; do
     log "👀 removed — verdict imminent, polling every ${INTERVAL}s"
   fi
 
+  # 3) PR still open? (checked after verdicts so a just-merged PR still
+  #    reports one, but before the auto-trigger so a closed PR never gets a
+  #    pointless "@codex review" comment posted on it)
+  prjson=$(api "repos/$REPO/pulls/$PR") || prjson=""
+  if [[ -n "$prjson" ]]; then
+    state=$(jq -r .state <<<"$prjson")
+    merged=$(jq -r .merged <<<"$prjson")
+    if [[ "$state" != "open" ]]; then
+      echo "VERDICT: PR_NOT_OPEN"
+      if [[ "$merged" == "true" ]]; then
+        echo "PR $REPO#$PR was merged — nothing to watch."
+      else
+        echo "PR $REPO#$PR is closed — nothing to watch."
+      fi
+      exit 4
+    fi
+  fi
+
   now=$(date +%s)
 
   # auto-trigger: no fresh verdict (we would have exited above), the bot has
@@ -325,22 +343,6 @@ while :; do
       else
         log "WARNING: failed to post the auto '@codex review' trigger (no write access?) — the round may never have been requested; polling with the existing cutoffs"
       fi
-    fi
-  fi
-
-  # 3) PR still open? (checked after verdicts so a just-merged PR still reports one)
-  prjson=$(api "repos/$REPO/pulls/$PR") || prjson=""
-  if [[ -n "$prjson" ]]; then
-    state=$(jq -r .state <<<"$prjson")
-    merged=$(jq -r .merged <<<"$prjson")
-    if [[ "$state" != "open" ]]; then
-      echo "VERDICT: PR_NOT_OPEN"
-      if [[ "$merged" == "true" ]]; then
-        echo "PR $REPO#$PR was merged — nothing to watch."
-      else
-        echo "PR $REPO#$PR is closed — nothing to watch."
-      fi
-      exit 4
     fi
   fi
 
