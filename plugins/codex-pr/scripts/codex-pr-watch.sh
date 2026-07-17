@@ -99,8 +99,16 @@ log() { printf '[%s] %s\n' "$(date -u +%H:%M:%SZ)" "$*" >&2; }
 # api PATH…  → raw gh api call, non-fatal
 api() { gh api "$@" 2>/dev/null; }
 
-# fetch PATH → all pages concatenated into one JSON array ("[]" on failure)
-fetch() { gh api --paginate "$1" 2>/dev/null | jq -s 'add // []' 2>/dev/null || echo '[]'; }
+# fetch PATH → all pages concatenated into one JSON array; on failure emits
+# "[]" but returns nonzero, so callers can tell "empty" from "unreadable"
+fetch() {
+  local out
+  if out=$(gh api --paginate "$1" 2>/dev/null | jq -s 'add // []' 2>/dev/null); then
+    printf '%s\n' "$out"
+  else
+    echo '[]'; return 1
+  fi
+}
 
 # --- resolve repo / PR / head SHA -------------------------------------------
 if [[ -z "$REPO" ]]; then
@@ -259,7 +267,8 @@ while :; do
   poll=$((poll + 1))
 
   # 1) a review from the bot for this push?
-  reviews=$(fetch "repos/$REPO/pulls/$PR/reviews?per_page=100")
+  reads_ok=1
+  reviews=$(fetch "repos/$REPO/pulls/$PR/reviews?per_page=100") || reads_ok=0
   # both conditions are mandatory: freshness — a same-head review from a
   # previous round must not be re-accepted just because .commit_id still
   # matches (issue #34) — and the expected head — a previous head's review
@@ -274,7 +283,7 @@ while :; do
   fi
 
   # 2) a fresh 👍 on the PR body?
-  reacts=$(fetch "repos/$REPO/issues/$PR/reactions?per_page=100")
+  reacts=$(fetch "repos/$REPO/issues/$PR/reactions?per_page=100") || reads_ok=0
   eyes=$(jq -r --arg bot "$BOT" '
       [.[] | select((.user.login | test($bot; "i")) and .content == "eyes")] | length' <<<"$reacts" 2>/dev/null) || eyes=0
   thumb=$(jq -r --arg bot "$BOT" --arg since "$SINCE" '
@@ -336,10 +345,11 @@ while :; do
       # redundant; leave the decision to the caller
       AUTO_TRIGGER=0
       log "note: skipping auto-trigger — a 👍 from before the conservative cutoff exists and may be this head's verdict; verify manually, or force a new round with --trigger"
-    elif [[ -z "$cur_head" ]]; then
-      # the pulls/$PR read failed: without a fresh head we cannot prove the
-      # PR is still open or still at $SHA — hold the shot and retry next poll
-      log "note: cannot read the PR head (transient API failure?) — postponing the auto-trigger"
+    elif [[ $reads_ok -eq 0 || -z "$cur_head" ]]; then
+      # a reviews/reactions/head read failed this poll: an empty result may
+      # mean "unreadable", not "the bot is idle" — a trigger could duplicate
+      # a running or delivered round; hold the shot and retry next poll
+      log "note: cannot read the PR state (transient API failure?) — postponing the auto-trigger"
     elif [[ "$cur_head" != "$SHA" ]]; then
       # a newer push moved the PR head: a trigger would request a review of
       # that head, which this watcher (pinned to $SHA by design) would then
