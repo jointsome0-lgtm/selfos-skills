@@ -252,6 +252,17 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [[ "$output" != *"posted '@codex review'"* ]]
 }
 
+@test "issue #47: a newer push moved the PR head → auto-trigger skipped (this watcher is pinned to the old head)" {
+  push_event 600
+  printf '{"head":{"ref":"feat","sha":"ffffffffffffffffffffffffffffffffffffffff"},"state":"open","merged":false}' \
+    >"$GH_FIXTURES/pr.json"
+  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
+  run_watch --grace 0
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"the PR head moved"* ]]
+  [[ "$output" != *"posted '@codex review'"* ]]
+}
+
 @test "issue #47: --trigger and --no-trigger together are rejected" {
   run_watch --trigger --no-trigger
   [ "$status" -eq 1 ]
