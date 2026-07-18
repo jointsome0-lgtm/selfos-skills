@@ -1,4 +1,4 @@
-name: Validate skills and plugins
+name: Validate portable Agent Skills
 
 on:
   push:
@@ -12,29 +12,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          # full history so the version-bump check can diff against the PR base
-          fetch-depth: 0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: "3.x"
-      - run: python scripts/build_index.py --check
-      - run: python scripts/validate_plugins.py
-      - run: python scripts/test_check_version_bump.py
-      - name: Plugin version bump check
-        if: github.event_name == 'pull_request'
-        run: python scripts/check_version_bump.py --base "origin/$GITHUB_BASE_REF"
-      - run: python plugins/sdd/scripts/test_sync_conventions.py
-      - run: python plugins/sdd/scripts/test_check_decision_log.py
-      - run: shellcheck scripts/*.sh plugins/*/scripts/*.sh
-      - name: Watcher tests
+          python-version: "3.12"
+      - name: Validate the portable catalog and host adapters
+        run: python scripts/validate_skills.py
+      - name: Check vendored skill composition
+        run: python scripts/sync_vendored_skills.py --check
+      - name: Check the generated repository index
+        run: python scripts/build_index.py --check
+      - name: Validate legacy Claude compatibility packages
+        run: python scripts/validate_plugins.py
+      - name: Test portable SDD helpers
+        run: |
+          python skills/sdd-conventions/scripts/test_sync_conventions.py
+          python skills/sdd-conventions/scripts/test_check_decision_log.py
+      - name: ShellCheck portable helpers
+        run: find scripts skills -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
+      - name: Test the Codex PR watcher
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q bats
-          bats plugins/codex-pr/scripts/test_codex_pr_watch.bats
-      # deliberately unpinned: the point is to catch the marketplace breaking
-      # against the Claude Code version users actually install today
-      - name: Marketplace install check
+          bats skills/watch/scripts/test_codex_pr_watch.bats
+      - name: Smoke-test universal skill discovery
+        env:
+          DISABLE_TELEMETRY: "1"
         run: |
-          npm install -g @anthropic-ai/claude-code
-          ./scripts/check_plugin_install.sh
+          npx --yes skills@1.5.19 add . --list | tee /tmp/selfos-skills.txt
+          grep -q 'codebase-design' /tmp/selfos-skills.txt
+          grep -q 'sdd-conventions' /tmp/selfos-skills.txt
+          grep -q 'watch' /tmp/selfos-skills.txt

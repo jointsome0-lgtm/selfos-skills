@@ -3,34 +3,39 @@
   "owner": { "name": "jointsome0-lgtm" },
   "plugins": [
     {
+      "name": "selfos-skills",
+      "source": "./",
+      "description": "Portable aggregate Agent Skills package; preferred for new installations on Claude Code and other compatible hosts"
+    },
+    {
       "name": "sdd",
       "source": "./plugins/sdd",
-      "description": "SDD-stage workflow skills and shared conventions: grill a spec by section, slice approved scopes into vertical tickets, vendor the cross-repository conventions template and decision-log lint, keep the SDD the single durable artifact"
+      "description": "Legacy compatibility package for SDD-stage workflow skills and shared conventions"
     },
     {
       "name": "codex-pr",
       "source": "./plugins/codex-pr",
-      "description": "Codex cloud PR-review loop: wait for the review verdict after a push, iterate fixes in-session until approved"
+      "description": "Legacy compatibility package for the Codex cloud PR-review loop"
     },
     {
       "name": "codex-prompting",
       "source": "./plugins/codex-prompting",
-      "description": "GPT/Codex prompt composition: lean outcome-first prompts, autonomy boundaries, model and reasoning-effort choice for the GPT-5.6 family"
+      "description": "Legacy compatibility package for GPT/Codex prompt composition"
     },
     {
       "name": "decision",
       "source": "./plugins/decision",
-      "description": "Owner-facing decision primitives: the shared grilling interview loop that domain workflow skills wrap"
+      "description": "Legacy compatibility package for owner-facing decision primitives"
     },
     {
       "name": "design",
       "source": "./plugins/design",
-      "description": "Architecture design vocabulary and methods: deep modules, seams, adapters, the deletion test, dependency-category deepening, and design-it-twice interface exploration"
+      "description": "Legacy compatibility package for architecture design vocabulary and methods"
     },
     {
       "name": "learning",
       "source": "./plugins/learning",
-      "description": "Multi-session learning workspaces: mission-driven lessons, learning records, glossary, and curated resources per topic"
+      "description": "Legacy compatibility package for multi-session learning workspaces"
     }
   ]
 }
