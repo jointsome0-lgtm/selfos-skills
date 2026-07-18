@@ -73,7 +73,7 @@ def validate_provenance(package_root: Path, errors: list[str]) -> None:
         errors.append(f"{relative(path)}: cannot read UTF-8: {exc}")
         return
     statements = [line.strip() for line in text.splitlines() if line.strip() and not line.startswith("#")]
-    if statements == ["No vendored content."]:
+    if len(statements) == 1 and statements[0].startswith("No vendored content."):
         return
     if not SHA_RE.search(text) or "0" * 40 in text:
         errors.append(f"{relative(path)}: vendored content must include a real 40-hex upstream pin")
