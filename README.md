@@ -59,7 +59,7 @@ The older domain packages (`sdd@selfos`, `design@selfos`, and so on) remain avai
 | `sdd-conventions` | Portable SDD conventions plus sync and Decision Log lint scripts | automatic or explicit |
 | `slice` | Turn one implementation-ready SDD scope into vertical issues | explicit only |
 | `teach` | Stateful multi-session teaching workspace | explicit only |
-| `watch` | Codex cloud PR push-review-fix loop | explicit only |
+| `watch` | Codex cloud PR push-review-fix loop | automatic or explicit |
 
 `watch` requires Bash, Git, `gh`, `jq`, network access, and a configured open PR. `sdd-conventions` requires Python 3.9+ for its helper scripts. Other skills are Markdown-first and use only capabilities explicitly available in the host environment.
 

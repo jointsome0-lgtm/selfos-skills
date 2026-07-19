@@ -139,9 +139,9 @@ def validate_catalog() -> tuple[int, list[str]]:
         disable = skill.fields.get("disable-model-invocation")
         if disable is not None and disable != "true":
             errors.append(f"{relative}: disable-model-invocation must be the literal true")
-        elif disable is not None and not skill.explicit_only:
+        elif (disable == "true") != skill.explicit_only:
             errors.append(
-                f"{relative}: disable-model-invocation requires selfos.explicit-only 'true' in metadata"
+                f"{relative}: disable-model-invocation and selfos.explicit-only 'true' must be set together"
             )
 
         vendored = skill.vendored_skills
