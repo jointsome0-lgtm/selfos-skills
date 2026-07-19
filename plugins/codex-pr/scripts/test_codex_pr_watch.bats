@@ -394,10 +394,22 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"+1","created_at":"%s"}]' \
     "$(iso 300)" >"$GH_FIXTURES/reactions.json.2"   # …the second one sees the old 👍
   printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
-  run_watch --grace 0
+  # timeout 5, not run_watch's 2: the skip decision needs a second poll, and
+  # the deadline now exits before the auto-trigger block gets to log it
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5 --grace 0
   [ "$status" -eq 3 ]
   [[ "$output" == *"skipping auto-trigger"* ]]
   [[ "$output" != *"posted '@codex review'"* ]]
+}
+
+@test "issue #47: the deadline is checked before the auto-trigger — an expired run posts nothing" {
+  push_event 600
+  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 0 --grace 0
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"VERDICT: TIMEOUT"* ]]
+  [[ "$output" != *"posted '@codex review'"* ]]
+  [[ "$output" == *"re-run with --trigger"* ]]
 }
 
 @test "issue #47: --trigger and --no-trigger together are rejected" {

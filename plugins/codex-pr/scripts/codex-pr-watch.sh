@@ -419,6 +419,22 @@ while :; do
 
   now=$(date +%s)
 
+  # the deadline gates the auto-trigger: checked first (but after every
+  # verdict check above, so a verdict on the last poll still wins), an
+  # expired run exits TIMEOUT instead of posting a review request it will
+  # never watch — and whose non-answer the TIMEOUT guidance would then
+  # misread as a broken Codex integration
+  if (( now >= deadline )); then
+    echo "VERDICT: TIMEOUT"
+    echo "No Codex verdict on $REPO#$PR within ${TIMEOUT}s (expected head $SHA)."
+    if [[ -n "$TRIGGER_ISO" ]]; then
+      echo "An '@codex review' trigger was posted at $TRIGGER_ISO and no verdict followed — check the Codex integration on this repository."
+    else
+      echo "If reviews are not auto-triggered by pushes in this repo, re-run with --trigger."
+    fi
+    exit 3
+  fi
+
   # auto-trigger: no fresh verdict (we would have exited above), the bot has
   # never shown 👀 this run, and the grace period after the push has passed —
   # the review was most likely never requested, so request it and re-anchor
@@ -467,16 +483,6 @@ while :; do
     fi
   fi
 
-  if (( now >= deadline )); then
-    echo "VERDICT: TIMEOUT"
-    echo "No Codex verdict on $REPO#$PR within ${TIMEOUT}s (expected head $SHA)."
-    if [[ -n "$TRIGGER_ISO" ]]; then
-      echo "An '@codex review' trigger was posted at $TRIGGER_ISO and no verdict followed — check the Codex integration on this repository."
-    else
-      echo "If reviews are not auto-triggered by pushes in this repo, re-run with --trigger."
-    fi
-    exit 3
-  fi
   (( poll % 4 == 1 )) && log "waiting… ($(( now - start_epoch ))s elapsed)"
   sleep "$INTERVAL"
 done
