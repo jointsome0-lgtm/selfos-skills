@@ -204,6 +204,13 @@ def discover_skills() -> tuple[list[Skill], list[str]]:
     skills: list[Skill] = []
     errors: list[str] = []
     for path in paths:
+        unsafe = next(
+            (candidate for candidate in (path.parent, path) if candidate.is_symlink()),
+            None,
+        )
+        if unsafe is not None:
+            errors.append(f"{display_path(unsafe)}: skill trees must not contain symlinks")
+            continue
         skill, parse_errors = parse_skill(path)
         errors.extend(parse_errors)
         if skill is not None:
@@ -222,8 +229,26 @@ def source_files(root: Path) -> dict[Path, Path]:
     return result
 
 
+def symlinks_in_tree(root: Path) -> list[Path]:
+    """Return symlinks without following them, including a symlinked root."""
+    if root.is_symlink():
+        return [root]
+    if not root.is_dir():
+        return []
+    return sorted(path for path in root.rglob("*") if path.is_symlink())
+
+
+def symlink_errors(root: Path) -> list[str]:
+    return [
+        f"{display_path(path)}: skill trees must not contain symlinks"
+        for path in symlinks_in_tree(root)
+    ]
+
+
 def compare_trees(source: Path, destination: Path) -> list[str]:
-    errors: list[str] = []
+    errors = symlink_errors(source) + symlink_errors(destination)
+    if errors:
+        return errors
     source_map = source_files(source)
     destination_map = source_files(destination) if destination.is_dir() else {}
     source_names = set(source_map)

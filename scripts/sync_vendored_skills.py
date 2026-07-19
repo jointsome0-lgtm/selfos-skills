@@ -9,15 +9,27 @@ import shutil
 import sys
 import tempfile
 
-from skill_catalog import ROOT, compare_trees, discover_skills, display_path
+from skill_catalog import (
+    ROOT,
+    compare_trees,
+    discover_skills,
+    display_path,
+    symlink_errors,
+)
 
 
 def copy_tree_atomically(source: Path, destination: Path) -> None:
+    unsafe = symlink_errors(source)
+    if unsafe:
+        raise ValueError("; ".join(unsafe))
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkdtemp(prefix=f".{destination.name}.", dir=destination.parent))
     try:
         staged = temporary / destination.name
-        shutil.copytree(source, staged, symlinks=False)
+        shutil.copytree(source, staged, symlinks=True)
+        staged_unsafe = symlink_errors(staged)
+        if staged_unsafe:
+            raise ValueError("; ".join(staged_unsafe))
         if destination.exists():
             shutil.rmtree(destination)
         staged.replace(destination)
@@ -32,6 +44,13 @@ def main() -> int:
 
     skills, errors = discover_skills()
     by_name = {skill.name: skill for skill in skills}
+    if errors:
+        for error in errors:
+            print(f"ERROR: {error}", file=sys.stderr)
+        return 1
+
+    for skill in skills:
+        errors.extend(symlink_errors(skill.root))
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
@@ -61,7 +80,11 @@ def main() -> int:
                 for error in drift:
                     print(f"ERROR: {error}", file=sys.stderr)
                 return 1
-            copy_tree_atomically(source.root, destination)
+            try:
+                copy_tree_atomically(source.root, destination)
+            except ValueError as exc:
+                print(f"ERROR: refusing unsafe vendored sync: {exc}", file=sys.stderr)
+                return 1
             changed += 1
             print(f"Synced {display_path(destination)} from skills/{dependency}.")
 

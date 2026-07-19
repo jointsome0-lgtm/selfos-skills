@@ -8,7 +8,8 @@ import shutil
 import unittest
 from pathlib import Path
 
-from skill_catalog import parse_skill
+from skill_catalog import compare_trees, parse_skill
+from sync_vendored_skills import copy_tree_atomically
 
 
 class SkillCatalogParserTest(unittest.TestCase):
@@ -57,6 +58,38 @@ class SkillCatalogParserTest(unittest.TestCase):
             ),
             errors,
         )
+
+
+class VendoredTreeSafetyTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.directory = Path(tempfile.mkdtemp(prefix="vendored-tree-test."))
+        self.addCleanup(shutil.rmtree, self.directory, ignore_errors=True)
+
+    def test_comparison_rejects_symlink_in_source_tree(self) -> None:
+        source = self.directory / "source"
+        destination = self.directory / "destination"
+        source.mkdir()
+        destination.mkdir()
+        private = self.directory / "private.txt"
+        private.write_text("Invented private fixture.\n", encoding="utf-8")
+        (source / "leak.txt").symlink_to(private)
+
+        errors = compare_trees(source, destination)
+
+        self.assertTrue(any("leak.txt" in error and "symlink" in error for error in errors))
+
+    def test_atomic_copy_refuses_to_dereference_symlink(self) -> None:
+        source = self.directory / "source"
+        destination = self.directory / "copies" / "source"
+        source.mkdir()
+        private = self.directory / "private.txt"
+        private.write_text("Invented private fixture.\n", encoding="utf-8")
+        (source / "leak.txt").symlink_to(private)
+
+        with self.assertRaisesRegex(ValueError, "symlink"):
+            copy_tree_atomically(source, destination)
+
+        self.assertFalse(destination.exists())
 
 
 if __name__ == "__main__":

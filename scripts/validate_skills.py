@@ -17,6 +17,7 @@ from skill_catalog import (
     compare_trees,
     discover_skills,
     display_path,
+    symlink_errors,
     validate_provenance,
 )
 
@@ -144,6 +145,11 @@ def validate_catalog() -> tuple[int, list[str]]:
             errors.append(
                 f"{relative}: disable-model-invocation and selfos.explicit-only 'true' must be set together"
             )
+
+        tree_errors = symlink_errors(skill.root)
+        errors.extend(tree_errors)
+        if tree_errors:
+            continue
 
         validate_provenance(skill.root, errors)
 
