@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the generated fallback catalog in AGENTS.md from canonical skills/."""
+"""Build generated AGENTS.md and README catalog surfaces from canonical skills/."""
 
 from __future__ import annotations
 
@@ -14,6 +14,13 @@ import tempfile
 from skill_catalog import ROOT, discover_skills, display_path
 
 AGENTS_PATH = ROOT / "AGENTS.md"
+README_PATH = ROOT / "README.md"
+README_COMPATIBILITY_START = "<!-- BEGIN GENERATED COMPATIBILITY; do not edit by hand. -->"
+README_COMPATIBILITY_END = "<!-- END GENERATED COMPATIBILITY -->"
+README_INSERT_BEFORE = "\n## Repository layout\n"
+LEGACY_COMPATIBILITY_NOTE = """`watch` requires Bash, Git, `gh`, `jq`, network access, and a configured open PR. `sdd-conventions` requires Python 3.9+ for its helper scripts. Other skills are Markdown-first and use only capabilities explicitly available in the host environment.
+
+"""
 PREAMBLE = """# selfos-skills — Portable Agent Skills Catalog
 
 The installable source of truth is `skills/<name>/`, following the open Agent Skills format. Installers and native plugin systems discover those folders directly; this file is only a generated catalog and a fallback for agents that can read repository instructions but do not yet support skills.
@@ -46,6 +53,69 @@ def render() -> tuple[str | None, list[str]]:
     return PREAMBLE + "\n".join(rows) + "\n", []
 
 
+def render_readme_compatibility() -> tuple[str | None, list[str]]:
+    skills, errors = discover_skills()
+    if errors:
+        return None, errors
+    rows = [
+        "| Skill | Runtime compatibility |",
+        "| --- | --- |",
+    ]
+    for skill in skills:
+        compatibility = skill.fields.get("compatibility")
+        if compatibility is None:
+            errors.append(
+                f"{display_path(skill.path)}: frontmatter is missing required field 'compatibility'"
+            )
+            continue
+        rows.append(f"| `{skill.name}` | {escape(compatibility)} |")
+    if errors:
+        return None, errors
+    block = "\n".join(
+        [
+            README_COMPATIBILITY_START,
+            "## Compatibility",
+            "",
+            "Compatibility describes hard runtime needs and conditional capabilities; descriptive host affinity in a skill's body is not lock-in.",
+            "",
+            *rows,
+            README_COMPATIBILITY_END,
+        ]
+    )
+    return block + "\n", []
+
+
+def updated_readme(actual: str, block: str) -> tuple[str | None, list[str]]:
+    start_count = actual.count(README_COMPATIBILITY_START)
+    end_count = actual.count(README_COMPATIBILITY_END)
+    if start_count == 1 and end_count == 1:
+        start = actual.index(README_COMPATIBILITY_START)
+        try:
+            end = actual.index(README_COMPATIBILITY_END, start) + len(README_COMPATIBILITY_END)
+        except ValueError:
+            return None, ["README.md generated compatibility markers are out of order"]
+        if end < len(actual) and actual[end] == "\n":
+            end += 1
+        return actual[:start] + block + actual[end:], []
+    if start_count or end_count:
+        return None, ["README.md has incomplete or duplicate generated compatibility markers"]
+    if README_INSERT_BEFORE not in actual:
+        return None, ["README.md is missing the Repository layout insertion anchor"]
+    without_legacy = actual.replace(LEGACY_COMPATIBILITY_NOTE, "", 1)
+    return without_legacy.replace(README_INSERT_BEFORE, f"\n{block}{README_INSERT_BEFORE}", 1), []
+
+
+def show_diff(actual: str, expected: str, label: str) -> None:
+    for line in difflib.unified_diff(
+        actual.splitlines(),
+        expected.splitlines(),
+        fromfile=f"{label} (current)",
+        tofile=f"{label} (generated)",
+        lineterm="",
+    ):
+        print(line, file=sys.stderr)
+
+
 def write_atomically(path: Path, content: str) -> None:
     mode = stat.S_IMODE(path.stat().st_mode) if path.exists() else 0o644
     descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -62,39 +132,58 @@ def write_atomically(path: Path, content: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true", help="fail if AGENTS.md is stale")
+    parser.add_argument(
+        "--check", action="store_true", help="fail if AGENTS.md or README.md is stale"
+    )
     args = parser.parse_args()
-    expected, errors = render()
-    if errors or expected is None:
+    expected_agents, errors = render()
+    compatibility_block, compatibility_errors = render_readme_compatibility()
+    errors.extend(compatibility_errors)
+    if errors or expected_agents is None or compatibility_block is None:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
     try:
-        actual = AGENTS_PATH.read_text(encoding="utf-8")
+        actual_agents = AGENTS_PATH.read_text(encoding="utf-8")
     except FileNotFoundError:
-        actual = ""
+        actual_agents = ""
     except (OSError, UnicodeError) as exc:
         print(f"ERROR: cannot read AGENTS.md: {exc}", file=sys.stderr)
         return 1
 
-    if actual == expected:
-        print("AGENTS.md is up to date.")
-        return 0
-    if args.check:
-        print("ERROR: AGENTS.md is stale; run python scripts/build_index.py", file=sys.stderr)
-        for line in difflib.unified_diff(
-            actual.splitlines(),
-            expected.splitlines(),
-            fromfile="AGENTS.md (current)",
-            tofile="AGENTS.md (generated)",
-            lineterm="",
-        ):
-            print(line, file=sys.stderr)
+    try:
+        actual_readme = README_PATH.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        print(f"ERROR: cannot read README.md: {exc}", file=sys.stderr)
         return 1
-    write_atomically(AGENTS_PATH, expected)
-    print("Wrote AGENTS.md.")
-    return 0
+    expected_readme, readme_errors = updated_readme(actual_readme, compatibility_block)
+    if readme_errors or expected_readme is None:
+        for error in readme_errors:
+            print(f"ERROR: {error}", file=sys.stderr)
+        return 1
+
+    stale_agents = actual_agents != expected_agents
+    stale_readme = actual_readme != expected_readme
+    if not stale_agents:
+        print("AGENTS.md is up to date.")
+    elif args.check:
+        print("ERROR: AGENTS.md is stale; run python scripts/build_index.py", file=sys.stderr)
+        show_diff(actual_agents, expected_agents, "AGENTS.md")
+    else:
+        write_atomically(AGENTS_PATH, expected_agents)
+        print("Wrote AGENTS.md.")
+
+    if not stale_readme:
+        print("README.md compatibility table is up to date.")
+    elif args.check:
+        print("ERROR: README.md is stale; run python scripts/build_index.py", file=sys.stderr)
+        show_diff(actual_readme, expected_readme, "README.md")
+    else:
+        write_atomically(README_PATH, expected_readme)
+        print("Wrote README.md compatibility table.")
+
+    return int(args.check and (stale_agents or stale_readme))
 
 
 if __name__ == "__main__":

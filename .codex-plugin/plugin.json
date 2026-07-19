@@ -1,6 +1,6 @@
 {
   "name": "selfos-skills",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Portable engineering workflow skills for software design, SDD decisions, ticket slicing, learning, prompting, and PR review loops.",
   "author": {
     "name": "jointsome0-lgtm",

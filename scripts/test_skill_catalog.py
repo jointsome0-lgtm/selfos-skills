@@ -8,12 +8,23 @@ import shutil
 import unittest
 from pathlib import Path
 
-from skill_catalog import compare_trees, parse_skill, validate_provenance
+from build_index import (
+    README_COMPATIBILITY_END,
+    README_COMPATIBILITY_START,
+    updated_readme,
+)
+from skill_catalog import (
+    ALLOWED_FIELDS,
+    compatibility_errors,
+    compare_trees,
+    parse_skill,
+    validate_provenance,
+)
 from sync_vendored_skills import copy_tree_atomically
 
 
 class SkillCatalogParserTest(unittest.TestCase):
-    def write_skill(self, description: str) -> Path:
+    def write_skill(self, description: str, extra_frontmatter: str = "") -> Path:
         directory = Path(tempfile.mkdtemp(prefix="skill-catalog-test."))
         self.addCleanup(shutil.rmtree, directory, ignore_errors=True)
         path = directory / "SKILL.md"
@@ -21,6 +32,7 @@ class SkillCatalogParserTest(unittest.TestCase):
             "---\n"
             "name: invented-skill\n"
             f"description: {description}\n"
+            f"{extra_frontmatter}"
             "---\n"
             "\n"
             "# Invented skill\n",
@@ -58,6 +70,110 @@ class SkillCatalogParserTest(unittest.TestCase):
             ),
             errors,
         )
+
+    def test_host_only_top_level_field_is_not_portable(self) -> None:
+        path = self.write_skill(
+            "Runs an invented workflow. Use when testing host neutrality.",
+            "compatibility: No runtime requirements.\n"
+            "argument-hint: invented\n",
+        )
+
+        skill, errors = parse_skill(path)
+
+        self.assertEqual(errors, [])
+        self.assertIsNotNone(skill)
+        assert skill is not None
+        self.assertNotIn("argument-hint", ALLOWED_FIELDS)
+        self.assertIn("argument-hint", set(skill.fields) - ALLOWED_FIELDS)
+
+    def test_disable_model_invocation_is_the_documented_exception(self) -> None:
+        path = self.write_skill(
+            "Runs an invented workflow. Use when testing host neutrality.",
+            "compatibility: No runtime requirements.\n"
+            "disable-model-invocation: true\n",
+        )
+
+        skill, errors = parse_skill(path)
+
+        self.assertEqual(errors, [])
+        self.assertIsNotNone(skill)
+        assert skill is not None
+        self.assertIn("disable-model-invocation", ALLOWED_FIELDS)
+        self.assertNotIn("disable-model-invocation", set(skill.fields) - ALLOWED_FIELDS)
+
+    def test_shell_helper_requires_bash_declaration(self) -> None:
+        path = self.write_skill(
+            "Runs an invented workflow. Use when testing compatibility.",
+            "compatibility: Requires network access.\n",
+        )
+        scripts = path.parent / "scripts"
+        scripts.mkdir()
+        (scripts / "invented-helper.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+        skill, errors = parse_skill(path)
+        self.assertEqual(errors, [])
+        assert skill is not None
+
+        declared_errors = compatibility_errors(skill)
+
+        self.assertTrue(any("must declare bash" in error for error in declared_errors))
+
+    def test_compatibility_declaration_is_required(self) -> None:
+        path = self.write_skill(
+            "Runs an invented workflow. Use when testing compatibility."
+        )
+        skill, errors = parse_skill(path)
+        self.assertEqual(errors, [])
+        assert skill is not None
+
+        declared_errors = compatibility_errors(skill)
+
+        self.assertTrue(any("missing required field 'compatibility'" in error for error in declared_errors))
+
+    def test_vendored_python_helper_requires_python_declaration(self) -> None:
+        path = self.write_skill(
+            "Runs an invented workflow. Use when testing compatibility.",
+            "compatibility: Host-neutral Markdown guidance.\n",
+        )
+        scripts = path.parent / "references" / "invented" / "scripts"
+        scripts.mkdir(parents=True)
+        (scripts / "invented_helper.py").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+        skill, errors = parse_skill(path)
+        self.assertEqual(errors, [])
+        assert skill is not None
+
+        declared_errors = compatibility_errors(skill)
+
+        self.assertTrue(any("must declare python" in error for error in declared_errors))
+
+
+class ReadmeCompatibilityGenerationTest(unittest.TestCase):
+    def test_inserts_and_then_replaces_generated_block(self) -> None:
+        original = "# Invented catalog\n\n## Repository layout\n\nInvented layout.\n"
+        first_block = (
+            f"{README_COMPATIBILITY_START}\n## Compatibility\n\nFirst.\n"
+            f"{README_COMPATIBILITY_END}\n"
+        )
+        inserted, errors = updated_readme(original, first_block)
+        self.assertEqual(errors, [])
+        assert inserted is not None
+        self.assertIn(first_block, inserted)
+
+        second_block = first_block.replace("First.", "Second.")
+        replaced, errors = updated_readme(inserted, second_block)
+
+        self.assertEqual(errors, [])
+        assert replaced is not None
+        self.assertIn("Second.", replaced)
+        self.assertNotIn("First.", replaced)
+        self.assertEqual(replaced.count(README_COMPATIBILITY_START), 1)
+
+    def test_rejects_incomplete_generated_markers(self) -> None:
+        actual = f"# Invented catalog\n\n{README_COMPATIBILITY_START}\n"
+
+        updated, errors = updated_readme(actual, "Invented block.\n")
+
+        self.assertIsNone(updated)
+        self.assertTrue(any("incomplete or duplicate" in error for error in errors))
 
 
 class VendoredTreeSafetyTest(unittest.TestCase):

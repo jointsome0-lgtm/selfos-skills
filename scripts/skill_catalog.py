@@ -24,7 +24,14 @@ ALLOWED_FIELDS = {
     "compatibility",
     "metadata",
     "allowed-tools",
+    # Documented host-specific exception (README "intentionally host-specific"
+    # surface): Claude Code only honors this guard as a top-level field, other
+    # hosts ignore it, and the prose explicit-request contract stays canonical.
     "disable-model-invocation",
+}
+RUNTIME_SUFFIX_REQUIREMENTS = {
+    ".py": "python",
+    ".sh": "bash",
 }
 
 
@@ -227,6 +234,29 @@ def source_files(root: Path) -> dict[Path, Path]:
             continue
         result[path.relative_to(root)] = path
     return result
+
+
+def compatibility_errors(skill: Skill) -> list[str]:
+    """Check declared compatibility against executable files shipped by a skill."""
+    relative = display_path(skill.path)
+    compatibility = skill.fields.get("compatibility")
+    if compatibility is None:
+        return [f"{relative}: frontmatter is missing required field 'compatibility'"]
+
+    normalized = compatibility.casefold()
+    errors: list[str] = []
+    files = source_files(skill.root)
+    for suffix, runtime in RUNTIME_SUFFIX_REQUIREMENTS.items():
+        matching = sorted(path.as_posix() for path in files if path.suffix.casefold() == suffix)
+        if matching and runtime not in normalized:
+            examples = ", ".join(matching[:3])
+            if len(matching) > 3:
+                examples += ", …"
+            errors.append(
+                f"{relative}: compatibility must declare {runtime} because the skill ships "
+                f"{suffix} files ({examples})"
+            )
+    return errors
 
 
 def symlinks_in_tree(root: Path) -> list[Path]:

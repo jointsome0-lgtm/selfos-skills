@@ -14,6 +14,7 @@ from skill_catalog import (
     NAME_RE,
     ROOT,
     THIRD_PERSON_RE,
+    compatibility_errors,
     compare_trees,
     discover_skills,
     display_path,
@@ -130,6 +131,7 @@ def validate_catalog() -> tuple[int, list[str]]:
         compatibility = skill.fields.get("compatibility")
         if compatibility is not None and not (1 <= len(compatibility) <= 500):
             errors.append(f"{relative}: compatibility must be 1-500 characters")
+        errors.extend(compatibility_errors(skill))
         if not skill.body:
             errors.append(f"{relative}: Markdown body must not be empty")
         elif len(skill.body.splitlines()) > 500:
@@ -139,11 +141,20 @@ def validate_catalog() -> tuple[int, list[str]]:
         if explicit is not None and explicit.casefold() not in {"true", "false"}:
             errors.append(f"{relative}: selfos.explicit-only must be the string 'true' or 'false'")
         disable = skill.fields.get("disable-model-invocation")
-        if disable is not None and disable != "true":
-            errors.append(f"{relative}: disable-model-invocation must be the literal true")
-        elif (disable == "true") != skill.explicit_only:
+        if disable is not None:
+            if disable.strip().casefold() != "true":
+                errors.append(
+                    f"{relative}: disable-model-invocation must be 'true' when present"
+                )
+            if not skill.explicit_only:
+                errors.append(
+                    f"{relative}: disable-model-invocation requires"
+                    " metadata selfos.explicit-only 'true'"
+                )
+        elif skill.explicit_only:
             errors.append(
-                f"{relative}: disable-model-invocation and selfos.explicit-only 'true' must be set together"
+                f"{relative}: explicit-only skills must set top-level"
+                " disable-model-invocation 'true' so Claude hosts enforce the guard"
             )
 
         tree_errors = symlink_errors(skill.root)

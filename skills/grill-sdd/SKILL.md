@@ -2,6 +2,7 @@
 name: grill-sdd
 description: Conducts a relentless owner interview over named sections of this repository's SDD via the shared grilling primitive — framing each subject in the SDD's own terms, resolving repository facts before asking, and landing confirmed outcomes as SDD edits plus Decision Log lines or issues. Use when the user asks to grill the SDD or its invariants, or stress-test a spec section.
 license: LICENSE.txt
+compatibility: Requires Python 3.9+ for bundled SDD helpers and read access to the target repository. No OS constraint or required network; repository write access and external issue-tracker integration are needed only to land owner-confirmed outcomes.
 disable-model-invocation: true
 metadata:
   selfos.explicit-only: "true"
@@ -10,7 +11,7 @@ metadata:
 
 # Grill an SDD
 
-This skill runs only on an explicit request. Load and follow the bundled [grilling contract](references/grilling/SKILL.md) in full for the interview loop: one question at a time, a recommendation per question, facts versus decisions, terminal states, and no action before live confirmation. This file owns only the SDD-specific scope, framing, and landing rules.
+Run this workflow only on an explicit request. Load and follow the bundled [grilling contract](references/grilling/SKILL.md) in full for the interview loop: one question at a time, a recommendation per question, facts versus decisions, terminal states, and no action before live confirmation. This file owns only the SDD-specific scope, framing, and landing rules.
 
 ## Resolve the named canon
 
