@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # full history so the version-bump check can diff against the PR base
+          fetch-depth: 0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
@@ -23,6 +26,11 @@ jobs:
         run: python scripts/build_index.py --check
       - name: Validate legacy Claude compatibility packages
         run: python scripts/validate_plugins.py
+      - name: Test the version-bump gate
+        run: python scripts/test_check_version_bump.py
+      - name: Version bump check
+        if: github.event_name == 'pull_request'
+        run: python scripts/check_version_bump.py --base "origin/$GITHUB_BASE_REF"
       - name: Test portable SDD helpers
         run: |
           python skills/sdd-conventions/scripts/test_sync_conventions.py
