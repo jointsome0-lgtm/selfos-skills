@@ -118,11 +118,56 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [ "$status" -eq 3 ]
 }
 
-@test "a previous head's review finishing after the push does not deliver stale findings" {
+@test "a previous head's review stays ignored while the new round is visibly running" {
   push_event 120
   review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"eyes","created_at":"%s"}]' \
+    "$(iso 30)" >"$GH_FIXTURES/reactions.json"
   run_watch
   [ "$status" -eq 3 ]
+}
+
+@test "a fresh stale-head review with no round running is surfaced with a head warning" {
+  push_event 120
+  review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  echo '[]' >"$GH_FIXTURES/comments.json"
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"VERDICT: FINDINGS"* ]]
+  [[ "$output" == *"WARNING: reviewed commit"* ]]
+  [[ "$output" == *"Found a bug."* ]]
+}
+
+@test "commit-date fallback: a fresh other-head review is not surfaced (no round boundary)" {
+  printf '{"commit":{"committer":{"date":"%s"}}}' "$(iso 600)" >"$GH_FIXTURES/commit.json"
+  review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"no push event found"* ]]
+}
+
+@test "👀-removed verdict gap: an other-head review is not surfaced before the grace expires" {
+  push_event 120
+  review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"eyes","created_at":"%s"}]' \
+    "$(iso 30)" >"$GH_FIXTURES/reactions.json"
+  ( sleep 3; echo '[]' >"$GH_FIXTURES/reactions.json" ) &
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 7
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"verdict imminent"* ]]
+}
+
+@test "a round observed reviewing the pre-push head: its review is surfaced once the grace expires" {
+  push_event 120
+  review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  echo '[]' >"$GH_FIXTURES/comments.json"
+  printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"eyes","created_at":"%s"}]' \
+    "$(iso 30)" >"$GH_FIXTURES/reactions.json"
+  ( sleep 2; echo '[]' >"$GH_FIXTURES/reactions.json" ) &
+  export CODEX_PR_WATCH_GAP_GRACE=3
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 30
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"WARNING: reviewed commit"* ]]
 }
 
 @test "no push event: reactions keep the conservative start − 90 s cutoff" {
@@ -166,6 +211,23 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   run_watch
   [ "$status" -eq 4 ]
   [[ "$output" == *"VERDICT: PR_NOT_OPEN"* ]]
+}
+
+@test "--trigger post failure is no round boundary: a fresh other-head review is not surfaced" {
+  push_event 600
+  review -5 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5 --trigger
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"failed to post the trigger comment"* ]]
+}
+
+@test "a posted --trigger requests this head's own review: an other-head review is not surfaced" {
+  push_event 600
+  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
+  review -5 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5 --trigger
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"posted '@codex review' trigger"* ]]
 }
 
 @test "--trigger: the cutoff anchors to the trigger comment, not the earlier push" {
