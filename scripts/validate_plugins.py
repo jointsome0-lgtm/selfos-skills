@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 import sys
 
-from skill_catalog import validate_provenance
+from skill_catalog import CONTROL_RE, validate_provenance
 
 ROOT = Path(__file__).resolve().parents[1]
 MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
@@ -42,6 +42,9 @@ def required_text(data: dict, key: str, where: str, errors: list[str]) -> str | 
     value = data.get(key)
     if not isinstance(value, str) or not value.strip():
         errors.append(f"{where}: {key!r} must be non-empty text")
+        return None
+    if CONTROL_RE.search(value):
+        errors.append(f"{where}: {key!r} must not contain control characters")
         return None
     return value
 
@@ -95,7 +98,9 @@ def main() -> int:
     aggregate_count = 0
     if marketplace is not None:
         where = relative(MARKETPLACE)
-        required_text(marketplace, "name", where, errors)
+        marketplace_name = required_text(marketplace, "name", where, errors)
+        if marketplace_name is not None and not NAME_RE.fullmatch(marketplace_name):
+            errors.append(f"{where}: marketplace name {marketplace_name!r} must be kebab-case")
         owner = marketplace.get("owner")
         if not isinstance(owner, dict):
             errors.append(f"{where}: owner must be an object")

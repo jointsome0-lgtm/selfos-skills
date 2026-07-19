@@ -81,7 +81,21 @@ def parse_scalar(raw: str, path: Path, line_number: int) -> tuple[str | None, li
     if value.startswith("'"):
         if len(value) < 2 or not value.endswith("'"):
             return None, [f"{display_path(path)}:{line_number}: unterminated single-quoted value"]
-        return checked(value[1:-1].replace("''", "'"))
+        inner = value[1:-1]
+        parsed_characters: list[str] = []
+        index = 0
+        while index < len(inner):
+            if inner[index] != "'":
+                parsed_characters.append(inner[index])
+                index += 1
+                continue
+            if index + 1 >= len(inner) or inner[index + 1] != "'":
+                return None, [
+                    f"{display_path(path)}:{line_number}: apostrophes in single-quoted frontmatter must be doubled"
+                ]
+            parsed_characters.append("'")
+            index += 2
+        return checked("".join(parsed_characters))
     if value[0] in "|>":
         return None, [
             f"{display_path(path)}:{line_number}: folded and multiline frontmatter values are not supported"

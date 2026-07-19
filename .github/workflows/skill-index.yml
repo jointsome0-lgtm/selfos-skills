@@ -20,6 +20,10 @@ jobs:
           python-version: "3.12"
       - name: Validate the portable catalog and host adapters
         run: python scripts/validate_skills.py
+      - name: Test the portable catalog parser
+        run: python scripts/test_skill_catalog.py
+      - name: Test the legacy package validator
+        run: python scripts/test_validate_plugins.py
       - name: Check vendored skill composition
         run: python scripts/sync_vendored_skills.py --check
       - name: Check the generated repository index
@@ -35,13 +39,16 @@ jobs:
         run: |
           python skills/sdd-conventions/scripts/test_sync_conventions.py
           python skills/sdd-conventions/scripts/test_check_decision_log.py
+          python plugins/sdd/scripts/test_sync_conventions.py
+          python plugins/sdd/scripts/test_check_decision_log.py
       - name: ShellCheck portable helpers
-        run: find scripts skills -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
+        run: find scripts skills plugins -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
       - name: Test the Codex PR watcher
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q bats
           bats skills/watch/scripts/test_codex_pr_watch.bats
+          bats plugins/codex-pr/scripts/test_codex_pr_watch.bats
       - name: Smoke-test universal skill discovery
         env:
           DISABLE_TELEMETRY: "1"
@@ -50,3 +57,9 @@ jobs:
           grep -q 'codebase-design' /tmp/selfos-skills.txt
           grep -q 'sdd-conventions' /tmp/selfos-skills.txt
           grep -q 'watch' /tmp/selfos-skills.txt
+      # deliberately unpinned: this catches marketplace drift against the
+      # Claude Code version users install today, as main did before the rewrite
+      - name: Smoke-test Claude marketplace installs
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          ./scripts/check_plugin_install.sh

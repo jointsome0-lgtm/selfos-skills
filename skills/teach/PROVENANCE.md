@@ -1,4 +1,4 @@
-# Provenance — plugins/learning
+# Provenance — skills/teach
 
 ## skills/teach/
 

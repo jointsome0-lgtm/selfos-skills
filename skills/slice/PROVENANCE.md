@@ -1,4 +1,4 @@
-# Provenance — plugins/sdd
+# Provenance — skills/slice
 
 ## skills/slice/SKILL.md
 

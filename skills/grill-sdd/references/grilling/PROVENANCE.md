@@ -1,4 +1,4 @@
-# Provenance — plugins/decision
+# Provenance — skills/grilling
 
 ## skills/grilling/SKILL.md
 

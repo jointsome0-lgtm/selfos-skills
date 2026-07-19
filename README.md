@@ -104,7 +104,7 @@ python scripts/sync_vendored_skills.py --check
 python scripts/build_index.py --check
 ```
 
-The main CI additionally runs the SDD helper tests, watcher tests, ShellCheck, the legacy static marketplace validator, and a `npx skills` discovery smoke test. It does not install a particular agent runtime merely to prove the catalog exists.
+The main CI additionally runs the canonical and legacy SDD helper tests, both watcher suites, ShellCheck, the legacy static marketplace validator, a `npx skills` discovery smoke test, and the retained end-to-end Claude marketplace install check.
 
 ## Legacy package policy
 
