@@ -20,7 +20,7 @@ On every push to an open PR, the Codex bot may react 👀, review, then either r
 3. Act on the exit code:
    - **0 APPROVED** — report the clean verdict and stop.
    - **2 FINDINGS** — read the review body and every `path:line` comment. Fix each finding or explicitly rebut it; never silently drop one. Commit, push, and start another round. When every finding is rebutted and the head did not change, use `--trigger` so the old same-head review is not accepted again.
-   - **3 TIMEOUT** — read the log. If the watcher posted `@codex review` and no verdict followed, stop and report a likely integration problem. Otherwise follow the logged remediation: fix write access and re-run with `--trigger`, verify a pre-cutoff 👍 manually, or restart for the moved head.
+   - **3 TIMEOUT** — read the log. If the PR head moved, restart the watcher for the new head — even after a posted trigger, the bot reviews the current head, which a watcher pinned to the old one ignores. If the watcher posted `@codex review`, the head did not move, and no verdict followed, report a likely integration problem. Otherwise follow the logged remediation: fix write access and re-run with `--trigger`, or verify a pre-cutoff 👍 manually.
    - **4 PR_NOT_OPEN** — the PR was merged or closed; stop and report.
 
 ## Guardrails
