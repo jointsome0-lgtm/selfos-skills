@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "npx-catalog",
+      "kind": "catalog",
+      "installer": "skills@1.5.19",
+      "npm_install": ""
+    },
+    {
+      "id": "codex-installer",
+      "kind": "agent-installer",
+      "installer": "skills@1.5.19",
+      "agent": "codex",
+      "destination": ".agents/skills",
+      "npm_install": ""
+    },
+    {
+      "id": "claude-code-installer",
+      "kind": "agent-installer",
+      "installer": "skills@1.5.19",
+      "agent": "claude-code",
+      "destination": ".claude/skills",
+      "npm_install": ""
+    },
+    {
+      "id": "cursor-installer",
+      "kind": "agent-installer",
+      "installer": "skills@1.5.19",
+      "agent": "cursor",
+      "destination": ".agents/skills",
+      "npm_install": ""
+    },
+    {
+      "id": "opencode-installer",
+      "kind": "agent-installer",
+      "installer": "skills@1.5.19",
+      "agent": "opencode",
+      "destination": ".agents/skills",
+      "npm_install": ""
+    },
+    {
+      "id": "codex-native",
+      "kind": "codex-native",
+      "npm_install": "@openai/codex@0.144.0"
+    },
+    {
+      "id": "claude-root-and-legacy",
+      "kind": "claude-root-and-legacy",
+      "npm_install": "@anthropic-ai/claude-code"
+    }
+  ],
+  "community_tested": [
+    "cline",
+    "other Agent Skills-compatible clients"
+  ]
+}

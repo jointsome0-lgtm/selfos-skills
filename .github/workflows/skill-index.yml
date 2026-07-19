@@ -32,6 +32,8 @@ jobs:
         run: python scripts/validate_plugins.py
       - name: Test the version-bump gate
         run: python scripts/test_check_version_bump.py
+      - name: Test the installation smoke matrix
+        run: python scripts/test_check_install_matrix.py
       - name: Version bump check
         if: github.event_name == 'pull_request'
         run: python scripts/check_version_bump.py --base "origin/$GITHUB_BASE_REF"
@@ -49,17 +51,33 @@ jobs:
           sudo apt-get install -y -q bats
           bats skills/watch/scripts/test_codex_pr_watch.bats
           bats plugins/codex-pr/scripts/test_codex_pr_watch.bats
-      - name: Smoke-test universal skill discovery
+
+  install-matrix-config:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - id: matrix
+        name: Load the supported-agent matrix
+        run: echo "matrix=$(python3 scripts/check_install_matrix.py --github-matrix)" >> "$GITHUB_OUTPUT"
+
+  install-matrix:
+    name: Install smoke (${{ matrix.id }})
+    needs: install-matrix-config
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.install-matrix-config.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # Codex is exact-pinned in the matrix after the seven-day hold; Claude
+      # stays deliberately current to retain the existing marketplace-drift check.
+      - name: Install representative host CLI
+        if: matrix.npm_install != ''
+        run: npm install -g "${{ matrix.npm_install }}"
+      - name: Run installation and discovery smoke test
         env:
           DISABLE_TELEMETRY: "1"
-        run: |
-          npx --yes skills@1.5.19 add . --list | tee /tmp/selfos-skills.txt
-          grep -q 'codebase-design' /tmp/selfos-skills.txt
-          grep -q 'sdd-conventions' /tmp/selfos-skills.txt
-          grep -q 'watch' /tmp/selfos-skills.txt
-      # deliberately unpinned: this catches marketplace drift against the
-      # Claude Code version users install today, as main did before the rewrite
-      - name: Smoke-test Claude marketplace installs
-        run: |
-          npm install -g @anthropic-ai/claude-code
-          ./scripts/check_plugin_install.sh
+        run: python3 scripts/check_install_matrix.py --case "${{ matrix.id }}"

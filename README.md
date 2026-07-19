@@ -4,7 +4,7 @@ Portable workflow skills for coding agents. The canonical distribution is the op
 
 ## Install
 
-The recommended path works across Codex, Claude Code, Cursor, OpenCode, Cline, and other Agent Skills-compatible clients:
+The recommended path is CI-tested across Codex, Claude Code, Cursor, and OpenCode. Cline and other Agent Skills-compatible clients are community-tested until they gain their own matrix case:
 
 ```bash
 npx skills add jointsome0-lgtm/selfos-skills
@@ -24,6 +24,21 @@ npx skills add jointsome0-lgtm/selfos-skills --list
 ```
 
 No clone, working-directory trick, `AGENTS.md` pointer, or prompt-time file path is required.
+
+### Installation support
+
+| Surface | CI evidence | Status |
+| --- | --- | --- |
+| `skills` catalog discovery | Exact discovered skill set compared with `skills/*/SKILL.md` | CI-tested |
+| Codex via `skills` | Isolated global install with complete copied trees and executable modes checked | CI-tested |
+| Claude Code via `skills` | Isolated global install with complete copied trees and executable modes checked | CI-tested |
+| Cursor via `skills` | Isolated global install with complete copied trees and executable modes checked | CI-tested |
+| OpenCode via `skills` | Isolated global install with complete copied trees and executable modes checked | CI-tested |
+| Codex native plugin | Representative Codex CLI adds the local marketplace, discovers the sole plugin, installs it, and exposes the exact canonical catalog | CI-tested |
+| Claude root and legacy marketplace | Representative Claude CLI validates and installs the aggregate and every legacy package; the aggregate tree and discovered skill union match the canonical catalog | CI-tested |
+| Cline and other compatible clients | No dedicated CI matrix case yet | Community-tested |
+
+Every install check rejects missing or unexpected skills, missing or changed companion files, lost executable modes, and absolute checkout paths embedded in installed skill payloads. The matrix source of truth is `scripts/install_smoke_matrix.json`.
 
 ### Codex native plugin
 
@@ -123,7 +138,7 @@ python scripts/sync_vendored_skills.py --check
 python scripts/build_index.py --check
 ```
 
-The main CI additionally runs the canonical and legacy SDD helper tests, both watcher suites, ShellCheck, the legacy static marketplace validator, a `npx skills` discovery smoke test, and the retained end-to-end Claude marketplace install check.
+The main CI additionally runs the canonical and legacy SDD helper tests, both watcher suites, ShellCheck, the legacy static marketplace validator, and the matrixed installation checks described above.
 
 ## Versioning and releases
 
