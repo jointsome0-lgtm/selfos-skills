@@ -151,6 +151,11 @@ def validate_catalog() -> tuple[int, list[str]]:
                     f"{relative}: disable-model-invocation requires"
                     " metadata selfos.explicit-only 'true'"
                 )
+        elif skill.explicit_only:
+            errors.append(
+                f"{relative}: explicit-only skills must set top-level"
+                " disable-model-invocation 'true' so Claude hosts enforce the guard"
+            )
 
         tree_errors = symlink_errors(skill.root)
         errors.extend(tree_errors)
