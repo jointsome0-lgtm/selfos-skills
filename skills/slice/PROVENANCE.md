@@ -64,8 +64,16 @@ behavior:
    issue" is widened to forbid every parent mutation (comments, labels,
    assignment, relations included).
 
-`skills/slice/EXAMPLES.md`, `skills/grill-sdd/`, `conventions/`, and `scripts/`
-are local content, not vendored.
+`skills/slice/EXAMPLES.md` is original content local to selfos-skills. The
+self-contained dependency copies are inventoried below.
+
+## Bundled reference provenance
+
+The self-contained dependency copies retain their own upstream pins, import
+dates, adaptation notes, and license notices:
+
+- `references/grilling/PROVENANCE.md`
+- `references/sdd-conventions/PROVENANCE.md`
 
 ## Upstream license notice
 

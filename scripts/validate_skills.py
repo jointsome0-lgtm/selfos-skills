@@ -151,9 +151,9 @@ def validate_catalog() -> tuple[int, list[str]]:
         if tree_errors:
             continue
 
-        validate_provenance(skill.root, errors)
-
         vendored = skill.vendored_skills
+        validate_provenance(skill.root, errors, vendored)
+
         if len(set(vendored)) != len(vendored):
             errors.append(f"{relative}: selfos.vendored-skills contains duplicates")
         for dependency in vendored:

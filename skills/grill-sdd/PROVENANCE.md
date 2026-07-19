@@ -1,3 +1,10 @@
 # Provenance — skills/grill-sdd
 
-No vendored content. Everything under this skill is local to selfos-skills.
+`SKILL.md` and `EXAMPLES.md` are original content local to selfos-skills.
+The self-contained dependency copies retain their own upstream pins, import
+dates, adaptation notes, and license notices:
+
+## Bundled reference provenance
+
+- `references/grilling/PROVENANCE.md`
+- `references/sdd-conventions/PROVENANCE.md`

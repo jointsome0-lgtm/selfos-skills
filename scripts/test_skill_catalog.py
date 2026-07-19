@@ -8,7 +8,7 @@ import shutil
 import unittest
 from pathlib import Path
 
-from skill_catalog import compare_trees, parse_skill
+from skill_catalog import compare_trees, parse_skill, validate_provenance
 from sync_vendored_skills import copy_tree_atomically
 
 
@@ -90,6 +90,40 @@ class VendoredTreeSafetyTest(unittest.TestCase):
             copy_tree_atomically(source, destination)
 
         self.assertFalse(destination.exists())
+
+
+class ComposedProvenanceTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.directory = Path(tempfile.mkdtemp(prefix="provenance-test."))
+        self.addCleanup(shutil.rmtree, self.directory, ignore_errors=True)
+
+    def test_composed_skill_cannot_claim_no_vendored_content(self) -> None:
+        (self.directory / "PROVENANCE.md").write_text(
+            "# Provenance — invented\n\nNo vendored content. Invented local files only.\n",
+            encoding="utf-8",
+        )
+        errors: list[str] = []
+
+        validate_provenance(self.directory, errors, ("invented-reference",))
+
+        self.assertTrue(any("is false for a composed skill" in error for error in errors))
+
+    def test_composed_local_skill_can_delegate_bundled_provenance(self) -> None:
+        delegated = self.directory / "references" / "invented-reference" / "PROVENANCE.md"
+        delegated.parent.mkdir(parents=True)
+        delegated.write_text("Invented delegated record.\n", encoding="utf-8")
+        (self.directory / "PROVENANCE.md").write_text(
+            "# Provenance — invented\n\n"
+            "The root workflow is original local content.\n\n"
+            "## Bundled reference provenance\n\n"
+            "- `references/invented-reference/PROVENANCE.md`\n",
+            encoding="utf-8",
+        )
+        errors: list[str] = []
+
+        validate_provenance(self.directory, errors, ("invented-reference",))
+
+        self.assertEqual(errors, [])
 
 
 if __name__ == "__main__":

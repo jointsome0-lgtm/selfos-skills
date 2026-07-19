@@ -281,6 +281,10 @@ def iter_vendored_edges(skills: Iterable[Skill]) -> Iterable[tuple[Skill, str]]:
 SHA_RE = re.compile(r"\b[0-9a-f]{40}\b", re.IGNORECASE)
 DATE_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
 NO_VENDOR_MARKER = "No vendored content."
+DELEGATION_HEADING = "Bundled reference provenance"
+DELEGATION_RE = re.compile(
+    r"(?m)^- `references/([a-z0-9]+(?:-[a-z0-9]+)*)/PROVENANCE\.md`$"
+)
 
 
 def check_pin(chunk: str, where: str, errors: list[str]) -> None:
@@ -308,7 +312,11 @@ def check_import_date(chunk: str, where: str, errors: list[str]) -> None:
         errors.append(f"{where}: must record a real import date (Imported … YYYY-MM-DD)")
 
 
-def validate_provenance(package_root: Path, errors: list[str]) -> None:
+def validate_provenance(
+    package_root: Path,
+    errors: list[str],
+    vendored_skills: Iterable[str] = (),
+) -> None:
     """Every "##" section is a vendored item carrying its own labeled pin and
     import date, so one pinned section cannot vouch for another; the sole
     exemption is the license notice — a slash-free heading naming "license" —
@@ -316,6 +324,7 @@ def validate_provenance(package_root: Path, errors: list[str]) -> None:
     sections. Presence-and-shape checks against forgetting, not cryptographic
     verification.
     """
+    dependencies = tuple(vendored_skills)
     path = package_root / "PROVENANCE.md"
     where = display_path(path)
     if path.is_symlink():
@@ -340,16 +349,57 @@ def validate_provenance(package_root: Path, errors: list[str]) -> None:
             if line.strip() and not line.strip().startswith("#")
         ]
         if len(statements) == 1 and statements[0].startswith(NO_VENDOR_MARKER):
+            if dependencies:
+                errors.append(
+                    f"{where}: {NO_VENDOR_MARKER!r} is false for a composed skill; "
+                    f"delegate every bundled reference under '## {DELEGATION_HEADING}'"
+                )
             return
         errors.append(
             f"{where}: {NO_VENDOR_MARKER!r} must open the file's only statement besides "
             f"headings; with vendored sections present, drop the marker and pin them"
         )
 
+    delegation_headings = text.splitlines().count(f"## {DELEGATION_HEADING}")
+    delegated = DELEGATION_RE.findall(text)
+    expected_delegations = set(dependencies)
+    actual_delegations = set(delegated)
+    if dependencies:
+        if delegation_headings != 1:
+            errors.append(
+                f"{where}: composed skills must contain exactly one "
+                f"'## {DELEGATION_HEADING}' section"
+            )
+        if len(delegated) != len(actual_delegations):
+            errors.append(f"{where}: bundled reference provenance entries must not repeat")
+        for dependency in sorted(expected_delegations - actual_delegations):
+            errors.append(
+                f"{where}: missing bundled provenance delegation "
+                f"'references/{dependency}/PROVENANCE.md'"
+            )
+        for dependency in sorted(actual_delegations - expected_delegations):
+            errors.append(
+                f"{where}: undeclared bundled provenance delegation "
+                f"'references/{dependency}/PROVENANCE.md'"
+            )
+        for dependency in dependencies:
+            delegated_path = package_root / "references" / dependency / "PROVENANCE.md"
+            if not delegated_path.is_file():
+                errors.append(
+                    f"{where}: delegated provenance file is missing: "
+                    f"references/{dependency}/PROVENANCE.md"
+                )
+    elif delegation_headings or delegated:
+        errors.append(
+            f"{where}: bundled provenance delegation requires selfos.vendored-skills"
+        )
+
     sections: list[tuple[str, str]] = []
     for chunk in re.split(r"(?m)^## +", text)[1:]:
         heading, _, body = chunk.partition("\n")
         heading = heading.strip()
+        if heading == DELEGATION_HEADING:
+            continue
         if "license" in heading.lower() and "/" not in heading:
             continue
         sections.append((heading, body))
@@ -359,9 +409,12 @@ def validate_provenance(package_root: Path, errors: list[str]) -> None:
             section_where = f"{where}: section {heading!r}"
             check_pin(body, section_where, errors)
             check_import_date(body, section_where, errors)
-    else:
+    elif not dependencies:
         check_pin(text, where, errors)
         check_import_date(text, where, errors)
+
+    if not sections and dependencies:
+        return
 
     notice_complete = (
         re.search(r"Copyright \(c\) \d{4}", text, re.IGNORECASE)

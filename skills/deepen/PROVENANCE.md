@@ -112,6 +112,14 @@ the tone/glossary rules are substantially upstream:
    evidence line is mandatory on every candidate card, and the header
    states the scan scope.
 
+## Bundled reference provenance
+
+The self-contained dependency copies retain their own upstream pins, import
+dates, adaptation notes, and license notices:
+
+- `references/codebase-design/PROVENANCE.md`
+- `references/grilling/PROVENANCE.md`
+
 ## Upstream license notice
 
 ```
