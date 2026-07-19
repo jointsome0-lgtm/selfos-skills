@@ -3,19 +3,18 @@
 
 from __future__ import annotations
 
-import datetime as dt
 import json
 from pathlib import Path
 import re
 import sys
+
+from skill_catalog import validate_provenance
 
 ROOT = Path(__file__).resolve().parents[1]
 MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
 PLUGINS = ROOT / "plugins"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
-SHA_RE = re.compile(r"\b[0-9a-f]{40}\b", re.IGNORECASE)
-DATE_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 FENCE_RE = re.compile(r"^ {0,3}(?:`{3,}|~{3,})")
 
@@ -60,102 +59,6 @@ def validate_manifest(name: str, package_root: Path, errors: list[str]) -> None:
         errors.append(f"{where}: name {manifest_name!r} must match {name!r}")
     if version is not None and not VERSION_RE.fullmatch(version):
         errors.append(f"{where}: version must be MAJOR.MINOR.PATCH")
-
-
-NO_VENDOR_MARKER = "No vendored content."
-
-
-def check_pin(chunk: str, where: str, errors: list[str]) -> None:
-    labeled = re.findall(r"(?i)\b(?:blob|commit|merge)\b[^\r\n]*?\b([0-9a-f]{40})\b", chunk)
-    if not labeled:
-        errors.append(
-            f"{where}: must pin upstream content to a labeled 40-hex SHA (blob/commit/merge …)"
-        )
-    if "0" * 40 in SHA_RE.findall(chunk):
-        errors.append(f"{where}: pins must be real SHAs, not the all-zero placeholder")
-
-
-def check_import_date(chunk: str, where: str, errors: list[str]) -> None:
-    imported = re.search(r"\bImported\b", chunk)
-    date_valid = False
-    if imported is not None:
-        for match in DATE_RE.finditer(chunk[imported.end():]):
-            try:
-                dt.date(*(int(group) for group in match.groups()))
-            except ValueError:
-                continue
-            date_valid = True
-            break
-    if not date_valid:
-        errors.append(f"{where}: must record a real import date (Imported … YYYY-MM-DD)")
-
-
-def validate_provenance(package_root: Path, errors: list[str]) -> None:
-    """Every "##" section is a vendored item carrying its own labeled pin and
-    import date, so one pinned section cannot vouch for another; the sole
-    exemption is the license notice — a slash-free heading naming "license" —
-    checked file-wide because one upstream's notice may cover several
-    sections. Presence-and-shape checks against forgetting, not cryptographic
-    verification.
-    """
-    path = package_root / "PROVENANCE.md"
-    where = relative(path)
-    if path.is_symlink():
-        errors.append(f"{where}: must be a regular file, not a symlink")
-        return
-    if not path.exists():
-        errors.append(f"{where}: missing; pin vendored sources or state {NO_VENDOR_MARKER!r}")
-        return
-    try:
-        if path.stat().st_size > 64 * 1024:
-            errors.append(f"{where}: implausibly large (over 64 KiB)")
-            return
-        text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as exc:
-        errors.append(f"{where}: cannot read UTF-8: {exc}")
-        return
-
-    if NO_VENDOR_MARKER in text:
-        statements = [
-            line.strip()
-            for line in text.splitlines()
-            if line.strip() and not line.strip().startswith("#")
-        ]
-        if len(statements) == 1 and statements[0].startswith(NO_VENDOR_MARKER):
-            return
-        errors.append(
-            f"{where}: {NO_VENDOR_MARKER!r} must open the file's only statement besides "
-            f"headings; with vendored sections present, drop the marker and pin them"
-        )
-
-    sections: list[tuple[str, str]] = []
-    for chunk in re.split(r"(?m)^## +", text)[1:]:
-        heading, _, body = chunk.partition("\n")
-        heading = heading.strip()
-        if "license" in heading.lower() and "/" not in heading:
-            continue
-        sections.append((heading, body))
-
-    if sections:
-        for heading, body in sections:
-            section_where = f"{where}: section {heading!r}"
-            check_pin(body, section_where, errors)
-            check_import_date(body, section_where, errors)
-    else:
-        check_pin(text, where, errors)
-        check_import_date(text, where, errors)
-
-    notice_complete = (
-        re.search(r"Copyright \(c\) \d{4}", text, re.IGNORECASE)
-        and "Permission is hereby granted" in text
-        and "The above copyright notice and this permission notice" in text
-        and 'THE SOFTWARE IS PROVIDED "AS IS"' in text
-    )
-    if not notice_complete:
-        errors.append(
-            f"{where}: must carry the full upstream license notice "
-            f"(copyright line, permission grant, notice condition, warranty disclaimer)"
-        )
 
 
 def validate_links(errors: list[str]) -> None:

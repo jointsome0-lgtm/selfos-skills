@@ -17,6 +17,7 @@ from skill_catalog import (
     compare_trees,
     discover_skills,
     display_path,
+    validate_provenance,
 )
 
 LINK_RE = re.compile(r"!?\[[^\]]*\]\((?P<target>[^)]+)\)")
@@ -143,6 +144,8 @@ def validate_catalog() -> tuple[int, list[str]]:
             errors.append(
                 f"{relative}: disable-model-invocation and selfos.explicit-only 'true' must be set together"
             )
+
+        validate_provenance(skill.root, errors)
 
         vendored = skill.vendored_skills
         if len(set(vendored)) != len(vendored):
