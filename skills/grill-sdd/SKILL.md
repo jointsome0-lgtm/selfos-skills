@@ -2,6 +2,7 @@
 name: grill-sdd
 description: Conducts a relentless owner interview over named sections of this repository's SDD via the shared grilling primitive — framing each subject in the SDD's own terms, resolving repository facts before asking, and landing confirmed outcomes as SDD edits plus Decision Log lines or issues. Use when the user asks to grill the SDD or its invariants, or stress-test a spec section.
 license: LICENSE.txt
+disable-model-invocation: true
 metadata:
   selfos.explicit-only: "true"
   selfos.vendored-skills: "grilling,sdd-conventions"

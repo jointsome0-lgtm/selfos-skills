@@ -136,6 +136,13 @@ def validate_catalog() -> tuple[int, list[str]]:
         explicit = skill.metadata.get("selfos.explicit-only")
         if explicit is not None and explicit.casefold() not in {"true", "false"}:
             errors.append(f"{relative}: selfos.explicit-only must be the string 'true' or 'false'")
+        disable = skill.fields.get("disable-model-invocation")
+        if disable is not None and disable != "true":
+            errors.append(f"{relative}: disable-model-invocation must be the literal true")
+        elif disable is not None and not skill.explicit_only:
+            errors.append(
+                f"{relative}: disable-model-invocation requires selfos.explicit-only 'true' in metadata"
+            )
 
         vendored = skill.vendored_skills
         if len(set(vendored)) != len(vendored):

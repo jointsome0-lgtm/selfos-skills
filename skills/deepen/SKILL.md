@@ -2,6 +2,7 @@
 name: deepen
 description: Scans a user-scoped or hot-spot-bounded slice of the codebase for deepening candidates — shallow modules, scattered policy, weak seams, tests coupled to internals — renders an ephemeral offline HTML report, and walks only the owner-selected candidate through the shared grilling loop to a confirmed outcome. Use when the user asks to find deepening opportunities in an area, diagnose architecture friction, or decide whether and where to deepen a module.
 license: LICENSE.txt
+disable-model-invocation: true
 metadata:
   selfos.explicit-only: "true"
   selfos.vendored-skills: "codebase-design,grilling"

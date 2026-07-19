@@ -2,6 +2,7 @@
 name: teach
 description: Teaches the user a topic or skill over multiple sessions in a dedicated learning workspace — mission, lessons, learning records, glossary, curated resources. Use when the user asks to be taught something, or wants to start or continue a learning session.
 license: LICENSE.txt
+disable-model-invocation: true
 metadata:
   selfos.explicit-only: "true"
 ---
