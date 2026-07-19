@@ -3,16 +3,18 @@
 
 from __future__ import annotations
 
+from datetime import date
 import json
 from pathlib import Path
 import re
 import sys
 
-from skill_catalog import CONTROL_RE, validate_provenance
+from skill_catalog import CONTROL_RE, parse_semver, validate_provenance
 
 ROOT = Path(__file__).resolve().parents[1]
 MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
 PLUGINS = ROOT / "plugins"
+DEPRECATION = PLUGINS / "deprecation.json"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$")
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
@@ -64,6 +66,122 @@ def validate_manifest(name: str, package_root: Path, errors: list[str]) -> None:
         errors.append(f"{where}: version must be MAJOR.MINOR.PATCH")
 
 
+def migration_command(source: str, skills: list[str]) -> str:
+    selected = " ".join(skills)
+    return (
+        f"npx skills add {source} --skill {selected} "
+        "--agent claude-code --global --yes"
+    )
+
+
+def load_deprecation(errors: list[str]) -> dict | None:
+    policy = load_object(DEPRECATION, errors)
+    if policy is None:
+        return None
+    where = relative(DEPRECATION)
+    if policy.get("schema_version") != 1:
+        errors.append(f"{where}: schema_version must be 1")
+    for key in ("deprecated_on", "earliest_removal"):
+        value = required_text(policy, key, where, errors)
+        if value is not None:
+            try:
+                date.fromisoformat(value)
+            except ValueError:
+                errors.append(f"{where}: {key} must be an ISO date")
+    required_text(policy, "removal_issue", where, errors)
+    required_text(policy, "canonical_source", where, errors)
+    packages = policy.get("packages")
+    if not isinstance(packages, dict) or not packages:
+        errors.append(f"{where}: packages must be a non-empty object")
+    return policy
+
+
+def validate_deprecation_notice(
+    name: str, package_root: Path, policy: dict, errors: list[str]
+) -> None:
+    packages = policy.get("packages")
+    package_policy = packages.get(name) if isinstance(packages, dict) else None
+    if not isinstance(package_policy, dict):
+        return
+    where = f"{relative(DEPRECATION)}: packages.{name}"
+    deprecation_version = required_text(
+        package_policy, "deprecation_version", where, errors
+    )
+    skills = package_policy.get("canonical_skills")
+    if (
+        not isinstance(skills, list)
+        or not skills
+        or any(not isinstance(skill, str) or not NAME_RE.fullmatch(skill) for skill in skills)
+        or len(skills) != len(set(skills))
+    ):
+        errors.append(f"{where}: canonical_skills must be unique kebab-case names")
+        return
+    for skill in skills:
+        if not (ROOT / "skills" / skill / "SKILL.md").is_file():
+            errors.append(f"{where}: canonical skill {skill!r} does not exist")
+
+    source = policy.get("canonical_source")
+    earliest = policy.get("earliest_removal")
+    issue = policy.get("removal_issue")
+    if not all(isinstance(value, str) for value in (source, earliest, issue)):
+        return
+    command = migration_command(source, skills)
+    issue_number = issue.rstrip("/").rsplit("/", 1)[-1]
+
+    manifest_path = package_root / ".claude-plugin" / "plugin.json"
+    manifest = load_object(manifest_path, errors)
+    if manifest is not None:
+        description = manifest.get("description")
+        version = manifest.get("version")
+        if not isinstance(description, str) or not all(
+            token in description
+            for token in (
+                "DEPRECATED:",
+                command,
+                earliest,
+                "downstream migration",
+                "install smoke checks",
+                f"issue #{issue_number}",
+            )
+        ):
+            errors.append(
+                f"{relative(manifest_path)}: description must carry the complete deprecation notice"
+            )
+        baseline = parse_semver(deprecation_version) if deprecation_version else None
+        current = parse_semver(version) if isinstance(version, str) else None
+        if baseline is None:
+            errors.append(f"{where}: deprecation_version must be semantic X.Y.Z")
+        elif current is not None and current < baseline:
+            errors.append(
+                f"{relative(manifest_path)}: version {version!r} predates the "
+                f"deprecation release {deprecation_version!r}"
+            )
+
+    readme_path = package_root / "README.md"
+    try:
+        readme = readme_path.read_text(encoding="utf-8")
+    except (FileNotFoundError, OSError, UnicodeError) as exc:
+        errors.append(f"{relative(readme_path)}: missing or unreadable deprecation README: {exc}")
+        return
+    required = (
+        f"`{name}@selfos` is deprecated",
+        deprecation_version or "",
+        command,
+        f"/plugin update {name}@selfos",
+        f"/plugin uninstall {name}@selfos",
+        earliest,
+        issue,
+        "downstream repositories",
+        "installation smoke matrix",
+        "major-migration release note",
+    )
+    missing = [token for token in required if token not in readme]
+    if missing:
+        errors.append(
+            f"{relative(readme_path)}: incomplete deprecation notice; missing {missing!r}"
+        )
+
+
 def validate_links(errors: list[str]) -> None:
     repository_root = ROOT.resolve()
     for path in sorted(PLUGINS.glob("**/*.md")):
@@ -92,6 +210,7 @@ def validate_links(errors: list[str]) -> None:
 
 def main() -> int:
     errors: list[str] = []
+    deprecation = load_deprecation(errors)
     marketplace = load_object(MARKETPLACE, errors)
     registered: set[Path] = set()
     legacy_count = 0
@@ -143,9 +262,38 @@ def main() -> int:
             legacy_count += 1
             validate_manifest(name, package, errors)
             validate_provenance(package, errors)
+            if deprecation is not None:
+                validate_deprecation_notice(name, package, deprecation, errors)
 
     if aggregate_count != 1:
         errors.append("Claude marketplace must contain exactly one root selfos-skills aggregate entry")
+    if deprecation is not None:
+        packages = deprecation.get("packages")
+        if isinstance(packages, dict):
+            registered_names = {path.name for path in registered}
+            declared_names = set(packages)
+            if registered_names != declared_names:
+                errors.append(
+                    f"{relative(DEPRECATION)}: package set differs from the legacy marketplace; "
+                    f"declared={sorted(declared_names)!r}, registered={sorted(registered_names)!r}"
+                )
+        root_readme = PLUGINS / "README.md"
+        try:
+            root_notice = root_readme.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            errors.append(f"{relative(root_readme)}: cannot read UTF-8: {exc}")
+        else:
+            tokens = (
+                deprecation.get("deprecated_on"),
+                deprecation.get("earliest_removal"),
+                deprecation.get("removal_issue"),
+                "npx skills add jointsome0-lgtm/selfos-skills",
+                "legacy-plugin-compatibility",
+                "legacy-plugin-security",
+                "legacy-plugin-removal",
+            )
+            if any(not isinstance(token, str) or token not in root_notice for token in tokens):
+                errors.append(f"{relative(root_readme)}: incomplete root deprecation policy")
     if PLUGINS.is_dir():
         for child in sorted(PLUGINS.iterdir()):
             if child.is_dir() and child.resolve() not in registered:
