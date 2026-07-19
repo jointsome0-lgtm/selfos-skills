@@ -53,6 +53,18 @@ How to apply:
   don't cover (investigation, data analysis, verification), run
   `codex exec -s read-only` directly with a self-contained prompt, and drop the
   sandbox flag only when codex must edit files.
+- Effort sizing (2026-07-19): the xhigh config default is for full
+  adversarial/design passes only — open-ended search where a missed
+  defect costs more than the hours. Scoped real work — implementing
+  from a clear spec, diagnosing a named bug, reviewing a medium diff,
+  prep/measurement tasks — gets `-c model_reasoning_effort=high`.
+  Routine bounded checks — verifying a small diff, fidelity/gate
+  checks, health checks — medium; trivial/relay: low (atlas
+  2026-07-19: xhigh on a 42-line verify diff burned ~10x wall-time
+  for no extra findings).
+- Parallel codex execs are fragile (atlas 2026-07-16: an exec hung
+  ~35 min behind parallel sessions) — prefer one lighter run over a
+  fan-out; whole-diff consistency doesn't decompose per-finding.
 - Claude models (sonnet-5, opus-4.8, fable-5) run via the Agent/Workflow model
   parameter.
 
