@@ -32,11 +32,18 @@ jobs:
         run: python scripts/validate_plugins.py
       - name: Test the version-bump gate
         run: python scripts/test_check_version_bump.py
+      - name: Test the frozen legacy-plugin policy gate
+        run: python scripts/test_legacy_plugin_policy.py
       - name: Test the installation smoke matrix
         run: python scripts/test_check_install_matrix.py
       - name: Version bump check
         if: github.event_name == 'pull_request'
         run: python scripts/check_version_bump.py --base "origin/$GITHUB_BASE_REF"
+      - name: Enforce frozen legacy-plugin policy
+        if: github.event_name == 'pull_request'
+        env:
+          LEGACY_PLUGIN_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: python scripts/check_legacy_plugin_policy.py --base "origin/$GITHUB_BASE_REF"
       - name: Test portable SDD helpers
         run: |
           python skills/sdd-conventions/scripts/test_sync_conventions.py

@@ -146,10 +146,22 @@ def check_legacy_manifest(
     head_version = manifest_version_in_worktree(root, manifest_path, errors)
     if head_version is None:
         return False
-    if head_version == base_version:
+    base_semver = parse_semver(base_version)
+    head_semver = parse_semver(head_version)
+    if base_semver is None:
         errors.append(
-            f"{guarded}: content changed but version stayed at {base_version!r}; "
-            f"bump {manifest_path}"
+            f"{manifest_path} at {merge_base}: legacy version {base_version!r} "
+            "must be semantic X.Y.Z with no leading zeroes"
+        )
+    elif head_semver is None:
+        errors.append(
+            f"{manifest_path}: legacy version {head_version!r} must be semantic X.Y.Z "
+            "with no leading zeroes"
+        )
+    elif head_semver <= base_semver:
+        errors.append(
+            f"{guarded}: content changed but version did not strictly increase "
+            f"from {base_version!r} to {head_version!r}; bump {manifest_path}"
         )
     return True
 
