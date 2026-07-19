@@ -3,6 +3,8 @@ name: watch
 description: Watches an open PR after each push, waits for the Codex cloud review verdict, and iterates fixes in-session until approval. Use when the user asks to babysit a PR, watch or wait for the Codex review, or run the push-review-fix loop.
 license: LICENSE.txt
 compatibility: Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; requires a POSIX-style shell environment but no specific OS.
+metadata:
+  selfos.version: "0.1.0"
 ---
 
 # Watch a Codex PR review

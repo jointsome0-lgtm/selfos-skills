@@ -11,14 +11,17 @@ from pathlib import Path
 from build_index import (
     README_COMPATIBILITY_END,
     README_COMPATIBILITY_START,
+    rendered_adapter_manifest,
     updated_readme,
 )
 from skill_catalog import (
     ALLOWED_FIELDS,
     compatibility_errors,
     compare_trees,
+    derive_adapter_version,
     parse_skill,
     validate_provenance,
+    version_errors,
 )
 from sync_vendored_skills import copy_tree_atomically
 
@@ -101,6 +104,56 @@ class SkillCatalogParserTest(unittest.TestCase):
         self.assertIn("disable-model-invocation", ALLOWED_FIELDS)
         self.assertNotIn("disable-model-invocation", set(skill.fields) - ALLOWED_FIELDS)
 
+    def test_version_is_namespaced_metadata_not_a_top_level_extension(self) -> None:
+        path = self.write_skill(
+            "Runs an invented workflow. Use when testing canonical versions.",
+            "compatibility: No runtime requirements.\n"
+            "metadata:\n"
+            '  selfos.version: "1.2.3"\n',
+        )
+
+        skill, errors = parse_skill(path)
+
+        self.assertEqual(errors, [])
+        assert skill is not None
+        self.assertEqual(skill.version, "1.2.3")
+        self.assertNotIn("version", ALLOWED_FIELDS)
+        self.assertEqual(version_errors(skill), [])
+
+    def test_missing_canonical_version_is_rejected(self) -> None:
+        path = self.write_skill(
+            "Runs an invented workflow. Use when testing canonical versions.",
+            "compatibility: No runtime requirements.\n",
+        )
+        skill, errors = parse_skill(path)
+        self.assertEqual(errors, [])
+        assert skill is not None
+
+        self.assertTrue(any("selfos.version is required" in error for error in version_errors(skill)))
+
+    def test_adapter_version_is_component_wise_skill_sum(self) -> None:
+        first_path = self.write_skill(
+            "Runs an invented workflow. Use when testing derived versions.",
+            "compatibility: No runtime requirements.\n"
+            "metadata:\n"
+            '  selfos.version: "1.2.3"\n',
+        )
+        second_path = self.write_skill(
+            "Runs an invented workflow. Use when testing derived versions.",
+            "compatibility: No runtime requirements.\n"
+            "metadata:\n"
+            '  selfos.version: "0.4.5"\n',
+        )
+        first, first_errors = parse_skill(first_path)
+        second, second_errors = parse_skill(second_path)
+        self.assertEqual(first_errors + second_errors, [])
+        assert first is not None and second is not None
+
+        version, errors = derive_adapter_version((first, second))
+
+        self.assertEqual(errors, [])
+        self.assertEqual(version, "1.6.8")
+
     def test_shell_helper_requires_bash_declaration(self) -> None:
         path = self.write_skill(
             "Runs an invented workflow. Use when testing compatibility.",
@@ -174,6 +227,40 @@ class ReadmeCompatibilityGenerationTest(unittest.TestCase):
 
         self.assertIsNone(updated)
         self.assertTrue(any("incomplete or duplicate" in error for error in errors))
+
+
+class AdapterManifestGenerationTest(unittest.TestCase):
+    def test_rewrites_only_the_single_version_field(self) -> None:
+        directory = Path(tempfile.mkdtemp(prefix="adapter-manifest-test."))
+        self.addCleanup(shutil.rmtree, directory, ignore_errors=True)
+        path = directory / "plugin.json"
+        actual = (
+            "{\n"
+            '  "name": "invented",\n'
+            '  "version": "0.1.0",\n'
+            '  "author": { "name": "Invented" }\n'
+            "}\n"
+        )
+        path.write_text(actual, encoding="utf-8")
+
+        rendered, errors = rendered_adapter_manifest(path, "1.6.8")
+
+        self.assertEqual(errors, [])
+        self.assertEqual(rendered, actual.replace('"0.1.0"', '"1.6.8"'))
+
+    def test_rejects_ambiguous_version_fields(self) -> None:
+        directory = Path(tempfile.mkdtemp(prefix="adapter-manifest-test."))
+        self.addCleanup(shutil.rmtree, directory, ignore_errors=True)
+        path = directory / "plugin.json"
+        path.write_text(
+            '{\n  "version": "0.1.0",\n  "nested": {\n    "version": "2.0.0"\n  }\n}\n',
+            encoding="utf-8",
+        )
+
+        rendered, errors = rendered_adapter_manifest(path, "0.2.0")
+
+        self.assertIsNone(rendered)
+        self.assertTrue(any("exactly one" in error for error in errors))
 
 
 class VendoredTreeSafetyTest(unittest.TestCase):

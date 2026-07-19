@@ -1,20 +1,24 @@
 #!/usr/bin/env python3
-"""Fail when plugin content changes without a plugin version bump.
+"""Require canonical skill bumps and validate generated adapter versions.
 
-Diffs the working tree against the merge base with --base (the PR's target
-branch in CI). Any change under plugins/<plugin>/ requires that `version` in
-plugins/<plugin>/.claude-plugin/plugin.json changed too: the plugin cache is
-keyed by version, so an unbumped content change leaves consumers silently on
-the stale copy. The same rule guards the canonical catalog: a change under
-skills/ or an adapter's own directory requires a bump in that adapter's
-manifest (.claude-plugin/plugin.json for Claude, .codex-plugin/plugin.json
-for Codex — both hosts cache by version). Every path under a guarded root
-counts as shipped content — a spurious patch bump is cheap, a stale cache is
-not. Brand-new plugins (no manifest at base) and deleted plugins (no manifest
-now) pass; bump-only diffs pass by construction.
+Diffs the worktree against the merge base with --base (the PR target in CI).
+Every changed tree below skills/<name>/ must strictly increase that skill's
+metadata.selfos.version in canonical SKILL.md. A bump-only diff passes. New
+skills pass with any valid non-zero version; removing a canonical SKILL.md
+does not, because the changed installable tree would have no version to bump.
+
+Both aggregate host manifest versions are the component-wise sum of all
+canonical skill versions. The gate validates that derived value even when a
+manifest was not touched, so stale generated adapters cannot pass CI.
+Generated version-only manifest edits are exempt from separate guarding;
+other aggregate adapter or marketplace edits require packaging bumps across
+the full canonical catalog so host caches also see those changes.
+
+Legacy plugins keep their existing independent manifest-version gate. Their
+manifest versions and release model are intentionally not derived here.
 
 Operates on the git repository containing the current directory, so it works
-in any checkout and in the self-test's fixture repositories.
+in any checkout and in the self-test's invented fixture repositories.
 """
 
 from __future__ import annotations
@@ -25,12 +29,22 @@ import subprocess
 import sys
 from pathlib import Path
 
-DEFAULT_BASES = ("origin/main", "main")
-MANIFEST_SUFFIX = ".claude-plugin/plugin.json"
-ADAPTER_MANIFESTS = (
-    (".claude-plugin/plugin.json", ("skills/", ".claude-plugin/")),
-    (".codex-plugin/plugin.json", ("skills/", ".codex-plugin/", ".agents/")),
+from skill_catalog import (
+    Skill,
+    derive_adapter_version,
+    parse_semver,
+    parse_skill,
+    parse_skill_text,
+    version_errors,
 )
+
+DEFAULT_BASES = ("origin/main", "main")
+LEGACY_MANIFEST_SUFFIX = ".claude-plugin/plugin.json"
+ADAPTER_MANIFESTS = (
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json",
+)
+ADAPTER_ROOTS = (".claude-plugin/", ".codex-plugin/", ".agents/")
 
 
 def run_git(*argv: str) -> subprocess.CompletedProcess[str]:
@@ -41,7 +55,7 @@ def resolve_ref(ref: str) -> bool:
     return run_git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}").returncode == 0
 
 
-def parse_version(raw: str, where: str, errors: list[str]) -> str | None:
+def parse_manifest_version(raw: str, where: str, errors: list[str]) -> str | None:
     try:
         manifest = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -54,15 +68,16 @@ def parse_version(raw: str, where: str, errors: list[str]) -> str | None:
     return version
 
 
-def version_at(ref: str, manifest_path: str, errors: list[str]) -> str | None:
-    """Version recorded at `ref`, or None when the manifest does not exist there."""
+def manifest_version_at(ref: str, manifest_path: str, errors: list[str]) -> str | None:
     shown = run_git("show", f"{ref}:{manifest_path}")
     if shown.returncode != 0:
         return None
-    return parse_version(shown.stdout, f"{manifest_path} at {ref}", errors)
+    return parse_manifest_version(shown.stdout, f"{manifest_path} at {ref}", errors)
 
 
-def version_in_worktree(root: Path, manifest_path: str, errors: list[str]) -> str | None:
+def manifest_version_in_worktree(
+    root: Path, manifest_path: str, errors: list[str]
+) -> str | None:
     try:
         raw = (root / manifest_path).read_text(encoding="utf-8")
     except FileNotFoundError:
@@ -70,7 +85,7 @@ def version_in_worktree(root: Path, manifest_path: str, errors: list[str]) -> st
     except (OSError, UnicodeError) as exc:
         errors.append(f"{manifest_path}: cannot read UTF-8 file: {exc}")
         return None
-    return parse_version(raw, manifest_path, errors)
+    return parse_manifest_version(raw, manifest_path, errors)
 
 
 def changed_paths(merge_base: str, errors: list[str]) -> list[str] | None:
@@ -81,26 +96,178 @@ def changed_paths(merge_base: str, errors: list[str]) -> list[str] | None:
     return [path for path in diff.stdout.split("\0") if path]
 
 
-def check_manifest(
+def manifest_payload_without_version(raw: str) -> object:
+    value = json.loads(raw)
+    if not isinstance(value, dict):
+        raise ValueError("top-level JSON value must be an object")
+    payload = dict(value)
+    payload.pop("version", None)
+    return payload
+
+
+def substantive_adapter_changes(
+    root: Path,
+    merge_base: str,
+    paths: list[str],
+) -> list[str]:
+    """Ignore generated manifest-version-only edits; return other adapter edits."""
+    changed: list[str] = []
+    for path in paths:
+        if not path.startswith(ADAPTER_ROOTS):
+            continue
+        if path not in ADAPTER_MANIFESTS:
+            changed.append(path)
+            continue
+        base = run_git("show", f"{merge_base}:{path}")
+        try:
+            head_raw = (root / path).read_text(encoding="utf-8")
+            if base.returncode != 0 or (
+                manifest_payload_without_version(base.stdout)
+                != manifest_payload_without_version(head_raw)
+            ):
+                changed.append(path)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            # The normal manifest validators report the detailed parse error.
+            changed.append(path)
+    return changed
+
+
+def check_legacy_manifest(
     root: Path,
     merge_base: str,
     manifest_path: str,
     guarded: str,
     errors: list[str],
 ) -> bool:
-    """True when the manifest existed at both ends and was version-compared."""
-    base_version = version_at(merge_base, manifest_path, errors)
+    """Return true when a legacy manifest existed at both ends and was compared."""
+    base_version = manifest_version_at(merge_base, manifest_path, errors)
     if base_version is None:
-        return False  # new package, or its base manifest is already reported
-    head_version = version_in_worktree(root, manifest_path, errors)
+        return False
+    head_version = manifest_version_in_worktree(root, manifest_path, errors)
     if head_version is None:
-        return False  # deleted package, or its manifest is already reported
+        return False
     if head_version == base_version:
         errors.append(
             f"{guarded}: content changed but version stayed at {base_version!r}; "
             f"bump {manifest_path}"
         )
     return True
+
+
+def parsed_skill_from_text(
+    raw: str,
+    label: str,
+    errors: list[str],
+    *,
+    require_version: bool,
+) -> Skill | None:
+    skill, parse_errors = parse_skill_text(raw, Path(label))
+    errors.extend(parse_errors)
+    if skill is None:
+        return None
+    if require_version:
+        errors.extend(version_errors(skill))
+    elif skill.version is not None and parse_semver(skill.version) is None:
+        errors.append(
+            f"{label}: metadata.selfos.version must be semantic X.Y.Z with no leading zeroes"
+        )
+    return skill
+
+
+def check_canonical_skill(
+    root: Path,
+    merge_base: str,
+    name: str,
+    errors: list[str],
+) -> bool:
+    skill_path = f"skills/{name}/SKILL.md"
+    shown = run_git("show", f"{merge_base}:{skill_path}")
+    base_exists = shown.returncode == 0
+
+    try:
+        head_raw = (root / skill_path).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        if base_exists:
+            errors.append(
+                f"skills/{name}: tree changed but canonical SKILL.md was removed; "
+                "a shipped skill must retain a bumped version"
+            )
+        else:
+            errors.append(f"skills/{name}: changed tree has no canonical SKILL.md")
+        return False
+    except (OSError, UnicodeError) as exc:
+        errors.append(f"{skill_path}: cannot read UTF-8 file: {exc}")
+        return False
+
+    head = parsed_skill_from_text(head_raw, skill_path, errors, require_version=True)
+    if head is None or head.version is None:
+        return False
+    head_semver = parse_semver(head.version)
+    if head_semver is None or head_semver == (0, 0, 0):
+        return False
+
+    if not base_exists:
+        return True
+
+    base = parsed_skill_from_text(
+        shown.stdout,
+        f"{skill_path} at {merge_base}",
+        errors,
+        require_version=False,
+    )
+    if base is None:
+        return False
+    if base.version is None:
+        return True  # one-time adoption of canonical versions
+    base_semver = parse_semver(base.version)
+    if base_semver is None:
+        return False
+    if head_semver == base_semver:
+        errors.append(
+            f"skills/{name}: tree changed but metadata.selfos.version stayed at "
+            f"{head.version!r}; bump {skill_path}"
+        )
+    elif head_semver < base_semver:
+        errors.append(
+            f"skills/{name}: metadata.selfos.version decreased from {base.version!r} "
+            f"to {head.version!r}; canonical skill versions must increase"
+        )
+    return True
+
+
+def discover_worktree_skills(root: Path, errors: list[str]) -> list[Skill]:
+    skills: list[Skill] = []
+    for path in sorted((root / "skills").glob("*/SKILL.md")):
+        skill, parse_errors = parse_skill(path)
+        errors.extend(parse_errors)
+        if skill is None:
+            continue
+        errors.extend(version_errors(skill))
+        skills.append(skill)
+    if (root / "skills").is_dir() and not skills:
+        errors.append("no canonical skills found under skills/<name>/SKILL.md")
+    return skills
+
+
+def check_derived_adapters(root: Path, errors: list[str]) -> str | None:
+    if not (root / "skills").is_dir():
+        return None
+    skills = discover_worktree_skills(root, errors)
+    expected, derivation_errors = derive_adapter_version(skills)
+    # discover_worktree_skills already reports the same per-skill errors.
+    if derivation_errors or expected is None:
+        return None
+    for manifest_path in ADAPTER_MANIFESTS:
+        actual = manifest_version_in_worktree(root, manifest_path, errors)
+        if actual is None:
+            errors.append(f"{manifest_path}: required generated adapter manifest is missing")
+        elif actual != expected:
+            errors.append(
+                f"{manifest_path}: derived version is stale: found {actual!r}, "
+                f"expected {expected!r} from canonical skill versions; "
+                "run python scripts/build_index.py"
+            )
+    return expected
 
 
 def main() -> int:
@@ -138,36 +305,71 @@ def main() -> int:
 
     paths = changed_paths(merge_base, errors)
     plugins: list[str] = []
-    adapters: list[str] = []
-    checked = 0
+    canonical: list[str] = []
+    adapter_changes: list[str] = []
+    checked_legacy = 0
     if paths is not None:
-        names: set[str] = set()
-        for path in paths:
-            parts = path.split("/")
-            if len(parts) >= 3 and parts[0] == "plugins":
-                names.add(parts[1])
-        plugins = sorted(names)
+        plugins = sorted(
+            {
+                parts[1]
+                for path in paths
+                if len(parts := path.split("/")) >= 3 and parts[0] == "plugins"
+            }
+        )
+        canonical = sorted(
+            {
+                parts[1]
+                for path in paths
+                if len(parts := path.split("/")) >= 3 and parts[0] == "skills"
+            }
+        )
+        adapter_changes = substantive_adapter_changes(root, merge_base, paths)
         for plugin in plugins:
-            manifest_path = f"plugins/{plugin}/{MANIFEST_SUFFIX}"
-            checked += check_manifest(root, merge_base, manifest_path, f"plugins/{plugin}", errors)
-        for manifest_path, roots in ADAPTER_MANIFESTS:
-            hits = [guarded for guarded in roots if any(path.startswith(guarded) for path in paths)]
-            if not hits:
-                continue
-            adapters.append(manifest_path)
-            checked += check_manifest(root, merge_base, manifest_path, " + ".join(hits), errors)
+            manifest_path = f"plugins/{plugin}/{LEGACY_MANIFEST_SUFFIX}"
+            checked_legacy += check_legacy_manifest(
+                root, merge_base, manifest_path, f"plugins/{plugin}", errors
+            )
+        for name in canonical:
+            check_canonical_skill(root, merge_base, name, errors)
+
+        if adapter_changes:
+            catalog_names = sorted(path.parent.name for path in (root / "skills").glob("*/SKILL.md"))
+            missing_packaging_bumps = sorted(set(catalog_names) - set(canonical))
+            if missing_packaging_bumps:
+                examples = ", ".join(adapter_changes[:3])
+                if len(adapter_changes) > 3:
+                    examples += ", …"
+                errors.append(
+                    f"aggregate adapter content changed ({examples}) without bundle-wide "
+                    "canonical packaging bumps; bump every skills/<name>/SKILL.md version "
+                    f"(missing: {', '.join(missing_packaging_bumps)})"
+                )
+
+    adapter_version = check_derived_adapters(root, errors)
 
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
-    if not plugins and not adapters:
-        print(f"OK: no plugin content changes relative to {base}.")
+    if not plugins and not canonical:
+        suffix = (
+            f"; generated adapter version {adapter_version} is current"
+            if adapter_version is not None
+            else ""
+        )
+        print(f"OK: no guarded content changes relative to {base}{suffix}.")
     else:
+        adapter = (
+            f"; generated adapter version {adapter_version} is current"
+            if adapter_version is not None
+            else ""
+        )
         print(
-            f"OK: {len(plugins)} changed plugin(s) and {len(adapters)} touched adapter(s) "
-            f"relative to {base}; {checked} version-checked."
+            f"OK: {len(canonical)} changed canonical skill(s) and "
+            f"{len(plugins)} changed legacy plugin(s) relative to {base}; "
+            f"{checked_legacy} legacy version-checked; "
+            f"{len(adapter_changes)} substantive adapter change(s){adapter}."
         )
     return 0
 

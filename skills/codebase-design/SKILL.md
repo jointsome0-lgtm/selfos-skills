@@ -2,6 +2,8 @@
 name: codebase-design
 description: Defines the shared deep-module design vocabulary — module, interface, depth, seam, adapter, leverage, locality — plus the deletion test, testability rules, and the deepening and design-it-twice references. Use when the user wants to design or improve a module's interface, find deepening opportunities, decide where a seam goes, make code more testable or AI-navigable, or when another skill needs the deep-module vocabulary.
 compatibility: Host-neutral Markdown guidance; no required tools, OS constraints, network access, write access, or external integrations.
+metadata:
+  selfos.version: "0.1.0"
 ---
 
 # Codebase Design
