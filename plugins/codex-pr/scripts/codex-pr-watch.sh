@@ -290,6 +290,7 @@ report_review() {
 # --- poll loop ----------------------------------------------------------------
 deadline=$(( start_epoch + TIMEOUT ))
 eyes_seen=0
+stale_checked=0   # pre-cutoff-👍 scan done (waits for a readable reactions list)
 # last evidence of a running round; step 2b's grace counts from it. Starts at
 # watcher start, not 0: with no 👀 ever observed the guard must still be a
 # full wall-clock GAP_GRACE — the poll-count floor alone shrinks to ~2 s at
@@ -319,7 +320,8 @@ while :; do
   fi
 
   # 2) a fresh 👍 on the PR body?
-  reacts=$(fetch "repos/$REPO/issues/$PR/reactions?per_page=100") || reads_ok=0
+  reacts_ok=1
+  reacts=$(fetch "repos/$REPO/issues/$PR/reactions?per_page=100") || { reads_ok=0; reacts_ok=0; }
   eyes=$(jq -r --arg bot "$BOT" '
       [.[] | select((.user.login | test($bot; "i")) and .content == "eyes")] | length' <<<"$reacts" 2>/dev/null) || eyes=0
   # a visible 👀 — and the poll that first observes its removal — restart
@@ -370,7 +372,12 @@ while :; do
     fi
   fi
 
-  if [[ $poll -eq 1 ]]; then
+  # on the first SUCCESSFUL reactions read, not literally poll 1: a transient
+  # API failure on the first poll must not blank stale_thumb for good — the
+  # auto-trigger's fallback suppression below relies on it, and a silently
+  # empty value would let the redundant re-review through
+  if [[ $stale_checked -eq 0 && $reacts_ok -eq 1 ]]; then
+    stale_checked=1
     stale_thumb=$(jq -r --arg bot "$BOT" --arg since "$SINCE" '
         [.[] | select((.user.login | test($bot; "i")) and .content == "+1" and .created_at <= $since)]
         | last | if . == null then "" else .created_at end' <<<"$reacts" 2>/dev/null) || stale_thumb=""

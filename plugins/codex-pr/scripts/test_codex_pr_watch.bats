@@ -366,6 +366,18 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [[ "$output" != *"VERDICT: FINDINGS"* ]]
 }
 
+@test "issue #47: a pre-cutoff 👍 discovered after a failed first reactions read still suppresses the auto-trigger" {
+  printf '{"commit":{"committer":{"date":"%s"}}}' "$(iso 600)" >"$GH_FIXTURES/commit.json"
+  rm -f "$GH_FIXTURES/reactions.json"   # first reactions read fails…
+  printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"+1","created_at":"%s"}]' \
+    "$(iso 300)" >"$GH_FIXTURES/reactions.json.2"   # …the second one sees the old 👍
+  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
+  run_watch --grace 0
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"skipping auto-trigger"* ]]
+  [[ "$output" != *"posted '@codex review'"* ]]
+}
+
 @test "issue #47: --trigger and --no-trigger together are rejected" {
   run_watch --trigger --no-trigger
   [ "$status" -eq 1 ]
