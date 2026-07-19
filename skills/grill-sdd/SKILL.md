@@ -3,8 +3,8 @@ name: grill-sdd
 description: Conducts a relentless owner interview over named sections of this repository's SDD via the shared grilling primitive — framing each subject in the SDD's own terms, resolving repository facts before asking, and landing confirmed outcomes as SDD edits plus Decision Log lines or issues. Use when the user asks to grill the SDD or its invariants, or stress-test a spec section.
 license: LICENSE.txt
 compatibility: Requires Python 3.9+ for bundled SDD helpers and read access to the target repository. No OS constraint or required network; repository write access and external issue-tracker integration are needed only to land owner-confirmed outcomes.
+disable-model-invocation: true
 metadata:
-  claude.disable-model-invocation: "true"
   selfos.explicit-only: "true"
   selfos.vendored-skills: "grilling,sdd-conventions"
 ---

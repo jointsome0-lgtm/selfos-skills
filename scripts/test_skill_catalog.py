@@ -75,6 +75,21 @@ class SkillCatalogParserTest(unittest.TestCase):
         path = self.write_skill(
             "Runs an invented workflow. Use when testing host neutrality.",
             "compatibility: No runtime requirements.\n"
+            "argument-hint: invented\n",
+        )
+
+        skill, errors = parse_skill(path)
+
+        self.assertEqual(errors, [])
+        self.assertIsNotNone(skill)
+        assert skill is not None
+        self.assertNotIn("argument-hint", ALLOWED_FIELDS)
+        self.assertIn("argument-hint", set(skill.fields) - ALLOWED_FIELDS)
+
+    def test_disable_model_invocation_is_the_documented_exception(self) -> None:
+        path = self.write_skill(
+            "Runs an invented workflow. Use when testing host neutrality.",
+            "compatibility: No runtime requirements.\n"
             "disable-model-invocation: true\n",
         )
 
@@ -83,8 +98,8 @@ class SkillCatalogParserTest(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertIsNotNone(skill)
         assert skill is not None
-        self.assertNotIn("disable-model-invocation", ALLOWED_FIELDS)
-        self.assertIn("disable-model-invocation", set(skill.fields) - ALLOWED_FIELDS)
+        self.assertIn("disable-model-invocation", ALLOWED_FIELDS)
+        self.assertNotIn("disable-model-invocation", set(skill.fields) - ALLOWED_FIELDS)
 
     def test_shell_helper_requires_bash_declaration(self) -> None:
         path = self.write_skill(

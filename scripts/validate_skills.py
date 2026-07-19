@@ -140,11 +140,17 @@ def validate_catalog() -> tuple[int, list[str]]:
         explicit = skill.metadata.get("selfos.explicit-only")
         if explicit is not None and explicit.casefold() not in {"true", "false"}:
             errors.append(f"{relative}: selfos.explicit-only must be the string 'true' or 'false'")
-        claude_disable = skill.metadata.get("claude.disable-model-invocation")
-        if claude_disable is not None and claude_disable.casefold() != "true":
-            errors.append(
-                f"{relative}: claude.disable-model-invocation must be the string 'true'"
-            )
+        disable = skill.fields.get("disable-model-invocation")
+        if disable is not None:
+            if disable.strip().casefold() != "true":
+                errors.append(
+                    f"{relative}: disable-model-invocation must be 'true' when present"
+                )
+            if not skill.explicit_only:
+                errors.append(
+                    f"{relative}: disable-model-invocation requires"
+                    " metadata selfos.explicit-only 'true'"
+                )
 
         tree_errors = symlink_errors(skill.root)
         errors.extend(tree_errors)

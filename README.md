@@ -96,6 +96,8 @@ scripts/                             catalog validation, indexing, and vendored 
 
 Every top-level skill is independently installable. Where one workflow composes another, `metadata.selfos.vendored-skills` declares canonical sources whose complete folders are copied under `references/<name>/`. CI checks those copies byte for byte, so a selected skill does not depend on sibling installation or host-specific plugin dependency semantics.
 
+One intentionally host-specific field remains in canonical frontmatter: `disable-model-invocation: true` on explicit-only skills. Claude Code only enforces the invocation guard when it is a top-level field, other hosts ignore unknown fields, and the portable contract stays in each skill's prose ("Run this workflow only on an explicit request"). Validation allows exactly this field — paired with `metadata.selfos.explicit-only` — and rejects any other host-only frontmatter.
+
 ## Add or change a skill
 
 A canonical skill follows the Agent Skills specification:

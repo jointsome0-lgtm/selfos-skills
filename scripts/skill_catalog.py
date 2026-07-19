@@ -24,6 +24,10 @@ ALLOWED_FIELDS = {
     "compatibility",
     "metadata",
     "allowed-tools",
+    # Documented host-specific exception (README "intentionally host-specific"
+    # surface): Claude Code only honors this guard as a top-level field, other
+    # hosts ignore it, and the prose explicit-request contract stays canonical.
+    "disable-model-invocation",
 }
 RUNTIME_SUFFIX_REQUIREMENTS = {
     ".py": "python",

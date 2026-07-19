@@ -3,8 +3,8 @@ name: deepen
 description: Scans a user-scoped or hot-spot-bounded slice of the codebase for deepening candidates — shallow modules, scattered policy, weak seams, tests coupled to internals — renders an ephemeral offline HTML report, and walks only the owner-selected candidate through the shared grilling loop to a confirmed outcome. Use when the user asks to find deepening opportunities in an area, diagnose architecture friction, or decide whether and where to deepen a module.
 license: LICENSE.txt
 compatibility: Requires git, read access to the scoped repository and its history, permission to create a temporary HTML file outside the worktree, and a browser to view it. No OS constraint or required network; external issue-tracker write access is needed only to publish an owner-confirmed outcome.
+disable-model-invocation: true
 metadata:
-  claude.disable-model-invocation: "true"
   selfos.explicit-only: "true"
   selfos.vendored-skills: "codebase-design,grilling"
 ---
