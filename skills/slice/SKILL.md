@@ -2,15 +2,16 @@
 name: slice
 description: Slices one implementation-ready SDD section, phase, or approved parent issue into dependency-ordered vertical GitHub issues — tracer-bullet tickets carrying SDD citations, the Track A/B lane, acceptance criteria, verification, blocking edges, and the end artifact, drafted with the shared grilling loop and published only after owner confirmation. Use when the user asks to slice a spec section, phase, or parent issue into tickets, or to turn an approved SDD scope into implementation issues.
 license: LICENSE.txt
-disable-model-invocation: true
+compatibility: Requires Python 3.9+ for bundled SDD helpers, read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint.
 metadata:
+  claude.disable-model-invocation: "true"
   selfos.explicit-only: "true"
   selfos.vendored-skills: "grilling,sdd-conventions"
 ---
 
 # Slice an approved scope
 
-This skill runs only on an explicit request. Turn exactly one implementation-ready SDD section, phase, or approved parent issue into a dependency-ordered graph of vertical GitHub issues. Resolve owner choices through the bundled [grilling contract](references/grilling/SKILL.md); publish only after fresh confirmation of every final payload.
+Run this workflow only on an explicit request. Turn exactly one implementation-ready SDD section, phase, or approved parent issue into a dependency-ordered graph of vertical GitHub issues. Resolve owner choices through the bundled [grilling contract](references/grilling/SKILL.md); publish only after fresh confirmation of every final payload.
 
 ## Resolve canon first
 

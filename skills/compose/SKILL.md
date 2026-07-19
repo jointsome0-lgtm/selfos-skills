@@ -1,6 +1,7 @@
 ---
 name: compose
 description: Composes lean, outcome-first prompts for the GPT-5.6 model family (gpt-5.6-sol / -terra / -luna) and Codex runs — goal, success criteria, constraints, tools, autonomy boundary, stop rules, and model/effort choice. Use when delegating coding, review, diagnosis, or research work to Codex or another GPT-backed agent, or when writing or updating a prompt or agent instructions for one.
+compatibility: Host-neutral Markdown guidance; no required tools, OS constraints, write access, or external integrations. Network access is optional for refreshing linked OpenAI guidance.
 ---
 
 # Composing GPT-5.6 / Codex prompts
