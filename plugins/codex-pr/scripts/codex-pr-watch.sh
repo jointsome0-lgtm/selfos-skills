@@ -16,9 +16,9 @@
 # fresh review for a different head is surfaced (with a head warning) when
 # the cutoff sits on a boundary that applies to other heads (push/PR event
 # or explicit --since — never a --trigger, which requests this head's own
-# review, nor the fallback cutoffs) and no 👀 round is running: immediately
-# if none was observed,
-# else only after a short verdict-gap grace so a finishing round's own
+# review, nor the fallback cutoffs) and no 👀 round is running: only after
+# a verdict-gap grace counted from the last evidence of a running round —
+# watcher start when none was ever observed — so a finishing round's own
 # same-head verdict wins the race. A push racing the bot leaves the verdict
 # on the older head, and only that verdict will ever arrive. When no push
 # event is found, reviews anchor to the head commit's committer date (safe:
@@ -53,7 +53,8 @@ INTERVAL=30 TIMEOUT=1500 TRIGGER=0 NO_TRIGGER=0 GRACE=120 SINCE_FLAG=0 REPO_FLAG
 # seconds without evidence of a running round (👀 up, or the poll first
 # observing its removal) before step 2b may surface a different-head
 # review: an imminent same-head verdict must win that gap, and the grace
-# must be a full GAP_GRACE from observed removal — never shortened by the
+# must be a full GAP_GRACE from observed removal — or from watcher start
+# when no round was ever observed (issue #50) — never shortened by the
 # poll interval. Env-tunable so tests need not wait a real minute.
 GAP_GRACE="${CODEX_PR_WATCH_GAP_GRACE:-60}"
 
@@ -289,7 +290,12 @@ report_review() {
 # --- poll loop ----------------------------------------------------------------
 deadline=$(( start_epoch + TIMEOUT ))
 eyes_seen=0
-eyes_up_epoch=0   # last evidence of a running round; step 2b's grace counts from it
+# last evidence of a running round; step 2b's grace counts from it. Starts at
+# watcher start, not 0: with no 👀 ever observed the guard must still be a
+# full wall-clock GAP_GRACE — the poll-count floor alone shrinks to ~2 s at
+# --interval 1 and could surface an older head's review before the bot has
+# had a realistic chance to raise 👀 for the expected one (issue #50)
+eyes_up_epoch=$start_epoch
 prev_eyes=0
 poll=0
 
@@ -337,7 +343,7 @@ while :; do
   #     progress? A push can race the bot before its round starts (e.g. a
   #     bookkeeping commit moments after opening the PR): the bot then
   #     reviews the older head and never opens a round for the expected one.
-  #     When no 👀 is up after two full intervals' grace (time for a real
+  #     When no 👀 is up after a full GAP_GRACE of silence (time for a real
   #     new round to raise 👀), that post-cutoff stale-head review is this
   #     round's only verdict — surface it through report_review, whose head
   #     warning tells the operator the findings target an older commit,
@@ -428,6 +434,11 @@ while :; do
       post_trigger
       if [[ -n "$TRIGGER_ISO" ]]; then
         SINCE="$TRIGGER_ISO"; RSINCE="$TRIGGER_ISO"
+        # the cutoffs are now trigger-anchored, and a trigger is never a
+        # step-2b boundary: it requests this head's own review, so the
+        # same-head verdict is pending by construction and a different-head
+        # review draining in after the trigger must not preempt it
+        ROUND_BOUNDARY=0
         log "no fresh bot activity within ${GRACE}s of the push — posted '@codex review' trigger comment at $TRIGGER_ISO, cutoffs re-anchored to it"
       else
         log "WARNING: failed to post the auto '@codex review' trigger (no write access?) — the round may never have been requested; polling with the existing cutoffs"

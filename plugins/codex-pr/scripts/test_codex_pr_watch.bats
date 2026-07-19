@@ -127,15 +127,25 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [ "$status" -eq 3 ]
 }
 
-@test "a fresh stale-head review with no round running is surfaced with a head warning" {
+@test "a fresh stale-head review with no round running is surfaced once the startup grace expires" {
   push_event 120
   review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
   echo '[]' >"$GH_FIXTURES/comments.json"
-  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5
+  export CODEX_PR_WATCH_GAP_GRACE=2
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 8
   [ "$status" -eq 2 ]
   [[ "$output" == *"VERDICT: FINDINGS"* ]]
   [[ "$output" == *"WARNING: reviewed commit"* ]]
   [[ "$output" == *"Found a bug."* ]]
+}
+
+@test "issue #50: the startup guard is wall-clock — at --interval 1 a fresh stale-head review stays silent through GAP_GRACE" {
+  push_event 120
+  review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  echo '[]' >"$GH_FIXTURES/comments.json"
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"VERDICT: TIMEOUT"* ]]
 }
 
 @test "commit-date fallback: a fresh other-head review is not surfaced (no round boundary)" {
@@ -343,6 +353,17 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [ "$status" -eq 3 ]
   [[ "$output" == *"postponing the auto-trigger"* ]]
   [[ "$output" != *"posted '@codex review'"* ]]
+}
+
+@test "issue #47: a posted auto-trigger is no step-2b boundary — an other-head review after the trigger is not surfaced" {
+  push_event 600
+  printf '{"created_at":"%s"}' "$(iso 5)" >"$GH_FIXTURES/trigger.json"
+  review -5 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  export CODEX_PR_WATCH_GAP_GRACE=0
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5 --grace 0
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"posted '@codex review' trigger comment"* ]]
+  [[ "$output" != *"VERDICT: FINDINGS"* ]]
 }
 
 @test "issue #47: --trigger and --no-trigger together are rejected" {
