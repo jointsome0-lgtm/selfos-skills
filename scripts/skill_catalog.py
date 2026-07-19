@@ -13,6 +13,9 @@ from typing import Iterable
 ROOT = Path(__file__).resolve().parents[1]
 SKILLS_ROOT = ROOT / "skills"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+SEMVER_RE = re.compile(
+    r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
+)
 FIELD_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
 METADATA_KEY_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
@@ -48,6 +51,10 @@ class Skill:
     @property
     def explicit_only(self) -> bool:
         return self.metadata.get("selfos.explicit-only", "false").casefold() == "true"
+
+    @property
+    def version(self) -> str | None:
+        return self.metadata.get("selfos.version")
 
     @property
     def vendored_skills(self) -> tuple[str, ...]:
@@ -110,13 +117,10 @@ def parse_scalar(raw: str, path: Path, line_number: int) -> tuple[str | None, li
     return checked(value)
 
 
-def parse_skill(path: Path) -> tuple[Skill | None, list[str]]:
+def parse_skill_text(text: str, path: Path) -> tuple[Skill | None, list[str]]:
+    """Parse one SKILL.md string using path only for diagnostics and identity."""
     errors: list[str] = []
     relative = display_path(path)
-    try:
-        text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as exc:
-        return None, [f"{relative}: cannot read UTF-8 skill file: {exc}"]
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         return None, [f"{relative}:1: SKILL.md must start with ---"]
@@ -202,6 +206,56 @@ def parse_skill(path: Path) -> tuple[Skill | None, list[str]]:
         body=body,
     )
     return skill, errors
+
+
+def parse_skill(path: Path) -> tuple[Skill | None, list[str]]:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        return None, [f"{display_path(path)}: cannot read UTF-8 skill file: {exc}"]
+    return parse_skill_text(text, path)
+
+
+def parse_semver(version: str) -> tuple[int, int, int] | None:
+    match = SEMVER_RE.fullmatch(version)
+    if match is None:
+        return None
+    return tuple(int(part) for part in match.groups())  # type: ignore[return-value]
+
+
+def version_errors(skill: Skill) -> list[str]:
+    relative = display_path(skill.path)
+    version = skill.version
+    if version is None:
+        return [f"{relative}: metadata.selfos.version is required"]
+    parsed = parse_semver(version)
+    if parsed is None:
+        return [
+            f"{relative}: metadata.selfos.version must be semantic X.Y.Z "
+            "with no leading zeroes"
+        ]
+    if parsed == (0, 0, 0):
+        return [f"{relative}: metadata.selfos.version must be greater than 0.0.0"]
+    return []
+
+
+def derive_adapter_version(skills: Iterable[Skill]) -> tuple[str | None, list[str]]:
+    """Derive a monotonic aggregate SemVer from canonical per-skill versions."""
+    totals = [0, 0, 0]
+    errors: list[str] = []
+    for skill in skills:
+        declared_errors = version_errors(skill)
+        errors.extend(declared_errors)
+        if declared_errors:
+            continue
+        assert skill.version is not None
+        parsed = parse_semver(skill.version)
+        assert parsed is not None
+        for index, component in enumerate(parsed):
+            totals[index] += component
+    if errors:
+        return None, errors
+    return ".".join(str(component) for component in totals), []
 
 
 def discover_skills() -> tuple[list[Skill], list[str]]:

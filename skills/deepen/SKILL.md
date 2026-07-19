@@ -5,6 +5,7 @@ license: LICENSE.txt
 compatibility: Requires git, read access to the scoped repository and its history, permission to create a temporary HTML file outside the worktree, and a browser to view it. No OS constraint or required network; external issue-tracker write access is needed only to publish an owner-confirmed outcome.
 disable-model-invocation: true
 metadata:
+  selfos.version: "0.1.0"
   selfos.explicit-only: "true"
   selfos.vendored-skills: "codebase-design,grilling"
 ---

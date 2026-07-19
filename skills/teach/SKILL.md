@@ -5,6 +5,7 @@ license: LICENSE.txt
 compatibility: Requires read/write access to a user-approved learning workspace, network access to research and cite trusted resources, and a browser to view generated HTML. No specific CLI, OS, or authenticated external integration; platform opener access is optional and used only on request.
 disable-model-invocation: true
 metadata:
+  selfos.version: "0.1.0"
   selfos.explicit-only: "true"
 ---
 

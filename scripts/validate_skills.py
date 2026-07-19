@@ -13,13 +13,17 @@ from skill_catalog import (
     ALLOWED_FIELDS,
     NAME_RE,
     ROOT,
+    Skill,
     THIRD_PERSON_RE,
     compatibility_errors,
     compare_trees,
+    derive_adapter_version,
     discover_skills,
     display_path,
+    parse_semver,
     symlink_errors,
     validate_provenance,
+    version_errors,
 )
 
 LINK_RE = re.compile(r"!?\[[^\]]*\]\((?P<target>[^)]+)\)")
@@ -94,7 +98,7 @@ def validate_links(skill_root: Path) -> list[str]:
     return errors
 
 
-def validate_catalog() -> tuple[int, list[str]]:
+def validate_catalog() -> tuple[list[Skill], list[str]]:
     skills, errors = discover_skills()
     by_name = {skill.name: skill for skill in skills}
     if len(by_name) != len(skills):
@@ -132,6 +136,7 @@ def validate_catalog() -> tuple[int, list[str]]:
         if compatibility is not None and not (1 <= len(compatibility) <= 500):
             errors.append(f"{relative}: compatibility must be 1-500 characters")
         errors.extend(compatibility_errors(skill))
+        errors.extend(version_errors(skill))
         if not skill.body:
             errors.append(f"{relative}: Markdown body must not be empty")
         elif len(skill.body.splitlines()) > 500:
@@ -184,7 +189,7 @@ def validate_catalog() -> tuple[int, list[str]]:
 
         errors.extend(validate_links(skill.root))
 
-    return len(skills), errors
+    return skills, errors
 
 
 def load_json(path: Path, errors: list[str]) -> dict | None:
@@ -202,26 +207,27 @@ def load_json(path: Path, errors: list[str]) -> dict | None:
     return value
 
 
-def validate_adapters() -> list[str]:
+def validate_adapters(skills: list[Skill]) -> list[str]:
     errors: list[str] = []
     codex = load_json(ROOT / ".codex-plugin" / "plugin.json", errors)
     claude = load_json(ROOT / ".claude-plugin" / "plugin.json", errors)
     codex_marketplace = load_json(ROOT / ".agents" / "plugins" / "marketplace.json", errors)
     claude_marketplace = load_json(ROOT / ".claude-plugin" / "marketplace.json", errors)
 
-    versions: set[str] = set()
+    expected_version, _ = derive_adapter_version(skills)
     for label, manifest in (("Codex", codex), ("Claude", claude)):
         if manifest is None:
             continue
         if manifest.get("name") != "selfos-skills":
             errors.append(f"{label} manifest name must be 'selfos-skills'")
         version = manifest.get("version")
-        if not isinstance(version, str) or not re.fullmatch(r"\d+\.\d+\.\d+", version):
+        if not isinstance(version, str) or parse_semver(version) is None:
             errors.append(f"{label} manifest version must be semantic X.Y.Z")
-        else:
-            versions.add(version)
-    if len(versions) > 1:
-        errors.append("Codex and Claude aggregate manifests must have the same version")
+        elif expected_version is not None and version != expected_version:
+            errors.append(
+                f"{label} manifest version {version!r} is stale; "
+                f"the canonical catalog derives {expected_version!r}"
+            )
     if codex is not None and codex.get("skills") != "./skills/":
         errors.append(".codex-plugin/plugin.json must point skills at './skills/'")
 
@@ -247,13 +253,13 @@ def validate_adapters() -> list[str]:
 
 
 def main() -> int:
-    count, errors = validate_catalog()
-    errors.extend(validate_adapters())
+    skills, errors = validate_catalog()
+    errors.extend(validate_adapters(skills))
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
-    print(f"OK: validated {count} portable Agent Skills and both host adapters.")
+    print(f"OK: validated {len(skills)} portable Agent Skills and both host adapters.")
     return 0
 
 
