@@ -287,6 +287,15 @@ report_review() {
   echo "Next: fix (or explicitly rebut) each item, commit, push, re-run this watcher."
 }
 
+# latest post-cutoff bot review for a DIFFERENT head of this PR, from the
+# current poll's $reviews snapshot ("" when none) — step 2b's candidate
+other_review() {
+  jq -c --arg bot "$BOT" --arg sha "$SHA" --arg since "$RSINCE" '
+      [.[] | select((.user.login | test($bot; "i"))
+                    and (.commit_id != $sha) and (.submitted_at > $since))]
+      | sort_by(.submitted_at) | last // empty' <<<"$reviews" 2>/dev/null || true
+}
+
 # --- poll loop ----------------------------------------------------------------
 deadline=$(( start_epoch + TIMEOUT ))
 eyes_seen=0
@@ -362,10 +371,7 @@ while :; do
   #     running for the pre-push head when this watcher started).
   if [[ $poll -ge 3 && "$eyes" -eq 0 && $ROUND_BOUNDARY -eq 1 ]] \
      && (( $(date +%s) - eyes_up_epoch >= GAP_GRACE )); then
-    other=$(jq -c --arg bot "$BOT" --arg sha "$SHA" --arg since "$RSINCE" '
-        [.[] | select((.user.login | test($bot; "i"))
-                      and (.commit_id != $sha) and (.submitted_at > $since))]
-        | sort_by(.submitted_at) | last // empty' <<<"$reviews" 2>/dev/null) || other=""
+    other=$(other_review) || other=""
     if [[ -n "$other" ]]; then
       report_review "$other"
       exit 2
@@ -436,6 +442,14 @@ while :; do
       # ignore — worse than not posting at all
       AUTO_TRIGGER=0
       log "note: skipping auto-trigger — the PR head moved to ${cur_head:0:10} while this watcher is pinned to ${SHA:0:10}; restart the watcher for the new head"
+    elif [[ $ROUND_BOUNDARY -eq 1 && -n "$(other_review)" ]]; then
+      # a post-cutoff review for another head already exists (the push raced
+      # the bot): step 2b is designed to surface it with its head warning
+      # once the verdict-gap grace passes — posting a trigger now would
+      # re-anchor the cutoffs past it and hide it until timeout. Hold the
+      # shot; a review that only drains in AFTER a posted trigger is the
+      # opposite case and stays ignored (ROUND_BOUNDARY is cleared below).
+      log "note: a fresh bot review for another head is awaiting step 2b's grace — postponing the auto-trigger"
     else
       AUTO_TRIGGER=0    # one shot, posted or failed
       post_trigger
