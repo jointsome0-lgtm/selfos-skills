@@ -412,6 +412,17 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [[ "$output" == *"re-run with --trigger"* ]]
 }
 
+@test "issue #47: TIMEOUT after a posted trigger names a moved PR head instead of blaming the integration" {
+  push_event 600
+  printf '{"head":{"ref":"feat","sha":"ffffffffffffffffffffffffffffffffffffffff"},"state":"open","merged":false}' \
+    >"$GH_FIXTURES/pr.json"
+  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
+  run_watch --trigger
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"restart the watcher for the new head"* ]]
+  [[ "$output" != *"check the Codex integration"* ]]
+}
+
 @test "issue #47: --trigger and --no-trigger together are rejected" {
   run_watch --trigger --no-trigger
   [ "$status" -eq 1 ]

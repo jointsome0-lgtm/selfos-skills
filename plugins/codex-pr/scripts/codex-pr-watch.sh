@@ -427,7 +427,14 @@ while :; do
   if (( now >= deadline )); then
     echo "VERDICT: TIMEOUT"
     echo "No Codex verdict on $REPO#$PR within ${TIMEOUT}s (expected head $SHA)."
-    if [[ -n "$TRIGGER_ISO" ]]; then
+    # a head that moved after a posted trigger explains the silence: the bot
+    # reviews the PR's current head, which this watcher (pinned to $SHA)
+    # deliberately ignores — restarting for the new head is the fix, and
+    # blaming the Codex integration would send the operator the wrong way
+    cur_head=$(jq -r '.head.sha // empty' <<<"$prjson" 2>/dev/null) || cur_head=""
+    if [[ -n "$cur_head" && "$cur_head" != "$SHA" ]]; then
+      echo "The PR head moved to $cur_head while this watcher was pinned to $SHA — restart the watcher for the new head."
+    elif [[ -n "$TRIGGER_ISO" ]]; then
       echo "An '@codex review' trigger was posted at $TRIGGER_ISO and no verdict followed — check the Codex integration on this repository."
     else
       echo "If reviews are not auto-triggered by pushes in this repo, re-run with --trigger."
