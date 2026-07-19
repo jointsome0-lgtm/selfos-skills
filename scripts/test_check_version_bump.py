@@ -67,6 +67,25 @@ class CheckVersionBumpTest(unittest.TestCase):
     def branch(self, name: str = "feature") -> None:
         self.git("checkout", "--quiet", "-b", name)
 
+    def write_adapter(self, manifest_dir: str, version: str) -> None:
+        manifest = self.repo / manifest_dir / "plugin.json"
+        manifest.parent.mkdir(parents=True, exist_ok=True)
+        manifest.write_text(
+            json.dumps({"name": "aggregate", "version": version, "description": "Invented adapter."})
+            + "\n",
+            encoding="utf-8",
+        )
+
+    def write_canonical_skill(self, name: str, line: str) -> None:
+        skill = self.repo / "skills" / name / "SKILL.md"
+        skill.parent.mkdir(parents=True, exist_ok=True)
+        with skill.open("a", encoding="utf-8") as handle:
+            handle.write(line + "\n")
+
+    def write_adapters(self, claude_version: str, codex_version: str) -> None:
+        self.write_adapter(".claude-plugin", claude_version)
+        self.write_adapter(".codex-plugin", codex_version)
+
     def test_content_change_without_bump_fails(self) -> None:
         self.branch()
         self.touch_skill("demo", "Invented edit without a bump.")
@@ -134,6 +153,51 @@ class CheckVersionBumpTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("plugins/extra", result.stderr)
         self.assertNotIn("plugins/demo:", result.stderr)
+
+    def test_canonical_change_without_adapter_bumps_fails(self) -> None:
+        self.write_adapters("0.1.0", "0.1.0")
+        self.write_canonical_skill("demo", "Invented canonical skill.")
+        self.commit("add canonical layout")
+        self.branch()
+        self.write_canonical_skill("demo", "Invented canonical edit without bumps.")
+        self.commit("edit canonical skill")
+        result = self.check()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("bump .claude-plugin/plugin.json", result.stderr)
+        self.assertIn("bump .codex-plugin/plugin.json", result.stderr)
+
+    def test_canonical_change_with_adapter_bumps_passes(self) -> None:
+        self.write_adapters("0.1.0", "0.1.0")
+        self.write_canonical_skill("demo", "Invented canonical skill.")
+        self.commit("add canonical layout")
+        self.branch()
+        self.write_canonical_skill("demo", "Invented canonical edit with bumps.")
+        self.write_adapters("0.1.1", "0.1.1")
+        self.commit("edit canonical skill and bump adapters")
+        result = self.check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("2 touched adapter(s)", result.stdout)
+
+    def test_new_adapters_pass_without_base_manifest(self) -> None:
+        self.branch()
+        self.write_adapters("0.1.0", "0.1.0")
+        self.write_canonical_skill("demo", "Invented canonical skill.")
+        self.commit("introduce canonical layout")
+        result = self.check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_codex_only_change_requires_only_codex_bump(self) -> None:
+        self.write_adapters("0.1.0", "0.1.0")
+        self.commit("add adapters")
+        self.branch()
+        agents = self.repo / ".agents" / "plugins" / "marketplace.json"
+        agents.parent.mkdir(parents=True, exist_ok=True)
+        agents.write_text('{"name": "invented"}\n', encoding="utf-8")
+        self.commit("add codex marketplace entry")
+        result = self.check()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("bump .codex-plugin/plugin.json", result.stderr)
+        self.assertNotIn(".claude-plugin/plugin.json", result.stderr)
 
     def test_unresolvable_base_is_reported(self) -> None:
         result = self.check("--base", "no-such-ref")

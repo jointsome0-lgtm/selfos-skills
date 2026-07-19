@@ -1,143 +1,121 @@
 # selfos-skills
 
-[![Validate](https://github.com/jointsome0-lgtm/selfos-skills/actions/workflows/skill-index.yml/badge.svg)](https://github.com/jointsome0-lgtm/selfos-skills/actions/workflows/skill-index.yml)
+Portable workflow skills for coding agents. The canonical distribution is the open Agent Skills layout under `skills/`; Claude Code and Codex plugin manifests are thin adapters over the same files, not the repository's organizing principle.
 
-Harness-agnostic skills shared across the selfos-ecosystem repositories (`selfos`, `ephemeris`, `atlas`, `exp2res`) and standalone personal workflows, also packaged as a Claude Code plugin marketplace. This is the canonical home for skills not tied to a single repository; skills tied to one repository stay in that repository.
+## Install
 
-## Layout
+The recommended path works across Codex, Claude Code, Cursor, OpenCode, Cline, and other Agent Skills-compatible clients:
 
-```
-.github/workflows/skill-index.yml ← CI: index, plugin, and conventions checks
-.claude-plugin/marketplace.json   ← lists the plugins in this repo
-AGENTS.md                         ← agent-neutral discovery index
-scripts/build_index.py            ← generates and checks AGENTS.md
-scripts/validate_plugins.py       ← validates marketplace.json + plugin manifests
-scripts/check_version_bump.py     ← fails PRs that change a plugin without a version bump
-plugins/
-  sdd/                            ← SDD-stage workflow skills + shared conventions
-    .claude-plugin/plugin.json
-    conventions/
-      SDD-CONVENTIONS.md          ← versioned cross-repo template SDD repos vendor
-      DECISION-LOG.md             ← decision-log entry grammar + lint semantics
-      README.md                   ← distribution model: embed, sync, offline check
-    scripts/
-      sync_conventions.py         ← stdlib sync/check tool (single file, vendorable)
-      check_decision_log.py       ← decision-log lint (graduated size thresholds)
-    PROVENANCE.md                 ← upstream pin + license notice for vendored content
-    skills/
-      grill-sdd/SKILL.md          ← grill an SDD by section; outcomes → SDD edits + issues
-      slice/SKILL.md              ← slice an approved SDD scope into vertical tickets
-  codex-pr/                       ← Codex cloud PR-review loop
-    .claude-plugin/plugin.json
-    skills/
-      watch/SKILL.md              ← push → wait for verdict → fix → repeat until 👍
-    scripts/
-      codex-pr-watch.sh           ← the poller: exit 0 approved / 2 findings / 3 timeout
-  codex-prompting/                ← composing prompts for GPT/Codex delegation
-    .claude-plugin/plugin.json
-    skills/
-      compose/SKILL.md            ← GPT-5.6-era outcome-first prompt guide
-  decision/                       ← shared decision primitives
-    .claude-plugin/plugin.json
-    PROVENANCE.md                 ← upstream pins + license notice for vendored content
-    skills/
-      grilling/SKILL.md           ← owner decision-interview loop (wrapped by domain skills)
-  design/                         ← architecture design vocabulary and methods
-    .claude-plugin/plugin.json
-    PROVENANCE.md                 ← upstream pins + license notice for vendored content
-    skills/
-      codebase-design/SKILL.md    ← deep modules, seams, adapters, deletion test
-        DEEPENING.md              ← dependency categories, seam discipline
-        DESIGN-IT-TWICE.md        ← 3+ independent interface designs, then compare
-      deepen/SKILL.md             ← scoped scan → ephemeral offline report → owner decision loop
-        HTML-REPORT.md            ← script-free offline report scaffold + diagram patterns
-  learning/                       ← multi-session teaching workspaces
-    .claude-plugin/plugin.json
-    PROVENANCE.md                 ← upstream pin + license notice for vendored content
-    skills/
-      teach/SKILL.md              ← mission-driven lessons, learning records, glossary
+```bash
+npx skills add jointsome0-lgtm/selfos-skills
 ```
 
-One plugin per workflow domain; add a new plugin rather than growing a grab-bag. Every skill body is plain Markdown, with any executable helpers kept as portable scripts.
+The installer detects available agents and lets you choose skills and scope. Useful non-interactive forms:
 
-## Install and discover
+```bash
+# All skills for Codex, globally
+npx skills add jointsome0-lgtm/selfos-skills --skill '*' --agent codex --global --yes
 
-### Claude Code
+# One skill for Claude Code in the current project
+npx skills add jointsome0-lgtm/selfos-skills --skill codebase-design --agent claude-code --yes
 
-Install once at user scope; the plugin is then available in all projects:
-
-```
-/plugin marketplace add jointsome0-lgtm/selfos-skills   # or the local checkout path
-/plugin install sdd@selfos
-/plugin install codex-pr@selfos
-/plugin install codex-prompting@selfos
-/plugin install decision@selfos
-/plugin install design@selfos
-/plugin install learning@selfos
+# Show the catalog without installing
+npx skills add jointsome0-lgtm/selfos-skills --list
 ```
 
-The marketplace inside is named `selfos`, so plugins install as `<plugin>@selfos`. `sdd`'s `grill-sdd` and `design`'s `deepen` wrap `decision`'s `grilling` interview loop; both plugins declare that dependency in their manifests, so installing `sdd@selfos` or `design@selfos` pulls `decision@selfos` in automatically (Claude Code ≥ 2.1.110 — on older versions, install both explicitly).
+No clone, working-directory trick, `AGENTS.md` pointer, or prompt-time file path is required.
 
-Skills become available as `/sdd:grill-sdd`, and Claude invokes them by description when relevant — except skills marked `disable-model-invocation: true` (owner-facing or side-effecting workflows like learning's `teach` and sdd's `grill-sdd`), which run only when you invoke them explicitly.
+### Codex native plugin
 
-### Codex
+The repository also ships a root `.codex-plugin/plugin.json` and `.agents/plugins/marketplace.json`. Register the Git repository as a marketplace, then open `/plugins` and install **selfos-skills**:
 
-Clone the repository and start Codex from the clone. Codex reads the root `AGENTS.md`, so matching skills are discoverable without putting their paths in the prompt.
-
-```
-git clone https://github.com/jointsome0-lgtm/selfos-skills.git
-cd selfos-skills
-codex
+```bash
+codex plugin marketplace add https://github.com/jointsome0-lgtm/selfos-skills.git
 ```
 
-To make the index discoverable outside the clone, optionally add a pointer like this to `~/.codex/AGENTS.md` (using the clone's absolute path):
+The plugin manifest points directly to `./skills/`; it does not mirror or rewrite the catalog.
 
-```markdown
-Shared skill index: `/absolute/path/to/selfos-skills/AGENTS.md`. When a task matches, read that file and follow its table.
+### Claude Code native plugin
+
+The preferred Claude package is the aggregate plugin over the canonical catalog:
+
+```text
+/plugin marketplace add jointsome0-lgtm/selfos-skills
+/plugin install selfos-skills@selfos
+/reload-plugins
 ```
 
-### Any other agent or human
+The older domain packages (`sdd@selfos`, `design@selfos`, and so on) remain available temporarily for existing installations, but new work belongs under `skills/`.
 
-Clone or download the repository, open `AGENTS.md`, choose the matching row, and read the linked `SKILL.md` in full. Follow that file and resolve its relative paths from the skill folder.
+## Catalog
 
-## Index maintenance
+| Skill | Purpose | Activation |
+| --- | --- | --- |
+| `codebase-design` | Deep-module vocabulary, seams, adapters, deletion test, testability | automatic or explicit |
+| `compose` | Lean outcome-first prompts for GPT/Codex delegation | automatic or explicit |
+| `deepen` | Scoped architecture-friction scan and owner decision loop | explicit only |
+| `grill-sdd` | Stress-test named SDD sections and land confirmed outcomes | explicit only |
+| `grilling` | Shared one-question-at-a-time owner decision primitive | automatic or explicit |
+| `sdd-conventions` | Portable SDD conventions plus sync and Decision Log lint scripts | automatic or explicit |
+| `slice` | Turn one implementation-ready SDD scope into vertical issues | explicit only |
+| `teach` | Stateful multi-session teaching workspace | explicit only |
+| `watch` | Codex cloud PR push-review-fix loop | automatic or explicit |
 
-Regenerate the discovery table after adding or changing skill metadata, then run the same checks used in CI:
+`watch` requires Bash, Git, `gh`, `jq`, network access, and a configured open PR. `sdd-conventions` requires Python 3.9+ for its helper scripts. Other skills are Markdown-first and use only capabilities explicitly available in the host environment.
 
+## Repository layout
+
+```text
+skills/<name>/SKILL.md              canonical installable Agent Skill
+skills/<name>/references/           bundled docs and self-contained vendored primitives
+skills/<name>/scripts/              portable executable helpers
+.codex-plugin/plugin.json           thin Codex adapter over ./skills/
+.agents/plugins/marketplace.json    Codex marketplace entry
+.claude-plugin/plugin.json          thin Claude aggregate adapter
+.claude-plugin/marketplace.json     aggregate entry plus legacy packages
+AGENTS.md                            generated catalog/fallback, not an installer
+plugins/                             legacy Claude domain-package snapshots
+scripts/                             catalog validation, indexing, and vendored sync
 ```
+
+Every top-level skill is independently installable. Where one workflow composes another, `metadata.selfos.vendored-skills` declares canonical sources whose complete folders are copied under `references/<name>/`. CI checks those copies byte for byte, so a selected skill does not depend on sibling installation or host-specific plugin dependency semantics.
+
+## Add or change a skill
+
+A canonical skill follows the Agent Skills specification:
+
+```text
+skills/my-skill/
+  SKILL.md
+  references/    # optional
+  scripts/       # optional
+  assets/        # optional
+```
+
+`SKILL.md` uses only standard top-level fields (`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`). Host-specific extensions belong in namespaced `metadata`, never as Claude- or Codex-only top-level keys.
+
+After editing canonical sources:
+
+```bash
+python scripts/sync_vendored_skills.py
 python scripts/build_index.py
+python scripts/validate_skills.py
+python scripts/sync_vendored_skills.py --check
 python scripts/build_index.py --check
-python scripts/validate_plugins.py
-python scripts/test_check_version_bump.py
-python scripts/check_version_bump.py
-python plugins/sdd/scripts/test_sync_conventions.py
-python plugins/sdd/scripts/test_check_decision_log.py
-shellcheck scripts/*.sh plugins/*/scripts/*.sh
-bats plugins/codex-pr/scripts/test_codex_pr_watch.bats
-./scripts/check_plugin_install.sh
 ```
 
-## Versioning and update flow
+The main CI additionally runs the canonical and legacy SDD helper tests, both watcher suites, ShellCheck, the legacy static marketplace validator, a `npx skills` discovery smoke test, and the retained end-to-end Claude marketplace install check.
 
-Each plugin has an independent semantic version in its `.claude-plugin/plugin.json`; bump the affected plugin's version whenever that plugin changes — CI fails a PR that touches `plugins/<plugin>/` without bumping that plugin's version (`scripts/check_version_bump.py`). Every version bump gets a tag on the commit that lands it, created with the CLI so plugin.json and the marketplace entry are validated to agree:
+## Legacy package policy
 
-```
-claude plugin tag plugins/sdd --push
-```
+`plugins/` is a compatibility layer for users already installed through the former Claude Code marketplace structure. It is not the source of truth and should receive only compatibility or security fixes. New skills, shared references, documentation, indexing, and release work are driven from `skills/` and the aggregate adapters.
 
-Tags follow the CLI's `{name}--v{version}` format (for example, `sdd--v0.6.2`); pass `--dry-run` to preview the tag and the validation result without creating anything. Claude Code users can then run `/plugin update sdd@selfos` or enable auto-update.
+A later release can remove the legacy packages after downstream installations have migrated to `selfos-skills@selfos` or the universal `skills` installer.
 
-Periodically — after a batch of related bumps lands — a `bundle-YYYY-MM-DD` tag plus a GitHub Release records which plugin versions were validated together; the latest Release is the stable distribution point.
+## Public repository rules
 
-For live marketplace iteration without reinstalling: `claude --plugin-dir /path/to/selfos-skills/plugins/sdd`.
-
-## Conventions
-
-- Public repository: no personal data, credentials, or local tool state; invented demo content only.
-- Skills are repo-agnostic — "this repository's SDD", never hard-coded repo names or paths.
-- Skill folder names and frontmatter names are identical kebab-case; descriptions use third-person summary text plus explicit `Use when …` triggers.
-- Skills must be self-contained: no references to personal skills or machine-local agent state.
+Use invented examples only. Do not commit personal data, credentials, private repository excerpts, machine-local paths, or agent/tool state. Skills remain repository-agnostic and must not widen the permissions supplied by the user or host runtime.
 
 ## License
 
-MIT (see [LICENSE](LICENSE)) — the portfolio-wide license for all selfos-ecosystem repositories.
+MIT. Vendored or adapted material carries its required provenance notice inside the installable skill folder.

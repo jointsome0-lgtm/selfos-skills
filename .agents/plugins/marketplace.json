@@ -1,0 +1,20 @@
+{
+  "name": "selfos",
+  "interface": {
+    "displayName": "selfos Agent Skills"
+  },
+  "plugins": [
+    {
+      "name": "selfos-skills",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

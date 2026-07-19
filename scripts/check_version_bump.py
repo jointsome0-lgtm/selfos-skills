@@ -5,10 +5,13 @@ Diffs the working tree against the merge base with --base (the PR's target
 branch in CI). Any change under plugins/<plugin>/ requires that `version` in
 plugins/<plugin>/.claude-plugin/plugin.json changed too: the plugin cache is
 keyed by version, so an unbumped content change leaves consumers silently on
-the stale copy. Every path under a plugin counts as shipped content — a
-spurious patch bump is cheap, a stale cache is not. Brand-new plugins (no
-manifest at base) and deleted plugins (no manifest now) pass; bump-only diffs
-pass by construction.
+the stale copy. The same rule guards the canonical catalog: a change under
+skills/ or an adapter's own directory requires a bump in that adapter's
+manifest (.claude-plugin/plugin.json for Claude, .codex-plugin/plugin.json
+for Codex — both hosts cache by version). Every path under a guarded root
+counts as shipped content — a spurious patch bump is cheap, a stale cache is
+not. Brand-new plugins (no manifest at base) and deleted plugins (no manifest
+now) pass; bump-only diffs pass by construction.
 
 Operates on the git repository containing the current directory, so it works
 in any checkout and in the self-test's fixture repositories.
@@ -24,6 +27,10 @@ from pathlib import Path
 
 DEFAULT_BASES = ("origin/main", "main")
 MANIFEST_SUFFIX = ".claude-plugin/plugin.json"
+ADAPTER_MANIFESTS = (
+    (".claude-plugin/plugin.json", ("skills/", ".claude-plugin/")),
+    (".codex-plugin/plugin.json", ("skills/", ".codex-plugin/", ".agents/")),
+)
 
 
 def run_git(*argv: str) -> subprocess.CompletedProcess[str]:
@@ -47,39 +54,53 @@ def parse_version(raw: str, where: str, errors: list[str]) -> str | None:
     return version
 
 
-def version_at(ref: str, plugin: str, errors: list[str]) -> str | None:
+def version_at(ref: str, manifest_path: str, errors: list[str]) -> str | None:
     """Version recorded at `ref`, or None when the manifest does not exist there."""
-    manifest_path = f"plugins/{plugin}/{MANIFEST_SUFFIX}"
     shown = run_git("show", f"{ref}:{manifest_path}")
     if shown.returncode != 0:
         return None
     return parse_version(shown.stdout, f"{manifest_path} at {ref}", errors)
 
 
-def version_in_worktree(root: Path, plugin: str, errors: list[str]) -> str | None:
-    manifest_path = root / "plugins" / plugin / MANIFEST_SUFFIX
-    relative = f"plugins/{plugin}/{MANIFEST_SUFFIX}"
+def version_in_worktree(root: Path, manifest_path: str, errors: list[str]) -> str | None:
     try:
-        raw = manifest_path.read_text(encoding="utf-8")
+        raw = (root / manifest_path).read_text(encoding="utf-8")
     except FileNotFoundError:
         return None
     except (OSError, UnicodeError) as exc:
-        errors.append(f"{relative}: cannot read UTF-8 file: {exc}")
+        errors.append(f"{manifest_path}: cannot read UTF-8 file: {exc}")
         return None
-    return parse_version(raw, relative, errors)
+    return parse_version(raw, manifest_path, errors)
 
 
-def changed_plugins(merge_base: str, errors: list[str]) -> list[str] | None:
+def changed_paths(merge_base: str, errors: list[str]) -> list[str] | None:
     diff = run_git("diff", "--name-only", "-z", merge_base, "--")
     if diff.returncode != 0:
         errors.append(f"git diff against {merge_base} failed: {diff.stderr.strip()}")
         return None
-    plugins: set[str] = set()
-    for path in diff.stdout.split("\0"):
-        parts = path.split("/")
-        if len(parts) >= 3 and parts[0] == "plugins":
-            plugins.add(parts[1])
-    return sorted(plugins)
+    return [path for path in diff.stdout.split("\0") if path]
+
+
+def check_manifest(
+    root: Path,
+    merge_base: str,
+    manifest_path: str,
+    guarded: str,
+    errors: list[str],
+) -> bool:
+    """True when the manifest existed at both ends and was version-compared."""
+    base_version = version_at(merge_base, manifest_path, errors)
+    if base_version is None:
+        return False  # new package, or its base manifest is already reported
+    head_version = version_in_worktree(root, manifest_path, errors)
+    if head_version is None:
+        return False  # deleted package, or its manifest is already reported
+    if head_version == base_version:
+        errors.append(
+            f"{guarded}: content changed but version stayed at {base_version!r}; "
+            f"bump {manifest_path}"
+        )
+    return True
 
 
 def main() -> int:
@@ -115,32 +136,39 @@ def main() -> int:
         return 1
     merge_base = merged.stdout.strip()
 
-    plugins = changed_plugins(merge_base, errors)
+    paths = changed_paths(merge_base, errors)
+    plugins: list[str] = []
+    adapters: list[str] = []
     checked = 0
-    if plugins is not None:
+    if paths is not None:
+        names: set[str] = set()
+        for path in paths:
+            parts = path.split("/")
+            if len(parts) >= 3 and parts[0] == "plugins":
+                names.add(parts[1])
+        plugins = sorted(names)
         for plugin in plugins:
-            base_version = version_at(merge_base, plugin, errors)
-            if base_version is None:
-                continue  # new plugin, or its base manifest is already reported
-            head_version = version_in_worktree(root, plugin, errors)
-            if head_version is None:
-                continue  # deleted plugin, or its manifest is already reported
-            checked += 1
-            if head_version == base_version:
-                errors.append(
-                    f"plugins/{plugin}: content changed but version stayed at {base_version!r}; "
-                    f"bump plugins/{plugin}/{MANIFEST_SUFFIX}"
-                )
+            manifest_path = f"plugins/{plugin}/{MANIFEST_SUFFIX}"
+            checked += check_manifest(root, merge_base, manifest_path, f"plugins/{plugin}", errors)
+        for manifest_path, roots in ADAPTER_MANIFESTS:
+            hits = [guarded for guarded in roots if any(path.startswith(guarded) for path in paths)]
+            if not hits:
+                continue
+            adapters.append(manifest_path)
+            checked += check_manifest(root, merge_base, manifest_path, " + ".join(hits), errors)
 
     if errors:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
-    if not plugins:
+    if not plugins and not adapters:
         print(f"OK: no plugin content changes relative to {base}.")
     else:
-        print(f"OK: {len(plugins)} changed plugin(s) relative to {base}; {checked} version-checked.")
+        print(
+            f"OK: {len(plugins)} changed plugin(s) and {len(adapters)} touched adapter(s) "
+            f"relative to {base}; {checked} version-checked."
+        )
     return 0
 
 

@@ -1,0 +1,23 @@
+{
+  "name": "selfos-skills",
+  "version": "0.1.0",
+  "description": "Portable engineering workflow skills for software design, SDD decisions, ticket slicing, learning, prompting, and PR review loops.",
+  "author": {
+    "name": "jointsome0-lgtm",
+    "url": "https://github.com/jointsome0-lgtm"
+  },
+  "homepage": "https://github.com/jointsome0-lgtm/selfos-skills",
+  "repository": "https://github.com/jointsome0-lgtm/selfos-skills",
+  "license": "MIT",
+  "keywords": ["agent-skills", "software-design", "sdd", "workflow"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "selfos skills",
+    "shortDescription": "Portable engineering workflows",
+    "longDescription": "Install the selfos software-design, decision, SDD, prompting, teaching, and PR-review workflows as native Codex Agent Skills.",
+    "developerName": "selfos",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write", "GitHub"],
+    "websiteURL": "https://github.com/jointsome0-lgtm/selfos-skills"
+  }
+}
