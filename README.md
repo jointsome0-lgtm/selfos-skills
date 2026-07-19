@@ -133,6 +133,8 @@ Vendored references carry the source skill's version unchanged because `scripts/
 
 The Claude and Codex aggregate manifest versions are generated, not released independently. `scripts/build_index.py` sums the major, minor, and patch components of every canonical skill version separately; for example, `1.2.3` plus `0.4.5` derives adapter version `1.6.8`. The gate requires every changed skill version to increase, so the derived adapter version also increases whenever canonical skill content changes. `python scripts/build_index.py` writes the same value to both manifests, while validation and `--check` reject drift. Adapter `0.9.0` therefore means the current nine-skill catalog contains nine initial `0.1.0` releases; it is a cache identity for the validated version set, not a bundle API version.
 
+Generated version-only edits to the two manifests are part of an ordinary skill release. Any other change under `.claude-plugin/`, `.codex-plugin/`, or `.agents/` changes the aggregate packaging for every skill, so it requires a patch-or-greater bump of every canonical skill even when no behavior changes. The gate distinguishes those substantive adapter edits from the generated version fields and prevents host caches from retaining stale packaging.
+
 Every canonical skill bump gets a tag on the validated merge commit using the existing double-hyphen convention: `{skill}--v{version}` (for example, `watch--v0.1.1`). A release batch tags that same commit as `bundle-YYYY-MM-DD` and publishes one GitHub Release anchored to the bundle tag. Its notes must list the complete canonical skill version set and separate these headings, using `None` where a category is empty:
 
 - Skill behavior changes

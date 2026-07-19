@@ -209,6 +209,54 @@ class CheckVersionBumpTest(unittest.TestCase):
         self.assertIn(".claude-plugin/plugin.json: derived version is stale", result.stderr)
         self.assertIn(".codex-plugin/plugin.json: derived version is stale", result.stderr)
 
+    def test_adapter_only_content_change_fails(self) -> None:
+        self.set_up_catalog()
+        self.branch()
+        marketplace = self.repo / ".agents" / "plugins" / "marketplace.json"
+        marketplace.parent.mkdir(parents=True)
+        marketplace.write_text('{"name": "invented"}\n', encoding="utf-8")
+        self.commit("change adapter packaging only")
+
+        result = self.check()
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("without bundle-wide canonical packaging bumps", result.stderr)
+        self.assertIn("catalog-demo", result.stderr)
+
+    def test_adapter_manifest_metadata_change_is_substantive(self) -> None:
+        self.set_up_catalog()
+        self.branch()
+        manifest = self.repo / ".codex-plugin" / "plugin.json"
+        value = json.loads(manifest.read_text(encoding="utf-8"))
+        value["homepage"] = "https://example.invalid/invented"
+        manifest.write_text(json.dumps(value) + "\n", encoding="utf-8")
+        self.commit("change adapter manifest metadata")
+
+        result = self.check()
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(".codex-plugin/plugin.json", result.stderr)
+        self.assertIn("packaging bumps", result.stderr)
+
+    def test_adapter_change_with_all_skill_packaging_bumps_passes(self) -> None:
+        self.write_canonical_skill("catalog-demo", "0.1.0")
+        self.write_canonical_skill("catalog-extra", "0.1.0")
+        self.write_adapters("0.2.0")
+        self.commit("add two-skill catalog")
+        self.branch()
+        marketplace = self.repo / ".agents" / "plugins" / "marketplace.json"
+        marketplace.parent.mkdir(parents=True)
+        marketplace.write_text('{"name": "invented"}\n', encoding="utf-8")
+        self.write_canonical_skill("catalog-demo", "0.1.1")
+        self.write_canonical_skill("catalog-extra", "0.1.1")
+        self.write_adapters("0.2.2")
+        self.commit("release bundle-wide adapter packaging")
+
+        result = self.check()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("1 substantive adapter change(s)", result.stdout)
+
     def test_component_wise_sum_derives_adapter_version(self) -> None:
         self.write_canonical_skill("catalog-demo", "1.2.3")
         self.write_canonical_skill("catalog-extra", "0.4.5")

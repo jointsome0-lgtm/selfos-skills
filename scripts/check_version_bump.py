@@ -10,6 +10,9 @@ does not, because the changed installable tree would have no version to bump.
 Both aggregate host manifest versions are the component-wise sum of all
 canonical skill versions. The gate validates that derived value even when a
 manifest was not touched, so stale generated adapters cannot pass CI.
+Generated version-only manifest edits are exempt from separate guarding;
+other aggregate adapter or marketplace edits require packaging bumps across
+the full canonical catalog so host caches also see those changes.
 
 Legacy plugins keep their existing independent manifest-version gate. Their
 manifest versions and release model are intentionally not derived here.
@@ -41,6 +44,7 @@ ADAPTER_MANIFESTS = (
     ".claude-plugin/plugin.json",
     ".codex-plugin/plugin.json",
 )
+ADAPTER_ROOTS = (".claude-plugin/", ".codex-plugin/", ".agents/")
 
 
 def run_git(*argv: str) -> subprocess.CompletedProcess[str]:
@@ -90,6 +94,42 @@ def changed_paths(merge_base: str, errors: list[str]) -> list[str] | None:
         errors.append(f"git diff against {merge_base} failed: {diff.stderr.strip()}")
         return None
     return [path for path in diff.stdout.split("\0") if path]
+
+
+def manifest_payload_without_version(raw: str) -> object:
+    value = json.loads(raw)
+    if not isinstance(value, dict):
+        raise ValueError("top-level JSON value must be an object")
+    payload = dict(value)
+    payload.pop("version", None)
+    return payload
+
+
+def substantive_adapter_changes(
+    root: Path,
+    merge_base: str,
+    paths: list[str],
+) -> list[str]:
+    """Ignore generated manifest-version-only edits; return other adapter edits."""
+    changed: list[str] = []
+    for path in paths:
+        if not path.startswith(ADAPTER_ROOTS):
+            continue
+        if path not in ADAPTER_MANIFESTS:
+            changed.append(path)
+            continue
+        base = run_git("show", f"{merge_base}:{path}")
+        try:
+            head_raw = (root / path).read_text(encoding="utf-8")
+            if base.returncode != 0 or (
+                manifest_payload_without_version(base.stdout)
+                != manifest_payload_without_version(head_raw)
+            ):
+                changed.append(path)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            # The normal manifest validators report the detailed parse error.
+            changed.append(path)
+    return changed
 
 
 def check_legacy_manifest(
@@ -266,6 +306,7 @@ def main() -> int:
     paths = changed_paths(merge_base, errors)
     plugins: list[str] = []
     canonical: list[str] = []
+    adapter_changes: list[str] = []
     checked_legacy = 0
     if paths is not None:
         plugins = sorted(
@@ -282,6 +323,7 @@ def main() -> int:
                 if len(parts := path.split("/")) >= 3 and parts[0] == "skills"
             }
         )
+        adapter_changes = substantive_adapter_changes(root, merge_base, paths)
         for plugin in plugins:
             manifest_path = f"plugins/{plugin}/{LEGACY_MANIFEST_SUFFIX}"
             checked_legacy += check_legacy_manifest(
@@ -289,6 +331,19 @@ def main() -> int:
             )
         for name in canonical:
             check_canonical_skill(root, merge_base, name, errors)
+
+        if adapter_changes:
+            catalog_names = sorted(path.parent.name for path in (root / "skills").glob("*/SKILL.md"))
+            missing_packaging_bumps = sorted(set(catalog_names) - set(canonical))
+            if missing_packaging_bumps:
+                examples = ", ".join(adapter_changes[:3])
+                if len(adapter_changes) > 3:
+                    examples += ", …"
+                errors.append(
+                    f"aggregate adapter content changed ({examples}) without bundle-wide "
+                    "canonical packaging bumps; bump every skills/<name>/SKILL.md version "
+                    f"(missing: {', '.join(missing_packaging_bumps)})"
+                )
 
     adapter_version = check_derived_adapters(root, errors)
 
@@ -313,7 +368,8 @@ def main() -> int:
         print(
             f"OK: {len(canonical)} changed canonical skill(s) and "
             f"{len(plugins)} changed legacy plugin(s) relative to {base}; "
-            f"{checked_legacy} legacy version-checked{adapter}."
+            f"{checked_legacy} legacy version-checked; "
+            f"{len(adapter_changes)} substantive adapter change(s){adapter}."
         )
     return 0
 
