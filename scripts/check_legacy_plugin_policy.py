@@ -192,13 +192,10 @@ def main() -> int:
             errors.append(
                 f"legacy removal is blocked until {earliest.isoformat()} (today: {args.today.isoformat()})"
             )
-        remaining = sorted(
-            package for package in packages if (root / "plugins" / package).exists()
-        )
-        if remaining:
+        if (root / "plugins").exists():
             errors.append(
-                "legacy removal must delete every package together; remaining: "
-                + ", ".join(remaining)
+                "legacy removal must delete the entire plugins/ tree, including its "
+                "deprecation policy and package READMEs"
             )
 
     if errors:

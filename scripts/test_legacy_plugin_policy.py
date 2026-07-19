@@ -146,7 +146,7 @@ class LegacyPluginPolicyTest(unittest.TestCase):
     def test_removal_is_date_gated_and_all_at_once(self) -> None:
         self.adopt_policy_on_main()
         self.branch()
-        shutil.rmtree(self.repo / "plugins" / "demo")
+        shutil.rmtree(self.repo / "plugins")
         early = self.check(["legacy-plugin-removal"], "2026-10-19")
         self.assertEqual(early.returncode, 1)
         self.assertIn("blocked until 2026-10-20", early.stderr)

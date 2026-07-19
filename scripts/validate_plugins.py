@@ -74,7 +74,11 @@ def migration_command(source: str, skills: list[str]) -> str:
     )
 
 
-def load_deprecation(errors: list[str]) -> dict | None:
+def load_deprecation(errors: list[str], *, required: bool = True) -> dict | None:
+    if not DEPRECATION.is_file():
+        if required:
+            errors.append(f"{relative(DEPRECATION)}: missing")
+        return None
     policy = load_object(DEPRECATION, errors)
     if policy is None:
         return None
@@ -210,7 +214,9 @@ def validate_links(errors: list[str]) -> None:
 
 def main() -> int:
     errors: list[str] = []
-    deprecation = load_deprecation(errors)
+    # A completed removal has no plugins/ tree or deprecation policy. Legacy
+    # marketplace entries below make the policy mandatory while any remain.
+    deprecation = load_deprecation(errors, required=False)
     marketplace = load_object(MARKETPLACE, errors)
     registered: set[Path] = set()
     legacy_count = 0
@@ -267,6 +273,10 @@ def main() -> int:
 
     if aggregate_count != 1:
         errors.append("Claude marketplace must contain exactly one root selfos-skills aggregate entry")
+    if legacy_count and deprecation is None:
+        errors.append(
+            f"{relative(DEPRECATION)}: required while legacy marketplace packages remain"
+        )
     if deprecation is not None:
         packages = deprecation.get("packages")
         if isinstance(packages, dict):
@@ -299,8 +309,8 @@ def main() -> int:
             if child.is_dir() and child.resolve() not in registered:
                 errors.append(f"{relative(child)}: legacy package is not registered in the marketplace")
         validate_links(errors)
-    else:
-        errors.append("plugins/: missing")
+    elif deprecation is not None or legacy_count:
+        errors.append("plugins/: missing while legacy package metadata remains")
 
     if errors:
         for error in errors:

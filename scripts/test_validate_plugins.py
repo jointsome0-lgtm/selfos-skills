@@ -6,6 +6,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -111,6 +113,75 @@ class RequiredTextTest(unittest.TestCase):
         ):
             validator.validate_deprecation_notice("invented", package, policy, errors)
         self.assertTrue(any("complete deprecation notice" in error for error in errors))
+
+    def test_missing_policy_is_valid_only_when_optional(self) -> None:
+        root = Path(tempfile.mkdtemp(prefix="plugin-removal-test."))
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        missing = root / "plugins" / "deprecation.json"
+        optional_errors: list[str] = []
+        required_errors: list[str] = []
+        with mock.patch.multiple(
+            validator,
+            ROOT=root,
+            PLUGINS=root / "plugins",
+            DEPRECATION=missing,
+        ):
+            self.assertIsNone(
+                validator.load_deprecation(optional_errors, required=False)
+            )
+            self.assertIsNone(
+                validator.load_deprecation(required_errors, required=True)
+            )
+        self.assertEqual(optional_errors, [])
+        self.assertEqual(required_errors, ["plugins/deprecation.json: missing"])
+
+    def test_aggregate_only_post_removal_layout_passes(self) -> None:
+        root = Path(tempfile.mkdtemp(prefix="plugin-removal-layout-test."))
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        scripts = root / "scripts"
+        manifests = root / ".claude-plugin"
+        scripts.mkdir()
+        manifests.mkdir()
+        shutil.copy2(Path(validator.__file__), scripts / "validate_plugins.py")
+        shutil.copy2(Path(validator.__file__).with_name("skill_catalog.py"), scripts)
+        (manifests / "plugin.json").write_text(
+            json.dumps(
+                {
+                    "name": "selfos-skills",
+                    "version": "1.0.0",
+                    "description": "Invented aggregate.",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        (manifests / "marketplace.json").write_text(
+            json.dumps(
+                {
+                    "name": "selfos",
+                    "owner": {"name": "Invented"},
+                    "plugins": [
+                        {
+                            "name": "selfos-skills",
+                            "source": "./",
+                            "description": "Invented aggregate.",
+                        }
+                    ],
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        result = subprocess.run(
+            [sys.executable, str(scripts / "validate_plugins.py")],
+            cwd=root,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("0 legacy packages", result.stdout)
 
 
 if __name__ == "__main__":
