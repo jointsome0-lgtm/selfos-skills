@@ -79,6 +79,17 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [[ "$output" == *"VERDICT: APPROVED"* ]]
 }
 
+@test "fresh 👍 does not approve after the PR head moves" {
+  push_event 120
+  thumb 60
+  printf '{"head":{"ref":"feat","sha":"ffffffffffffffffffffffffffffffffffffffff"},"state":"open","merged":false}' \
+    >"$GH_FIXTURES/pr.json"
+  run_watch
+  [ "$status" -eq 3 ]
+  [[ "$output" == *"ignoring fresh 👍 — the PR head moved"* ]]
+  [[ "$output" != *"VERDICT: APPROVED"* ]]
+}
+
 @test "issue #34: a watcher starting long after the 👍 still accepts it (cutoff anchors to the push, not start − 90 s)" {
   push_event 1800
   thumb 1200
