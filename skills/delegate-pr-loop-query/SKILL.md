@@ -2,7 +2,7 @@
 name: delegate-pr-loop-query
 description: Creates one ready-to-run GPT-5.6 query that lets a fresh agent continue an open pull request through its remaining Codex review rounds. Use when the current agent must stop operating a PR but the PR still needs review, fixes, and an exact-HEAD clean verdict.
 license: LICENSE.txt
-compatibility: Requires git, gh, network access, authenticated GitHub pull-request read access, and permission to create one file in the operating system's temporary directory. Repository write access is not used by the delegating run after artifact creation; the generated query may authorize it for the fresh run.
+compatibility: Requires git, gh, network access, authenticated GitHub pull-request read access, and permission to create one file in the operating system's temporary directory. Repository write access is not used by the delegating run after artifact creation; the generated query may authorize it for the fresh run. The generated query directs the fresh run to the sibling `watch` skill, which must be installed in the delegated run's own environment.
 metadata:
   selfos.version: "0.1.0"
 ---
@@ -107,6 +107,7 @@ Complete <exact PR URL> correctly and maintainably from exact HEAD `<full SHA>`,
 ## Stop rules
 - Stop for an owner-level product or specification conflict, an unauthorized destructive action, or genuinely incompatible requirements.
 - If repository, PR, HEAD, or review freshness cannot be established, stop with a structured failure instead of guessing.
+- If the `watch` skill is not available in the delegated environment, stop with a structured error naming the missing skill instead of improvising a polling protocol.
 - Otherwise continue through the explicit round budget. When it is `unlimited`, do not introduce an artificial cap; when a finite budget is exhausted, stop and report the remaining state.
 
 ## Suggested skills
