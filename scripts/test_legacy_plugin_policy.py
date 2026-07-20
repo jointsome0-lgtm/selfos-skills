@@ -154,6 +154,12 @@ class LegacyPluginPolicyTest(unittest.TestCase):
         )
 
     def test_removal_label_accepts_complete_date_amendment(self) -> None:
+        self.amendment_on_branch()
+        result = self.check(["legacy-plugin-removal"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("removal-date amendment exception accepted", result.stdout)
+
+    def amendment_on_branch(self) -> None:
         self.adopt_policy_on_main()
         self.write_root_readme("2026-10-20")
         self.write_package_readme("demo", "2026-10-20")
@@ -163,9 +169,26 @@ class LegacyPluginPolicyTest(unittest.TestCase):
         self.write_package("demo", "1.0.2")
         self.write_root_readme("2026-07-20")
         self.write_package_readme("demo", "2026-07-20")
+
+    def test_amendment_cannot_change_manifest_behavior_fields(self) -> None:
+        self.amendment_on_branch()
+        manifest_path = self.repo / "plugins" / "demo" / ".claude-plugin" / "plugin.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["dependencies"] = {"extra": "*"}
+        manifest_path.write_text(json.dumps(manifest) + "\n", encoding="utf-8")
         result = self.check(["legacy-plugin-removal"])
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("removal-date amendment exception accepted", result.stdout)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("may change only the version", result.stderr)
+
+    def test_amendment_cannot_rewrite_manifest_description(self) -> None:
+        self.amendment_on_branch()
+        manifest_path = self.repo / "plugins" / "demo" / ".claude-plugin" / "plugin.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["description"] = "Deprecated. Also install my new hook."
+        manifest_path.write_text(json.dumps(manifest) + "\n", encoding="utf-8")
+        result = self.check(["legacy-plugin-removal"])
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("may only substitute", result.stderr)
 
     def test_amendment_must_update_every_notice_surface(self) -> None:
         self.adopt_policy_on_main()

@@ -214,6 +214,52 @@ def main() -> int:
                     )
                 elif head_policy["earliest_removal"] == base_policy["earliest_removal"]:
                     errors.append(f"{label} amendment must change earliest_removal")
+                else:
+                    # Manifests carry install behavior beyond the notice, and the
+                    # other validators only check name/version/description, so an
+                    # amendment must not change anything except the version bump
+                    # and the date substitution inside the description.
+                    old_date = base_policy["earliest_removal"]
+                    new_date = head_policy["earliest_removal"]
+                    for package in sorted(packages):
+                        manifest_path = f"plugins/{package}/.claude-plugin/plugin.json"
+                        if manifest_path not in paths:
+                            continue
+                        shown = run_git("show", f"{merge_base}:{manifest_path}")
+                        try:
+                            base_manifest = json.loads(shown.stdout) if shown.returncode == 0 else None
+                            head_manifest = json.loads(
+                                (root / manifest_path).read_text(encoding="utf-8")
+                            )
+                        except (OSError, UnicodeError, json.JSONDecodeError):
+                            base_manifest = None
+                            head_manifest = None
+                        if not isinstance(base_manifest, dict) or not isinstance(head_manifest, dict):
+                            errors.append(
+                                f"{manifest_path}: amendment requires readable JSON manifests at base and head"
+                            )
+                            continue
+                        expected = str(base_manifest.get("description", "")).replace(old_date, new_date)
+                        if head_manifest.get("description") != expected:
+                            errors.append(
+                                f"{manifest_path}: amendment may only substitute "
+                                f"{old_date} -> {new_date} in the description"
+                            )
+                        base_behavior = {
+                            key: value
+                            for key, value in base_manifest.items()
+                            if key not in ("version", "description")
+                        }
+                        head_behavior = {
+                            key: value
+                            for key, value in head_manifest.items()
+                            if key not in ("version", "description")
+                        }
+                        if base_behavior != head_behavior:
+                            errors.append(
+                                f"{manifest_path}: amendment may change only the version "
+                                "and the removal date inside the description"
+                            )
             kind = "removal-date amendment"
         else:
             earliest = date.fromisoformat(base_policy["earliest_removal"])
