@@ -343,11 +343,18 @@ while :; do
       [.[] | select((.user.login | test($bot; "i")) and .content == "+1" and .created_at > $since)]
       | last | if . == null then "" else "\(.user.login) at \(.created_at)" end' <<<"$reacts" 2>/dev/null) || thumb=""
   # a verdict 👍 appears only after 👀 is removed; while 👀 is up the round's
-  # review is still running and any visible 👍 is a previous round's leftover
+  # review is still running and any visible 👍 is a previous round's leftover.
+  # Reactions are not commit-tied, so also confirm the PR still has this head.
   if [[ -n "$thumb" && "$eyes" -eq 0 ]]; then
-    echo "VERDICT: APPROVED"
-    echo "👍 reaction on the PR body from $thumb"
-    exit 0
+    thumb_prjson=$(api "repos/$REPO/pulls/$PR") || thumb_prjson=""
+    thumb_head=$(jq -r '.head.sha // empty' <<<"$thumb_prjson" 2>/dev/null) || thumb_head=""
+    if [[ "$thumb_head" == "$SHA" ]]; then
+      echo "VERDICT: APPROVED"
+      echo "👍 reaction on the PR body from $thumb"
+      exit 0
+    elif [[ -n "$thumb_head" ]]; then
+      log "note: ignoring fresh 👍 — the PR head moved to ${thumb_head:0:10} while this watcher is pinned to ${SHA:0:10}"
+    fi
   fi
 
   # 2b) a fresh bot review for a DIFFERENT head of this PR, with no round in
