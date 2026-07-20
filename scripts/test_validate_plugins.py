@@ -114,6 +114,25 @@ class RequiredTextTest(unittest.TestCase):
             validator.validate_deprecation_notice("invented", package, policy, errors)
         self.assertTrue(any("complete deprecation notice" in error for error in errors))
 
+    def test_top_level_notice_must_quote_current_earliest_removal(self) -> None:
+        root = Path(tempfile.mkdtemp(prefix="plugin-top-notice-test."))
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        (root / "README.md").write_text(
+            "Legacy plugins will not be removed before 2026-10-20.\n", encoding="utf-8"
+        )
+        policy = {"earliest_removal": "2026-07-20"}
+        stale_errors: list[str] = []
+        fresh_errors: list[str] = []
+        with mock.patch.multiple(validator, ROOT=root):
+            validator.validate_top_level_notice(policy, stale_errors)
+            (root / "README.md").write_text(
+                "The window closed early; removal may proceed on 2026-07-20.\n",
+                encoding="utf-8",
+            )
+            validator.validate_top_level_notice(policy, fresh_errors)
+        self.assertTrue(any("earliest_removal (2026-07-20)" in error for error in stale_errors))
+        self.assertEqual(fresh_errors, [])
+
     def test_missing_policy_is_valid_only_when_optional(self) -> None:
         root = Path(tempfile.mkdtemp(prefix="plugin-removal-test."))
         self.addCleanup(shutil.rmtree, root, ignore_errors=True)

@@ -186,6 +186,23 @@ def validate_deprecation_notice(
         )
 
 
+def validate_top_level_notice(policy: dict, errors: list[str]) -> None:
+    """The public README quotes the removal window; it must track the policy."""
+    earliest = policy.get("earliest_removal")
+    if not isinstance(earliest, str):
+        return
+    try:
+        text = (ROOT / "README.md").read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        errors.append(f"README.md: cannot read UTF-8: {exc}")
+        return
+    if earliest not in text:
+        errors.append(
+            "README.md: the legacy deprecation section must quote the current "
+            f"earliest_removal ({earliest})"
+        )
+
+
 def validate_links(errors: list[str]) -> None:
     repository_root = ROOT.resolve()
     for path in sorted(PLUGINS.glob("**/*.md")):
@@ -304,6 +321,7 @@ def main() -> int:
             )
             if any(not isinstance(token, str) or token not in root_notice for token in tokens):
                 errors.append(f"{relative(root_readme)}: incomplete root deprecation policy")
+        validate_top_level_notice(deprecation, errors)
     if PLUGINS.is_dir():
         for child in sorted(PLUGINS.iterdir()):
             if child.is_dir() and child.resolve() not in registered:
