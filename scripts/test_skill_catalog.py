@@ -23,7 +23,7 @@ from skill_catalog import (
     validate_provenance,
     version_errors,
 )
-from sync_vendored_skills import copy_tree_atomically
+from build_bundles import copy_tree_atomically
 
 
 class SkillCatalogParserTest(unittest.TestCase):

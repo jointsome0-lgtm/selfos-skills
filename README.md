@@ -95,11 +95,11 @@ Compatibility describes hard runtime needs and conditional capabilities; descrip
 | --- | --- | --- |
 | `codebase-design` | `0.1.0` | Host-neutral Markdown guidance; no required tools, OS constraints, network access, write access, or external integrations. |
 | `compose` | `0.1.0` | Host-neutral Markdown guidance; no required tools, OS constraints, write access, or external integrations. Network access is optional for refreshing linked OpenAI guidance. |
-| `deepen` | `0.1.0` | Requires git, read access to the scoped repository and its history, permission to create a temporary HTML file outside the worktree, and a browser to view it. No OS constraint or required network; external issue-tracker write access is needed only to publish an owner-confirmed outcome. |
-| `grill-sdd` | `0.1.0` | Requires Python 3.9+ for bundled SDD helpers and read access to the target repository. No OS constraint or required network; repository write access and external issue-tracker integration are needed only to land owner-confirmed outcomes. |
+| `deepen` | `0.1.1` | Requires git, read access to the scoped repository and its history, permission to create a temporary HTML file outside the worktree, and a browser to view it. No OS constraint or required network; external issue-tracker write access is needed only to publish an owner-confirmed outcome. |
+| `grill-sdd` | `0.1.1` | Requires Python 3.9+ for bundled SDD helpers and read access to the target repository. No OS constraint or required network; repository write access and external issue-tracker integration are needed only to land owner-confirmed outcomes. |
 | `grilling` | `0.1.0` | Requires read access to owner-scoped sources. No specific CLI or OS; network, write access, and external integrations are needed only when the chosen facts or an owner-confirmed outcome require them. |
 | `sdd-conventions` | `0.1.0` | Requires Python 3.9+ for the standard-library helpers and write access to the target file when syncing. OS-independent and offline, with no external integration. |
-| `slice` | `0.1.0` | Requires Python 3.9+ for bundled SDD helpers, read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
+| `slice` | `0.1.1` | Requires Python 3.9+ for bundled SDD helpers, read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
 | `teach` | `0.1.0` | Requires read/write access to a user-approved learning workspace, network access to research and cite trusted resources, and a browser to view generated HTML. No specific CLI, OS, or authenticated external integration; platform opener access is optional and used only on request. |
 | `watch` | `0.1.0` | Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; requires a POSIX-style shell environment but no specific OS. |
 <!-- END GENERATED COMPATIBILITY -->
@@ -108,7 +108,7 @@ Compatibility describes hard runtime needs and conditional capabilities; descrip
 
 ```text
 skills/<name>/SKILL.md              canonical installable Agent Skill
-skills/<name>/references/           bundled docs and self-contained vendored primitives
+skills/<name>/references/           bundled docs and generated self-contained dependency copies
 skills/<name>/scripts/              portable executable helpers
 .codex-plugin/plugin.json           thin Codex adapter over ./skills/
 .agents/plugins/marketplace.json    Codex marketplace entry
@@ -116,10 +116,21 @@ skills/<name>/scripts/              portable executable helpers
 .claude-plugin/marketplace.json     aggregate entry plus legacy packages
 AGENTS.md                            generated catalog/fallback, not an installer
 plugins/                             legacy Claude domain-package snapshots
-scripts/                             catalog validation, indexing, and vendored sync
+scripts/                             catalog validation, indexing, and bundle generation
 ```
 
-Every top-level skill is independently installable. Where one workflow composes another, `metadata.selfos.vendored-skills` declares canonical sources whose complete folders are copied under `references/<name>/`. CI checks those copies byte for byte, so a selected skill does not depend on sibling installation or host-specific plugin dependency semantics.
+Every top-level skill is independently installable. Where one workflow composes another, a machine-readable manifest at `skills/<name>/BUNDLE.json` declares the canonical dependencies once:
+
+```json
+{
+  "dependencies": [
+    "codebase-design",
+    "grilling"
+  ]
+}
+```
+
+`python scripts/build_bundles.py` deterministically copies each complete canonical source folder under `references/<dependency>/`, stamps every copy with a `GENERATED.md` marker so it self-identifies as a build artifact, and maintains a managed `linguist-generated` block in `.gitattributes` so regenerated trees fold away from authored changes in review diffs. Contributors edit only canonical sources — never the generated copies — and CI runs `python scripts/build_bundles.py --check`, which fails with actionable diagnostics on drift, stale trees, dependency cycles, nested composition, missing dependencies, and path-escaping names. Installed skills therefore stay standalone: at runtime they need neither network access nor sibling installations nor host-specific plugin dependency semantics.
 
 One intentionally host-specific field remains in canonical frontmatter: `disable-model-invocation: true` on explicit-only skills. Claude Code only enforces the invocation guard when it is a top-level field, other hosts ignore unknown fields, and the portable contract stays in each skill's prose ("Run this workflow only on an explicit request"). Validation allows exactly this field — paired with `metadata.selfos.explicit-only` — and rejects any other host-only frontmatter.
 
@@ -140,11 +151,11 @@ skills/my-skill/
 After editing canonical sources:
 
 ```bash
-python scripts/sync_vendored_skills.py
+python scripts/build_bundles.py
 python scripts/build_index.py
 python scripts/validate_skills.py
 python scripts/check_version_bump.py --base origin/main
-python scripts/sync_vendored_skills.py --check
+python scripts/build_bundles.py --check
 python scripts/build_index.py --check
 ```
 
@@ -154,9 +165,9 @@ The main CI additionally runs the canonical and legacy SDD helper tests, both wa
 
 Canonical skills are versioned independently. `metadata.selfos.version` in each top-level `skills/<name>/SKILL.md` is the source of truth, and every change anywhere in that installable skill tree requires a strict semantic-version increase. Use major for a breaking workflow contract, minor for a backward-compatible capability, and patch for fixes, documentation, or packaging-only changes.
 
-Vendored references carry the source skill's version unchanged because `scripts/sync_vendored_skills.py` copies the complete source tree byte for byte. When a dependency changes, bump and sync the source skill, then also bump every composed skill whose vendored tree changed. The version gate checks each changed top-level tree independently.
+Generated bundle copies carry the source skill's version unchanged because `scripts/build_bundles.py` copies the complete source tree byte for byte, adding only the `GENERATED.md` marker. When a dependency changes, bump the source skill and rerun the build, then also bump every composed skill whose regenerated tree changed. The version gate checks each changed top-level tree independently.
 
-The Claude and Codex aggregate manifest versions are generated, not released independently. `scripts/build_index.py` sums the major, minor, and patch components of every canonical skill version separately; for example, `1.2.3` plus `0.4.5` derives adapter version `1.6.8`. The gate requires every changed skill version to increase, so the derived adapter version also increases whenever canonical skill content changes. `python scripts/build_index.py` writes the same value to both manifests, while validation and `--check` reject drift. Adapter `0.9.0` therefore means the current nine-skill catalog contains nine initial `0.1.0` releases; it is a cache identity for the validated version set, not a bundle API version.
+The Claude and Codex aggregate manifest versions are generated, not released independently. `scripts/build_index.py` sums the major, minor, and patch components of every canonical skill version separately; for example, `1.2.3` plus `0.4.5` derives adapter version `1.6.8`. The gate requires every changed skill version to increase, so the derived adapter version also increases whenever canonical skill content changes. `python scripts/build_index.py` writes the same value to both manifests, while validation and `--check` reject drift. A nine-skill catalog of nine initial `0.1.0` releases would therefore derive adapter `0.9.0`; the derived value is a cache identity for the validated version set, not a bundle API version.
 
 Generated version-only edits to the two manifests are part of an ordinary skill release. Any other change under `.claude-plugin/`, `.codex-plugin/`, or `.agents/` changes the aggregate packaging for every skill, so it requires a patch-or-greater bump of every canonical skill even when no behavior changes. The gate distinguishes those substantive adapter edits from the generated version fields and prevents host caches from retaining stale packaging.
 

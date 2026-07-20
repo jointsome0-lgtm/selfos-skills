@@ -5,9 +5,8 @@ license: LICENSE.txt
 compatibility: Requires Python 3.9+ for bundled SDD helpers and read access to the target repository. No OS constraint or required network; repository write access and external issue-tracker integration are needed only to land owner-confirmed outcomes.
 disable-model-invocation: true
 metadata:
-  selfos.version: "0.1.0"
+  selfos.version: "0.1.1"
   selfos.explicit-only: "true"
-  selfos.vendored-skills: "grilling,sdd-conventions"
 ---
 
 # Grill an SDD

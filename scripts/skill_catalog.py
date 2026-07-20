@@ -36,6 +36,12 @@ RUNTIME_SUFFIX_REQUIREMENTS = {
     ".py": "python",
     ".sh": "bash",
 }
+# Machine-readable dependency manifest of a composed skill; the single place
+# contributors declare which canonical sibling skills get bundled.
+BUNDLE_MANIFEST_NAME = "BUNDLE.json"
+# Marker stamped at the root of every generated dependency copy so the tree
+# self-identifies as a build artifact; reserved at canonical skill roots.
+GENERATED_MARKER_NAME = "GENERATED.md"
 
 
 @dataclass(frozen=True)
@@ -55,11 +61,6 @@ class Skill:
     @property
     def version(self) -> str | None:
         return self.metadata.get("selfos.version")
-
-    @property
-    def vendored_skills(self) -> tuple[str, ...]:
-        raw = self.metadata.get("selfos.vendored-skills", "")
-        return tuple(part.strip() for part in raw.split(",") if part.strip())
 
 
 def display_path(path: Path) -> str:
@@ -329,37 +330,117 @@ def symlink_errors(root: Path) -> list[str]:
     ]
 
 
-def compare_trees(source: Path, destination: Path) -> list[str]:
+def compare_trees(
+    source: Path,
+    destination: Path,
+    extra_files: dict[str, bytes] | None = None,
+) -> list[str]:
+    """Compare destination against source plus rendered extra files.
+
+    extra_files maps destination-relative POSIX paths to the exact bytes the
+    generator would write there (for example the generated-copy marker); a
+    canonical source shipping a file at a reserved extra path is an error.
+    """
     errors = symlink_errors(source) + symlink_errors(destination)
     if errors:
         return errors
     source_map = source_files(source)
+    extra = {Path(name): content for name, content in (extra_files or {}).items()}
+    for relative in sorted(extra):
+        if relative in source_map:
+            errors.append(
+                f"{display_path(source / relative)}: canonical sources must not ship "
+                f"{relative.as_posix()}; the name is reserved for generated bundle metadata"
+            )
+    if errors:
+        return errors
     destination_map = source_files(destination) if destination.is_dir() else {}
-    source_names = set(source_map)
+    expected_names = set(source_map) | set(extra)
     destination_names = set(destination_map)
-    for missing in sorted(source_names - destination_names):
+    for missing in sorted(expected_names - destination_names):
         errors.append(f"missing vendored file {display_path(destination / missing)}")
-    for extra in sorted(destination_names - source_names):
-        errors.append(f"unexpected vendored file {display_path(destination / extra)}")
-    for relative in sorted(source_names & destination_names):
+    for unexpected in sorted(destination_names - expected_names):
+        errors.append(f"unexpected vendored file {display_path(destination / unexpected)}")
+    for relative in sorted(expected_names & destination_names):
         try:
-            source_bytes = source_map[relative].read_bytes()
+            expected_bytes = (
+                extra[relative] if relative in extra else source_map[relative].read_bytes()
+            )
             destination_bytes = destination_map[relative].read_bytes()
         except OSError as exc:
             errors.append(f"cannot compare vendored file {relative.as_posix()}: {exc}")
             continue
-        if source_bytes != destination_bytes:
-            errors.append(
-                f"vendored file drift: {display_path(destination / relative)} != "
-                f"{display_path(source / relative)}"
-            )
+        if expected_bytes != destination_bytes:
+            if relative in extra:
+                errors.append(
+                    f"generated marker drift: {display_path(destination / relative)} "
+                    "does not match its rendered content"
+                )
+            else:
+                errors.append(
+                    f"vendored file drift: {display_path(destination / relative)} != "
+                    f"{display_path(source / relative)}"
+                )
     return errors
 
 
-def iter_vendored_edges(skills: Iterable[Skill]) -> Iterable[tuple[Skill, str]]:
-    for skill in skills:
-        for dependency in skill.vendored_skills:
-            yield skill, dependency
+def load_bundle_manifest(skill_root: Path) -> tuple[tuple[str, ...] | None, list[str]]:
+    """Load a composed skill's BUNDLE.json dependency manifest.
+
+    Returns (None, []) when the skill declares no bundle, (dependencies, [])
+    for a valid manifest, and (None, diagnostics) for an invalid one. Names
+    are restricted to canonical skill folder names, so path separators and
+    dot segments can never escape skills/<name>/.
+    """
+    path = skill_root / BUNDLE_MANIFEST_NAME
+    where = display_path(path)
+    if path.is_symlink():
+        return None, [f"{where}: must be a regular file, not a symlink"]
+    if not path.exists():
+        return None, []
+    errors: list[str] = []
+    try:
+        if path.stat().st_size > 64 * 1024:
+            return None, [f"{where}: implausibly large (over 64 KiB)"]
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        return None, [f"{where}: invalid JSON: {exc}"]
+    if not isinstance(value, dict):
+        return None, [f"{where}: top-level JSON value must be an object"]
+    unknown = sorted(set(value) - {"dependencies"})
+    if unknown:
+        errors.append(
+            f"{where}: unsupported manifest keys: {', '.join(unknown)}; "
+            "only 'dependencies' is defined"
+        )
+    dependencies = value.get("dependencies")
+    if not isinstance(dependencies, list) or not all(
+        isinstance(item, str) for item in dependencies
+    ):
+        errors.append(f"{where}: 'dependencies' must be a list of skill-name strings")
+        return None, errors
+    if not dependencies:
+        errors.append(
+            f"{where}: 'dependencies' must not be empty; delete the manifest for a "
+            "skill with no bundled dependencies"
+        )
+    for name in dependencies:
+        if not NAME_RE.fullmatch(name):
+            errors.append(
+                f"{where}: invalid dependency name {name!r}; use the bare "
+                "lowercase-hyphen folder name of a canonical skill (path separators "
+                "and dot segments are rejected)"
+            )
+    if len(set(dependencies)) != len(dependencies):
+        errors.append(f"{where}: 'dependencies' must not contain duplicates")
+    if dependencies != sorted(dependencies):
+        errors.append(
+            f"{where}: 'dependencies' must be sorted alphabetically so builds and "
+            "diffs stay deterministic"
+        )
+    if errors:
+        return None, errors
+    return tuple(dependencies), []
 
 
 SHA_RE = re.compile(r"\b[0-9a-f]{40}\b", re.IGNORECASE)
@@ -475,7 +556,8 @@ def validate_provenance(
                 )
     elif delegation_headings or delegated:
         errors.append(
-            f"{where}: bundled provenance delegation requires selfos.vendored-skills"
+            f"{where}: bundled provenance delegation requires a {BUNDLE_MANIFEST_NAME} "
+            "dependency manifest"
         )
 
     sections: list[tuple[str, str]] = []
