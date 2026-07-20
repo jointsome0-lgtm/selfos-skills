@@ -19,8 +19,9 @@ Complete every read before writing the artifact:
 
 1. Resolve the current Git worktree and its repository root without guessing from the directory name.
 2. Resolve the GitHub repository identity from that checkout and the single open pull request for the current branch.
-3. Read the local `HEAD`, the PR's `headRefOid`, the PR URL, number, state, title, body, base, current reviews and threads, and checks. Require the PR to be open and the two HEAD SHAs to be identical.
-4. Record the exact HTTPS PR URL and full 40-character HEAD SHA. Derive the filename's repository component from the resolved repository name, sanitized to lowercase ASCII letters, digits, and hyphens.
+3. Require a clean worktree: no staged, unstaged, or untracked paths. Local changes are not part of the PR HEAD and must never be silently lost, captured, validated, or committed by the fresh run.
+4. Read the local `HEAD`, the PR's `headRefOid`, the PR URL, number, state, title, body, base, current reviews and threads, and checks. Require the PR to be open and the two HEAD SHAs to be identical.
+5. Record the exact HTTPS PR URL and full 40-character HEAD SHA. Derive the filename's repository component from the resolved repository name, sanitized to lowercase ASCII letters, digits, and hyphens.
 
 Resolution is read-only. Do not select a different PR because it looks related, accept a shortened SHA, silently use a remote-tracking SHA, or proceed through ambiguous, partial, stale, detached, or mismatched state.
 
@@ -50,7 +51,7 @@ Read the PR and repository as durable sources, then use the bundled handoff rule
 
 A prior rebuttal is a concise decision plus its evidence, not a copied finding ledger. Reference commits, diffs, review threads, CI runs, specs, ADR-like records, issues, tests, and scripts by path or URL instead of reproducing them. Omit the conversation, routine progress, recoverable review history, command transcripts, and duplicated artifact contents.
 
-Apply the optional focus as a selection constraint, not permission to discard an invariant. Redact credentials, tokens, session identifiers, personal data, private paths, and other sensitive values with typed markers. Review both prose and references after redaction; omit an unsafe reference when redaction would leave it usable only by exposing the value.
+Apply the optional focus or constraint without discarding an invariant. If the owner or caller explicitly supplies a finite review-round budget, preserve it; otherwise select `unlimited`. A budget is an explicit input, never an inference from identity, model, quota, harness, or execution mode. Redact credentials, tokens, session identifiers, personal data, private paths, and other sensitive values with typed markers. Review both prose and references after redaction; omit an unsafe reference when redaction would leave it usable only by exposing the value.
 
 ## 3. Select model and reasoning effort
 
@@ -93,7 +94,7 @@ Complete <exact PR URL> correctly and maintainably from exact HEAD `<full SHA>`,
 - Inspect the exact starting HEAD and current review state before changing anything; if the PR head moved, reconcile that state explicitly rather than assuming the query's SHA is current.
 - Verify every finding on its merits. Fix valid findings coherently, add regression coverage where appropriate, and rebut false positives with concrete repository evidence instead of complying merely to silence review.
 - A clean verdict is the completion signal, not the optimization objective. Do not weaken intended behavior, schemas, validators, error handling, contracts, or meaningful tests merely to silence review.
-- `round-budget=unlimited`. This caller-provided budget overrides `watch`'s ordinary finite-round handoff guardrail for this run; never infer a budget from the caller's identity, model, quota, harness, or execution mode.
+- `round-budget=<explicit positive integer | unlimited>`. Preserve an explicit owner/caller cap; otherwise use `unlimited`. This caller-provided budget overrides `watch`'s ordinary finite-round handoff guardrail for this run and is never inferred from identity, model, quota, harness, or execution mode.
 - You may read repository and PR state, edit in-scope files, add or update tests, run non-destructive validation, commit and push to the current PR branch, and trigger and monitor Codex review rounds.
 - The environment caps one command at about 10 minutes. Run the `watch` watcher with `--timeout 540` and re-run it as needed; starting it late is safe because freshness is anchored to the push or explicit trigger, not watcher launch time.
 
@@ -106,7 +107,7 @@ Complete <exact PR URL> correctly and maintainably from exact HEAD `<full SHA>`,
 ## Stop rules
 - Stop for an owner-level product or specification conflict, an unauthorized destructive action, or genuinely incompatible requirements.
 - If repository, PR, HEAD, or review freshness cannot be established, stop with a structured failure instead of guessing.
-- Otherwise continue the explicitly unbounded review loop; do not introduce an artificial round cap.
+- Otherwise continue through the explicit round budget. When it is `unlimited`, do not introduce an artificial cap; when a finite budget is exhausted, stop and report the remaining state.
 
 ## Suggested skills
 

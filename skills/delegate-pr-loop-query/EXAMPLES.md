@@ -31,6 +31,8 @@ Expected selection:
 
 The selected run configuration is `gpt-5.6-sol` with `xhigh`: several rounds exposed validator, packaging, and platform interactions. The resulting query has the required Goal / Context / Constraints / Success criteria / Stop rules / Suggested skills structure, records `https://github.com/invented-org/orchard-tools/pull/17` and the full fixture SHA, names `watch` without copying its polling protocol, and contains `round-budget=unlimited`. Its quality-preservation constraint occurs once.
 
+If the same fixture includes the explicit constraint `round-budget=2`, the query records `round-budget=2` and stops with remaining-state evidence after two delegated rounds unless approval arrives earlier. No caller identity, model, quota, harness, or execution mode changes either fixture's budget.
+
 Starting with an empty canonical fixture temp directory, the run creates one owner-only child directory containing only `orchard-tools-pr-17-loop-query.md`. After it prints that path, `gpt-5.6-sol`, and `xhigh`, the fixture audit records no repository or PR mutation, watcher invocation, child agent, or delegated launch.
 
 ## Effort choices remain distinct
@@ -60,3 +62,5 @@ next_action: check out the intended open PR branch and rerun after local HEAD eq
 ```
 
 No Markdown file is created, no candidate is guessed, and GitHub state is unchanged.
+
+The same failure occurs before artifact creation when the branch and PR heads match but the worktree contains a staged, unstaged, or untracked fixture path. The structured `problem` names the dirty worktree so the owner can preserve or clear it intentionally.
