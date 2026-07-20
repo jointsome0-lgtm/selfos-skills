@@ -35,7 +35,7 @@ No clone, working-directory trick, `AGENTS.md` pointer, or prompt-time file path
 | Cursor via `skills` | Isolated global install with complete copied trees and executable modes checked | CI-tested |
 | OpenCode via `skills` | Isolated global install with complete copied trees and executable modes checked | CI-tested |
 | Codex native plugin | Representative Codex CLI adds the local marketplace, discovers the sole plugin, installs it, and exposes the exact canonical catalog | CI-tested |
-| Claude root and legacy marketplace | Representative Claude CLI validates and installs the aggregate and every legacy package; the aggregate tree and discovered skill union match the canonical catalog | CI-tested |
+| Claude root marketplace | Representative Claude CLI validates and installs the aggregate package; the aggregate tree and discovered skill union match the canonical catalog | CI-tested |
 | Cline and other compatible clients | No dedicated CI matrix case yet | Community-tested |
 
 Every install check rejects missing or unexpected skills, missing or changed companion files, lost executable modes, and absolute checkout paths embedded in installed skill payloads. The matrix source of truth is `scripts/install_smoke_matrix.json`.
@@ -60,17 +60,7 @@ The preferred Claude package is the aggregate plugin over the canonical catalog:
 /reload-plugins
 ```
 
-The older domain packages (`sdd@selfos`, `design@selfos`, and so on) are deprecated compatibility snapshots. Existing users should refresh the final cached notice, install the aggregate replacement, then remove the old package:
-
-```text
-/plugin marketplace update selfos
-/plugin update sdd@selfos
-/plugin install selfos-skills@selfos
-/plugin uninstall sdd@selfos
-/reload-plugins
-```
-
-The universal installer is the canonical path when selecting individual replacement skills; each legacy package README contains its exact command.
+The former domain packages (`sdd@selfos`, `design@selfos`, `decision@selfos`, `learning@selfos`, `codex-pr@selfos`, `codex-prompting@selfos`) were removed on 2026-07-20 after their migration window closed ([issue #66](https://github.com/jointsome0-lgtm/selfos-skills/issues/66)); the major-migration release note names each one. Cached installs keep working but receive no updates — migrate with the aggregate plugin above or the universal installer, then uninstall the old package.
 
 ## Catalog
 
@@ -93,15 +83,15 @@ Compatibility describes hard runtime needs and conditional capabilities; descrip
 
 | Skill | Version | Runtime compatibility |
 | --- | --- | --- |
-| `codebase-design` | `0.1.0` | Host-neutral Markdown guidance; no required tools, OS constraints, network access, write access, or external integrations. |
-| `compose` | `0.1.0` | Host-neutral Markdown guidance; no required tools, OS constraints, write access, or external integrations. Network access is optional for refreshing linked OpenAI guidance. |
-| `deepen` | `0.1.1` | Requires git, read access to the scoped repository and its history, permission to create a temporary HTML file outside the worktree, and a browser to view it. No OS constraint or required network; external issue-tracker write access is needed only to publish an owner-confirmed outcome. |
-| `grill-sdd` | `0.1.1` | Requires Python 3.9+ for bundled SDD helpers and read access to the target repository. No OS constraint or required network; repository write access and external issue-tracker integration are needed only to land owner-confirmed outcomes. |
-| `grilling` | `0.1.0` | Requires read access to owner-scoped sources. No specific CLI or OS; network, write access, and external integrations are needed only when the chosen facts or an owner-confirmed outcome require them. |
-| `sdd-conventions` | `0.1.0` | Requires Python 3.9+ for the standard-library helpers and write access to the target file when syncing. OS-independent and offline, with no external integration. |
-| `slice` | `0.1.1` | Requires Python 3.9+ for bundled SDD helpers, read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
-| `teach` | `0.1.0` | Requires read/write access to a user-approved learning workspace, network access to research and cite trusted resources, and a browser to view generated HTML. No specific CLI, OS, or authenticated external integration; platform opener access is optional and used only on request. |
-| `watch` | `0.1.0` | Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; requires a POSIX-style shell environment but no specific OS. |
+| `codebase-design` | `0.1.1` | Host-neutral Markdown guidance; no required tools, OS constraints, network access, write access, or external integrations. |
+| `compose` | `0.1.1` | Host-neutral Markdown guidance; no required tools, OS constraints, write access, or external integrations. Network access is optional for refreshing linked OpenAI guidance. |
+| `deepen` | `0.1.2` | Requires git, read access to the scoped repository and its history, permission to create a temporary HTML file outside the worktree, and a browser to view it. No OS constraint or required network; external issue-tracker write access is needed only to publish an owner-confirmed outcome. |
+| `grill-sdd` | `0.1.2` | Requires Python 3.9+ for bundled SDD helpers and read access to the target repository. No OS constraint or required network; repository write access and external issue-tracker integration are needed only to land owner-confirmed outcomes. |
+| `grilling` | `0.1.1` | Requires read access to owner-scoped sources. No specific CLI or OS; network, write access, and external integrations are needed only when the chosen facts or an owner-confirmed outcome require them. |
+| `sdd-conventions` | `0.1.1` | Requires Python 3.9+ for the standard-library helpers and write access to the target file when syncing. OS-independent and offline, with no external integration. |
+| `slice` | `0.1.2` | Requires Python 3.9+ for bundled SDD helpers, read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
+| `teach` | `0.1.1` | Requires read/write access to a user-approved learning workspace, network access to research and cite trusted resources, and a browser to view generated HTML. No specific CLI, OS, or authenticated external integration; platform opener access is optional and used only on request. |
+| `watch` | `0.1.1` | Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; requires a POSIX-style shell environment but no specific OS. |
 <!-- END GENERATED COMPATIBILITY -->
 
 ## Repository layout
@@ -113,9 +103,8 @@ skills/<name>/scripts/              portable executable helpers
 .codex-plugin/plugin.json           thin Codex adapter over ./skills/
 .agents/plugins/marketplace.json    Codex marketplace entry
 .claude-plugin/plugin.json          thin Claude aggregate adapter
-.claude-plugin/marketplace.json     aggregate entry plus legacy packages
+.claude-plugin/marketplace.json     aggregate entry
 AGENTS.md                            generated catalog/fallback, not an installer
-plugins/                             legacy Claude domain-package snapshots
 scripts/                             catalog validation, indexing, and bundle generation
 ```
 
@@ -159,7 +148,7 @@ python scripts/build_bundles.py --check
 python scripts/build_index.py --check
 ```
 
-The main CI additionally runs the canonical and legacy SDD helper tests, both watcher suites, ShellCheck, the legacy static marketplace validator, and the matrixed installation checks described above.
+The main CI additionally runs the canonical SDD helper tests, the watcher suite, ShellCheck, the static adapter validator, and the matrixed installation checks described above.
 
 ## Versioning and releases
 
@@ -179,24 +168,13 @@ Every canonical skill bump gets a tag on the validated merge commit using the ex
 
 Before tagging, run the full CI validation set against the exact commit and confirm both adapter manifests equal the generated catalog version. Push every new per-skill tag plus the bundle tag, then create the single bundle Release; the tag set identifies the exact source revision of an independently installed skill without the original checkout.
 
-Legacy manifests under `plugins/` keep independent versions and `{name}--v{version}` tags. They are compatibility snapshots, are not inputs to the canonical adapter derivation, and received their final planned bump for the dated deprecation notice. A later compatibility or security exception must strictly increase only the affected package version.
+## Removed legacy packages
 
-## Legacy package policy
-
-`plugins/` was deprecated on **2026-07-20** and is retained only for users already installed through the former Claude Code marketplace structure. The six package manifests received one final deprecation bump so version-keyed caches can fetch their notices. New installations and all skill behavior use the canonical catalog:
+The six Claude domain packages under `plugins/` (`sdd`, `design`, `decision`, `learning`, `codex-pr`, `codex-prompting`) were deprecated on 2026-07-20 and removed the same day after every known consumer migrated ([issue #66](https://github.com/jointsome0-lgtm/selfos-skills/issues/66)). Their `{name}--v{version}` tags and final deprecation-notice releases remain in history for version-keyed caches. New installations use the canonical catalog:
 
 ```bash
 npx skills add jointsome0-lgtm/selfos-skills --skill '*' --agent claude-code --global --yes
 ```
-
-Nothing under `plugins/` is generated. `plugins/deprecation.json`, the legacy policy README, package READMEs, and package manifests are manually maintained deprecation metadata; the remaining skill bodies, examples, conventions, scripts, tests, and provenance files are frozen snapshots. CI rejects legacy-tree edits unless a maintainer applies `legacy-plugin-compatibility` or the explicit security escape hatch `legacy-plugin-security`; neither exception may create another legacy package, and the existing strict package-version gate still applies. The eventual all-at-once removal uses `legacy-plugin-removal`.
-
-The migration window originally ran to 2026-10-20 but was closed early on **2026-07-20** after every known consumer migrated, so removal may proceed at any time. Dedicated removal issue [#66](https://github.com/jointsome0-lgtm/selfos-skills/issues/66) stays blocked until:
-
-- `selfos`, `atlas`, `exp2res`, `tollgate`, and `story` no longer document or depend on the legacy packages;
-- repository and ecosystem docs point to the canonical installer or `selfos-skills@selfos`;
-- the canonical installation smoke matrix passes on the removal commit; and
-- a major-migration release note names every removed package, repeats the migration command, and explains the cache transition.
 
 ## Public repository rules
 

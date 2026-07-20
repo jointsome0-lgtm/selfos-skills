@@ -1,41 +1,13 @@
 {
   "name": "selfos",
-  "owner": { "name": "jointsome0-lgtm" },
+  "owner": {
+    "name": "jointsome0-lgtm"
+  },
   "plugins": [
     {
       "name": "selfos-skills",
       "source": "./",
       "description": "Portable aggregate Agent Skills package; preferred for new installations on Claude Code and other compatible hosts"
-    },
-    {
-      "name": "sdd",
-      "source": "./plugins/sdd",
-      "description": "Legacy compatibility package for SDD-stage workflow skills and shared conventions"
-    },
-    {
-      "name": "codex-pr",
-      "source": "./plugins/codex-pr",
-      "description": "Legacy compatibility package for the Codex cloud PR-review loop"
-    },
-    {
-      "name": "codex-prompting",
-      "source": "./plugins/codex-prompting",
-      "description": "Legacy compatibility package for GPT/Codex prompt composition"
-    },
-    {
-      "name": "decision",
-      "source": "./plugins/decision",
-      "description": "Legacy compatibility package for owner-facing decision primitives"
-    },
-    {
-      "name": "design",
-      "source": "./plugins/design",
-      "description": "Legacy compatibility package for architecture design vocabulary and methods"
-    },
-    {
-      "name": "learning",
-      "source": "./plugins/learning",
-      "description": "Legacy compatibility package for multi-session learning workspaces"
     }
   ]
 }

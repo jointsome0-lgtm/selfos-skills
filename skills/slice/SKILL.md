@@ -5,7 +5,7 @@ license: LICENSE.txt
 compatibility: Requires Python 3.9+ for bundled SDD helpers, read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint.
 disable-model-invocation: true
 metadata:
-  selfos.version: "0.1.1"
+  selfos.version: "0.1.2"
   selfos.explicit-only: "true"
 ---
 
