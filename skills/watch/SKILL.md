@@ -18,8 +18,8 @@ On every push to an open PR, the Codex bot may react 👀, review, then post an 
 1. Ensure the round's work is committed and pushed to the PR branch.
 2. Run `scripts/codex-pr-watch.sh` in the background when the host can surface completion, otherwise in the foreground. Defaults: current repository, current branch's PR, expected head from `git rev-parse HEAD`, 30-second polling, 25-minute timeout. See `--help` for `--pr`, `--repo`, `--trigger`, `--no-trigger`, and other flags.
 3. Act on the exit code:
-   - **0 APPROVED** — report the clean verdict (`APPROVED` review state or 👍 reaction) and stop.
-   - **2 FINDINGS** — read the review body and every `path:line` comment. Fix each finding or explicitly rebut it; never silently drop one. Commit, push, and start another round. When every finding is rebutted and the head did not change, use `--trigger` so the old same-head review is not accepted again.
+   - **0 APPROVED** — the watcher found a fresh 👍 reaction; report the clean verdict and stop.
+   - **2 REVIEW** — inspect the reported review state, body, and every `path:line` comment. An `APPROVED` review state is a clean verdict; report it and stop. Otherwise treat the review as findings: fix each finding or explicitly rebut it; never silently drop one. Commit, push, and start another round. When every finding is rebutted and the head did not change, use `--trigger` so the old same-head review is not accepted again.
    - **3 TIMEOUT** — read the log. If the PR head moved, restart the watcher for the new head — even after a posted trigger, the bot reviews the current head, which a watcher pinned to the old one ignores. If the watcher posted `@codex review`, the head did not move, and no verdict followed, report a likely integration problem. Otherwise follow the logged remediation: fix write access and re-run with `--trigger`, or verify a pre-cutoff `APPROVED` review state or 👍 reaction manually.
    - **4 PR_NOT_OPEN** — the PR was merged or closed; stop and report.
 
