@@ -4,7 +4,7 @@ description: Packages the shared SDD section conventions, Decision Log grammar, 
 license: LICENSE.txt
 compatibility: Requires Python 3.9+ for the standard-library helpers and write access to the target file when syncing. OS-independent and offline, with no external integration.
 metadata:
-  selfos.version: "0.1.0"
+  selfos.version: "0.1.1"
 ---
 
 # SDD conventions

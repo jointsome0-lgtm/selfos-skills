@@ -3,7 +3,7 @@ name: grilling
 description: Grills the owner relentlessly about a plan, decision, or idea until shared understanding — one decision-tree branch at a time, a recommended answer per question, facts looked up from permitted surfaces, decisions left to the owner, no action before confirmation. Use when the owner wants to stress-test a plan, decision, or idea, or uses a 'grill' trigger phrase — unless a domain grill wrapper such as grill-sdd covers the subject; then the wrapper is the entry point — or when a domain workflow skill needs the shared decision-interview loop.
 compatibility: Requires read access to owner-scoped sources. No specific CLI or OS; network, write access, and external integrations are needed only when the chosen facts or an owner-confirmed outcome require them.
 metadata:
-  selfos.version: "0.1.0"
+  selfos.version: "0.1.1"
 ---
 
 Interview the owner relentlessly about every aspect of the subject until you reach a shared understanding. Walk down each branch of the decision tree, resolving dependencies between decisions one by one. For each question, provide your recommended answer.
