@@ -1,0 +1,8 @@
+# BEGIN generated skill bundles; managed by scripts/build_bundles.py.
+skills/deepen/references/codebase-design/** linguist-generated=true
+skills/deepen/references/grilling/** linguist-generated=true
+skills/grill-sdd/references/grilling/** linguist-generated=true
+skills/grill-sdd/references/sdd-conventions/** linguist-generated=true
+skills/slice/references/grilling/** linguist-generated=true
+skills/slice/references/sdd-conventions/** linguist-generated=true
+# END generated skill bundles.

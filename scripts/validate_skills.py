@@ -11,15 +11,17 @@ from urllib.parse import unquote
 
 from skill_catalog import (
     ALLOWED_FIELDS,
+    BUNDLE_MANIFEST_NAME,
+    GENERATED_MARKER_NAME,
     NAME_RE,
     ROOT,
     Skill,
     THIRD_PERSON_RE,
     compatibility_errors,
-    compare_trees,
     derive_adapter_version,
     discover_skills,
     display_path,
+    load_bundle_manifest,
     parse_semver,
     symlink_errors,
     validate_provenance,
@@ -167,25 +169,22 @@ def validate_catalog() -> tuple[list[Skill], list[str]]:
         if tree_errors:
             continue
 
-        vendored = skill.vendored_skills
-        validate_provenance(skill.root, errors, vendored)
-
-        if len(set(vendored)) != len(vendored):
-            errors.append(f"{relative}: selfos.vendored-skills contains duplicates")
-        for dependency in vendored:
-            if dependency == skill.name:
-                errors.append(f"{relative}: a skill cannot vendor itself")
-                continue
-            source = by_name.get(dependency)
-            if source is None:
-                errors.append(f"{relative}: unknown vendored skill {dependency!r}")
-                continue
-            if source.vendored_skills:
-                errors.append(
-                    f"{relative}: vendored skill {dependency!r} itself vendors skills; flatten the composition"
-                )
-            destination = skill.root / "references" / dependency
-            errors.extend(compare_trees(source.root, destination))
+        if "selfos.vendored-skills" in skill.metadata:
+            errors.append(
+                f"{relative}: metadata selfos.vendored-skills was replaced by the "
+                f"{BUNDLE_MANIFEST_NAME} dependency manifest; declare bundled "
+                "dependencies there and keep canonical frontmatter host-agnostic"
+            )
+        if (skill.root / GENERATED_MARKER_NAME).is_file():
+            errors.append(
+                f"{relative}: canonical skills must not ship a top-level "
+                f"{GENERATED_MARKER_NAME}; the name is reserved for generated bundle copies"
+            )
+        # Graph and byte-level bundle checks live in scripts/build_bundles.py
+        # (--check in CI); here the manifest only feeds provenance delegation.
+        dependencies, bundle_errors = load_bundle_manifest(skill.root)
+        errors.extend(bundle_errors)
+        validate_provenance(skill.root, errors, dependencies or ())
 
         errors.extend(validate_links(skill.root))
 
