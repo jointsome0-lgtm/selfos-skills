@@ -59,15 +59,16 @@ Apply the optional focus or constraint without discarding an invariant. If the o
 
 Follow the current sibling `compose` guidance when available. Use `gpt-5.6-sol` for frontier, correctness-first review and repair; `gpt-5.6-terra` when the remaining work is well-bounded and balancing capability with cost matters; and `gpt-5.6-luna` only for high-volume, low-risk mechanical continuation. Preserve a caller-specified model when it is compatible with the task and explain the choice in one concise sentence.
 
-This floor is a deliberate domain override of the sibling `compose` skill's generic `medium` default: this skill runs only after an exhausted multi-round budget, so the continuation is not routine work.
+This rubric follows the sibling `compose` ladder. `xhigh` remains the default after an exhausted multi-round orchestration budget because budget exhaustion usually indicates non-routine work.
 
 Choose exactly one reasoning effort:
 
+- `medium` when the remaining work is genuinely routine and bounded, for example carrying one or two confirmed trivial fixes through to a clean verdict with no cross-component interactions;
 - `high` when the remaining work is local, bounded, and well understood;
 - `xhigh` when several review rounds exposed recurring or cross-component interactions; or
 - `max` only for the hardest unresolved architecture, security, data-integrity, migration, or cross-contract reasoning.
 
-After an exhausted multi-round orchestration budget, default to `xhigh` unless the compacted context clearly supports `high` or `max`. Do not choose `max` merely because several rounds occurred. `ultra` is a separate multi-agent mode and must never appear as the reasoning-effort value.
+After an exhausted multi-round orchestration budget, default to `xhigh` unless the compacted context clearly supports `medium`, `high`, or `max`. Do not choose `max` merely because several rounds occurred. `ultra` is a separate multi-agent mode and must never appear as the reasoning-effort value.
 
 ## 4. Write the single query artifact
 
@@ -79,7 +80,7 @@ The file has exactly these top-level sections and follows the lean sibling `comp
 # Run configuration
 
 Model: <gpt-5.6-sol | gpt-5.6-terra | gpt-5.6-luna>
-Reasoning effort: <high | xhigh | max>
+Reasoning effort: <medium | high | xhigh | max>
 Reason: <one concise sentence>
 
 # Query

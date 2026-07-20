@@ -39,11 +39,12 @@ Starting with an empty canonical fixture temp directory, the run creates one own
 
 | Invented remaining work | Expected effort | Reason |
 | --- | --- | --- |
-| One well-understood documentation link after a first review | `high` | Local, bounded, and understood. |
+| One or two confirmed trivial documentation fixes with no cross-component interactions | `medium` | Genuinely routine and bounded. |
+| A well-understood local validator fix with focused regression coverage | `high` | Local, bounded, and understood. |
 | Repeated validator findings spanning CLI and library paths after the orchestration budget is exhausted | `xhigh` | Multi-round cross-component interaction; this is the default exhausted-budget case. |
 | Unresolved encrypted-record migration with rollback and integrity contracts | `max` | Hard data-integrity, migration, and cross-contract reasoning. |
 
-An invented request for `ultra effort` does not produce that value: the effort field still uses one of the three values above. Multi-agent mode, if separately authorized, is an execution-mode decision rather than a reasoning-effort tier.
+An invented request for `ultra effort` does not produce that value: the effort field still uses one of the four values above. Multi-agent mode, if separately authorized, is an execution-mode decision rather than a reasoning-effort tier.
 
 ## Unresolved PR state fails without an artifact
 
