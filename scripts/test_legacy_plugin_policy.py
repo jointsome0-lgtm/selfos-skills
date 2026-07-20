@@ -54,6 +54,7 @@ class LegacyPluginPolicyTest(unittest.TestCase):
             json.dumps(
                 {
                     "schema_version": 1,
+                    "deprecated_on": "2026-07-01",
                     "earliest_removal": earliest,
                     "packages": {"demo": {"deprecation_version": "1.0.1"}},
                 }
@@ -210,6 +211,13 @@ class LegacyPluginPolicyTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("may only substitute", result.stderr)
         self.assertIn("README", result.stderr)
+
+    def test_amendment_cannot_predate_the_deprecation(self) -> None:
+        self.amendment_on_branch()
+        self.write_policy("2020-01-01")
+        result = self.check(["legacy-plugin-removal"])
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("cannot set earliest_removal before deprecated_on", result.stderr)
 
     def test_amendment_must_update_every_notice_surface(self) -> None:
         self.adopt_policy_on_main()

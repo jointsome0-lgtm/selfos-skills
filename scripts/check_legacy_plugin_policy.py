@@ -215,6 +215,19 @@ def main() -> int:
                 elif head_policy["earliest_removal"] == base_policy["earliest_removal"]:
                     errors.append(f"{label} amendment must change earliest_removal")
                 else:
+                    deprecated_on = head_policy.get("deprecated_on")
+                    try:
+                        removal_floor = date.fromisoformat(deprecated_on)
+                    except (TypeError, ValueError):
+                        removal_floor = None
+                    if (
+                        removal_floor is not None
+                        and date.fromisoformat(head_policy["earliest_removal"]) < removal_floor
+                    ):
+                        errors.append(
+                            f"{label} amendment cannot set earliest_removal before "
+                            f"deprecated_on ({deprecated_on})"
+                        )
                     # Manifests carry install behavior beyond the notice, and the
                     # other validators only check name/version/description, so an
                     # amendment must not change anything except the version bump
