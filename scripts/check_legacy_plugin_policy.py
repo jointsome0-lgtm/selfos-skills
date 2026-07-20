@@ -197,6 +197,12 @@ def main() -> int:
             amendable.add(f"plugins/{package}/.claude-plugin/plugin.json")
             amendable.add(f"plugins/{package}/README.md")
         if (root / "plugins").exists() and POLICY_PATH in paths and set(paths) <= amendable:
+            untouched = sorted(amendable - set(paths))
+            if untouched:
+                errors.append(
+                    f"{label} amendment must update every notice surface quoting the date; "
+                    f"untouched: {', '.join(untouched)}"
+                )
             if head_policy is None:
                 errors.append(f"{label} amendment must keep {POLICY_PATH} a valid policy")
             else:

@@ -143,14 +143,38 @@ class LegacyPluginPolicyTest(unittest.TestCase):
         result = self.check(["legacy-plugin-compatibility"])
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_removal_label_accepts_date_only_amendment(self) -> None:
+    def write_root_readme(self, earliest: str) -> None:
+        (self.repo / "plugins" / "README.md").write_text(
+            f"Frozen policy; removal not before {earliest}.\n", encoding="utf-8"
+        )
+
+    def write_package_readme(self, name: str, earliest: str) -> None:
+        (self.repo / "plugins" / name / "README.md").write_text(
+            f"Deprecated fixture; removal not before {earliest}.\n", encoding="utf-8"
+        )
+
+    def test_removal_label_accepts_complete_date_amendment(self) -> None:
+        self.adopt_policy_on_main()
+        self.write_root_readme("2026-10-20")
+        self.write_package_readme("demo", "2026-10-20")
+        self.commit("date-quoting notice surfaces")
+        self.branch()
+        self.write_policy("2026-07-20")
+        self.write_package("demo", "1.0.2")
+        self.write_root_readme("2026-07-20")
+        self.write_package_readme("demo", "2026-07-20")
+        result = self.check(["legacy-plugin-removal"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("removal-date amendment exception accepted", result.stdout)
+
+    def test_amendment_must_update_every_notice_surface(self) -> None:
         self.adopt_policy_on_main()
         self.branch()
         self.write_policy("2026-07-20")
         self.write_package("demo", "1.0.2")
         result = self.check(["legacy-plugin-removal"])
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("removal-date amendment exception accepted", result.stdout)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("untouched: plugins/README.md, plugins/demo/README.md", result.stderr)
 
     def test_amendment_may_change_only_the_removal_date(self) -> None:
         self.adopt_policy_on_main()
