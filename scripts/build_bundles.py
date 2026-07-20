@@ -207,6 +207,31 @@ def run(
 
     changed = 0
     problems: list[str] = []
+
+    # Remove stale generated trees before copying: a skill that just dropped
+    # its own manifest may itself be copied as a dependency in this same run,
+    # and snapshotting it before cleanup would bake the stale tree into the
+    # fresh bundle and leave --check failing after a single build.
+    for skill in skills:
+        references = skill.root / "references"
+        if not references.is_dir():
+            continue
+        declared = set(bundles.get(skill.name, ()))
+        for child in sorted(path for path in references.iterdir() if path.is_dir()):
+            if child.name in declared:
+                continue
+            if not (child / GENERATED_MARKER_NAME).is_file():
+                continue  # authored reference material is never touched
+            if check:
+                problems.append(
+                    f"stale generated bundle {display_path(child)}: not declared in "
+                    f"skills/{skill.name}/{BUNDLE_MANIFEST_NAME}; {REBUILD_HINT}"
+                )
+                continue
+            shutil.rmtree(child)
+            changed += 1
+            print(f"Removed stale generated bundle {display_path(child)}.")
+
     for name in sorted(bundles):
         composed = known[name]
         for dependency in bundles[name]:
@@ -238,26 +263,6 @@ def run(
                 continue
             changed += 1
             print(f"Built {display_path(destination)} from skills/{dependency}.")
-
-    for skill in skills:
-        references = skill.root / "references"
-        if not references.is_dir():
-            continue
-        declared = set(bundles.get(skill.name, ()))
-        for child in sorted(path for path in references.iterdir() if path.is_dir()):
-            if child.name in declared:
-                continue
-            if not (child / GENERATED_MARKER_NAME).is_file():
-                continue  # authored reference material is never touched
-            if check:
-                problems.append(
-                    f"stale generated bundle {display_path(child)}: not declared in "
-                    f"skills/{skill.name}/{BUNDLE_MANIFEST_NAME}; {REBUILD_HINT}"
-                )
-                continue
-            shutil.rmtree(child)
-            changed += 1
-            print(f"Removed stale generated bundle {display_path(child)}.")
 
     try:
         existing = gitattributes_path.read_text(encoding="utf-8")

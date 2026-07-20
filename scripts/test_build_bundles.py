@@ -259,6 +259,23 @@ class BundleBuildTest(unittest.TestCase):
         self.assertEqual(problems, [])
         self.assertTrue((authored / "NOTES.md").is_file())
 
+    def test_single_run_converges_when_a_dependency_just_stopped_being_composed(self) -> None:
+        # leaf-invented used to be composed: it still carries a stale generated
+        # tree, and this run both cleans it up and copies leaf-invented into
+        # the composed skill. One build must converge — no second run needed.
+        stale = self.leaf.root / "references" / "formerly-bundled-invented"
+        stale.mkdir(parents=True)
+        (stale / GENERATED_MARKER_NAME).write_text("Old marker.\n", encoding="utf-8")
+
+        changed, problems = self.build()
+
+        self.assertEqual(problems, [])
+        self.assertGreater(changed, 0)
+        self.assertFalse(stale.exists())
+        copied = self.composed.root / "references" / "leaf-invented"
+        self.assertFalse((copied / "references" / "formerly-bundled-invented").exists())
+        self.assertEqual(self.build(check=True), (0, []))
+
     def test_reserved_marker_in_canonical_source_is_rejected(self) -> None:
         (self.leaf.root / GENERATED_MARKER_NAME).write_text("Not generated.\n", encoding="utf-8")
 
