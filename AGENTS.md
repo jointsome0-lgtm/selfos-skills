@@ -6,7 +6,7 @@ When working inside this repository, read a matching skill's `SKILL.md` in full 
 
 ## Legacy plugin deprecation
 
-The six Claude domain packages under `plugins/` were deprecated on 2026-07-20 and will not be removed before 2026-10-20. Their payloads are frozen snapshots: new behavior belongs only in `skills/`. A maintainer-applied `legacy-plugin-compatibility` or `legacy-plugin-security` label is required for an exceptional package-scoped fix, and every such fix requires a strict legacy manifest-version increase. The eventual all-at-once removal uses `legacy-plugin-removal` and is tracked by [issue #66](https://github.com/jointsome0-lgtm/selfos-skills/issues/66).
+The six Claude domain packages under `plugins/` were deprecated on 2026-07-20; removal may proceed on or after 2026-07-20. Both dates derive from `plugins/deprecation.json`; window history lives in [issue #66](https://github.com/jointsome0-lgtm/selfos-skills/issues/66). Their payloads are frozen snapshots: new behavior belongs only in `skills/`. A maintainer-applied `legacy-plugin-compatibility` or `legacy-plugin-security` label is required for an exceptional package-scoped fix, and every such fix requires a strict legacy manifest-version increase. The all-at-once removal uses `legacy-plugin-removal`.
 
 Removal is blocked until:
 

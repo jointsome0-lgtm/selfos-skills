@@ -20,7 +20,7 @@ Package-level READMEs list narrower commands for users who want only the canonic
 
 ## Removal checklist
 
-The tree will not be removed before **2026-10-20**. [Issue #66](https://github.com/jointsome0-lgtm/selfos-skills/issues/66) owns the major migration and stays blocked until:
+The tree will not be removed before **2026-07-20**. [Issue #66](https://github.com/jointsome0-lgtm/selfos-skills/issues/66) owns the major migration and stays blocked until:
 
 - `selfos`, `atlas`, `exp2res`, `tollgate`, and `story` no longer document or depend on a legacy domain package;
 - repository and ecosystem docs point to the canonical `npx skills add jointsome0-lgtm/selfos-skills` path or the aggregate `selfos-skills@selfos` adapter;

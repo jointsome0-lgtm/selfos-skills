@@ -187,16 +187,127 @@ def main() -> int:
         if not touched and "plugins/README.md" not in paths:
             errors.append(f"{label} did not change an existing legacy package or its policy README")
     else:
-        earliest = date.fromisoformat(base_policy["earliest_removal"])
-        if args.today < earliest:
-            errors.append(
-                f"legacy removal is blocked until {earliest.isoformat()} (today: {args.today.isoformat()})"
-            )
-        if (root / "plugins").exists():
-            errors.append(
-                "legacy removal must delete the entire plugins/ tree, including its "
-                "deprecation policy and package READMEs"
-            )
+        # A removal-labeled PR may instead amend the removal date: it changes
+        # earliest_removal in the policy plus the notice surfaces that quote it
+        # (package manifests, package READMEs, the root policy README), nothing
+        # else. Notice/date coherence and the strict manifest version bumps are
+        # enforced by validate_plugins.py and check_version_bump.py.
+        amendable = {POLICY_PATH, "plugins/README.md"}
+        for package in packages:
+            amendable.add(f"plugins/{package}/.claude-plugin/plugin.json")
+            amendable.add(f"plugins/{package}/README.md")
+        if (root / "plugins").exists() and POLICY_PATH in paths and set(paths) <= amendable:
+            untouched = sorted(amendable - set(paths))
+            if untouched:
+                errors.append(
+                    f"{label} amendment must update every notice surface quoting the date; "
+                    f"untouched: {', '.join(untouched)}"
+                )
+            if head_policy is None:
+                errors.append(f"{label} amendment must keep {POLICY_PATH} a valid policy")
+            else:
+                base_rest = {key: value for key, value in base_policy.items() if key != "earliest_removal"}
+                head_rest = {key: value for key, value in head_policy.items() if key != "earliest_removal"}
+                if base_rest != head_rest:
+                    errors.append(
+                        f"{label} amendment may change only earliest_removal in {POLICY_PATH}"
+                    )
+                elif head_policy["earliest_removal"] == base_policy["earliest_removal"]:
+                    errors.append(f"{label} amendment must change earliest_removal")
+                else:
+                    deprecated_on = head_policy.get("deprecated_on")
+                    try:
+                        removal_floor = date.fromisoformat(deprecated_on)
+                    except (TypeError, ValueError):
+                        removal_floor = None
+                    if (
+                        removal_floor is not None
+                        and date.fromisoformat(head_policy["earliest_removal"]) < removal_floor
+                    ):
+                        errors.append(
+                            f"{label} amendment cannot set earliest_removal before "
+                            f"deprecated_on ({deprecated_on})"
+                        )
+                    # Manifests carry install behavior beyond the notice, and the
+                    # other validators only check name/version/description, so an
+                    # amendment must not change anything except the version bump
+                    # and the date substitution inside the description.
+                    old_date = base_policy["earliest_removal"]
+                    new_date = head_policy["earliest_removal"]
+                    for package in sorted(packages):
+                        manifest_path = f"plugins/{package}/.claude-plugin/plugin.json"
+                        if manifest_path not in paths:
+                            continue
+                        shown = run_git("show", f"{merge_base}:{manifest_path}")
+                        try:
+                            base_manifest = json.loads(shown.stdout) if shown.returncode == 0 else None
+                            head_manifest = json.loads(
+                                (root / manifest_path).read_text(encoding="utf-8")
+                            )
+                        except (OSError, UnicodeError, json.JSONDecodeError):
+                            base_manifest = None
+                            head_manifest = None
+                        if not isinstance(base_manifest, dict) or not isinstance(head_manifest, dict):
+                            errors.append(
+                                f"{manifest_path}: amendment requires readable JSON manifests at base and head"
+                            )
+                            continue
+                        expected = str(base_manifest.get("description", "")).replace(old_date, new_date)
+                        if head_manifest.get("description") != expected:
+                            errors.append(
+                                f"{manifest_path}: amendment may only substitute "
+                                f"{old_date} -> {new_date} in the description"
+                            )
+                        base_behavior = {
+                            key: value
+                            for key, value in base_manifest.items()
+                            if key not in ("version", "description")
+                        }
+                        head_behavior = {
+                            key: value
+                            for key, value in head_manifest.items()
+                            if key not in ("version", "description")
+                        }
+                        if base_behavior != head_behavior:
+                            errors.append(
+                                f"{manifest_path}: amendment may change only the version "
+                                "and the removal date inside the description"
+                            )
+                    # READMEs are frozen legacy notices too; genuine rewording
+                    # goes through the compatibility label, so an amendment must
+                    # be the exact date substitution, like the manifest branch.
+                    readme_paths = ["plugins/README.md"] + [
+                        f"plugins/{package}/README.md" for package in sorted(packages)
+                    ]
+                    for readme_path in readme_paths:
+                        shown = run_git("show", f"{merge_base}:{readme_path}")
+                        try:
+                            head_text = (root / readme_path).read_text(encoding="utf-8")
+                        except (OSError, UnicodeError) as exc:
+                            errors.append(f"{readme_path}: cannot read UTF-8: {exc}")
+                            continue
+                        if shown.returncode != 0:
+                            errors.append(
+                                f"{readme_path}: amendment requires the README to exist at base"
+                            )
+                            continue
+                        if head_text != shown.stdout.replace(old_date, new_date):
+                            errors.append(
+                                f"{readme_path}: amendment may only substitute "
+                                f"{old_date} -> {new_date} in the README"
+                            )
+            kind = "removal-date amendment"
+        else:
+            earliest = date.fromisoformat(base_policy["earliest_removal"])
+            if args.today < earliest:
+                errors.append(
+                    f"legacy removal is blocked until {earliest.isoformat()} (today: {args.today.isoformat()})"
+                )
+            if (root / "plugins").exists():
+                errors.append(
+                    "legacy removal must delete the entire plugins/ tree, including its "
+                    "deprecation policy and package READMEs"
+                )
 
     if errors:
         for error in errors:
