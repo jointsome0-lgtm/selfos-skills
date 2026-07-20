@@ -180,7 +180,7 @@ npx skills add jointsome0-lgtm/selfos-skills --skill '*' --agent claude-code --g
 
 Nothing under `plugins/` is generated. `plugins/deprecation.json`, the legacy policy README, package READMEs, and package manifests are manually maintained deprecation metadata; the remaining skill bodies, examples, conventions, scripts, tests, and provenance files are frozen snapshots. CI rejects legacy-tree edits unless a maintainer applies `legacy-plugin-compatibility` or the explicit security escape hatch `legacy-plugin-security`; neither exception may create another legacy package, and the existing strict package-version gate still applies. The eventual all-at-once removal uses `legacy-plugin-removal`.
 
-The tree will not be removed before **2026-10-20**. Dedicated removal issue [#66](https://github.com/jointsome0-lgtm/selfos-skills/issues/66) stays blocked until:
+The migration window originally ran to 2026-10-20 but was closed early on **2026-07-20** after every known consumer migrated, so removal may proceed at any time. Dedicated removal issue [#66](https://github.com/jointsome0-lgtm/selfos-skills/issues/66) stays blocked until:
 
 - `selfos`, `atlas`, `exp2res`, `tollgate`, and `story` no longer document or depend on the legacy packages;
 - repository and ecosystem docs point to the canonical installer or `selfos-skills@selfos`;

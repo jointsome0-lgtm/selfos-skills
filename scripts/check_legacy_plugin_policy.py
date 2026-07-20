@@ -187,16 +187,39 @@ def main() -> int:
         if not touched and "plugins/README.md" not in paths:
             errors.append(f"{label} did not change an existing legacy package or its policy README")
     else:
-        earliest = date.fromisoformat(base_policy["earliest_removal"])
-        if args.today < earliest:
-            errors.append(
-                f"legacy removal is blocked until {earliest.isoformat()} (today: {args.today.isoformat()})"
-            )
-        if (root / "plugins").exists():
-            errors.append(
-                "legacy removal must delete the entire plugins/ tree, including its "
-                "deprecation policy and package READMEs"
-            )
+        # A removal-labeled PR may instead amend the removal date: it changes
+        # earliest_removal in the policy plus the notice surfaces that quote it
+        # (package manifests, package READMEs, the root policy README), nothing
+        # else. Notice/date coherence and the strict manifest version bumps are
+        # enforced by validate_plugins.py and check_version_bump.py.
+        amendable = {POLICY_PATH, "plugins/README.md"}
+        for package in packages:
+            amendable.add(f"plugins/{package}/.claude-plugin/plugin.json")
+            amendable.add(f"plugins/{package}/README.md")
+        if (root / "plugins").exists() and POLICY_PATH in paths and set(paths) <= amendable:
+            if head_policy is None:
+                errors.append(f"{label} amendment must keep {POLICY_PATH} a valid policy")
+            else:
+                base_rest = {key: value for key, value in base_policy.items() if key != "earliest_removal"}
+                head_rest = {key: value for key, value in head_policy.items() if key != "earliest_removal"}
+                if base_rest != head_rest:
+                    errors.append(
+                        f"{label} amendment may change only earliest_removal in {POLICY_PATH}"
+                    )
+                elif head_policy["earliest_removal"] == base_policy["earliest_removal"]:
+                    errors.append(f"{label} amendment must change earliest_removal")
+            kind = "removal-date amendment"
+        else:
+            earliest = date.fromisoformat(base_policy["earliest_removal"])
+            if args.today < earliest:
+                errors.append(
+                    f"legacy removal is blocked until {earliest.isoformat()} (today: {args.today.isoformat()})"
+                )
+            if (root / "plugins").exists():
+                errors.append(
+                    "legacy removal must delete the entire plugins/ tree, including its "
+                    "deprecation policy and package READMEs"
+                )
 
     if errors:
         for error in errors:
