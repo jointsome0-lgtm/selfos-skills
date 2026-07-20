@@ -260,22 +260,28 @@ def main() -> int:
                                 f"{manifest_path}: amendment may change only the version "
                                 "and the removal date inside the description"
                             )
-                    # validate_plugins.py only searches for the new date token, so
-                    # a touched README could still keep the stale removal-gate
-                    # sentence; the amendment must actually retire the old date.
+                    # READMEs are frozen legacy notices too; genuine rewording
+                    # goes through the compatibility label, so an amendment must
+                    # be the exact date substitution, like the manifest branch.
                     readme_paths = ["plugins/README.md"] + [
                         f"plugins/{package}/README.md" for package in sorted(packages)
                     ]
                     for readme_path in readme_paths:
+                        shown = run_git("show", f"{merge_base}:{readme_path}")
                         try:
-                            content = (root / readme_path).read_text(encoding="utf-8")
+                            head_text = (root / readme_path).read_text(encoding="utf-8")
                         except (OSError, UnicodeError) as exc:
                             errors.append(f"{readme_path}: cannot read UTF-8: {exc}")
                             continue
-                        if old_date in content:
+                        if shown.returncode != 0:
                             errors.append(
-                                f"{readme_path}: amendment left the old removal date "
-                                f"{old_date} in place"
+                                f"{readme_path}: amendment requires the README to exist at base"
+                            )
+                            continue
+                        if head_text != shown.stdout.replace(old_date, new_date):
+                            errors.append(
+                                f"{readme_path}: amendment may only substitute "
+                                f"{old_date} -> {new_date} in the README"
                             )
             kind = "removal-date amendment"
         else:
