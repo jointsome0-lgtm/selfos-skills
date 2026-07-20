@@ -260,6 +260,23 @@ def main() -> int:
                                 f"{manifest_path}: amendment may change only the version "
                                 "and the removal date inside the description"
                             )
+                    # validate_plugins.py only searches for the new date token, so
+                    # a touched README could still keep the stale removal-gate
+                    # sentence; the amendment must actually retire the old date.
+                    readme_paths = ["plugins/README.md"] + [
+                        f"plugins/{package}/README.md" for package in sorted(packages)
+                    ]
+                    for readme_path in readme_paths:
+                        try:
+                            content = (root / readme_path).read_text(encoding="utf-8")
+                        except (OSError, UnicodeError) as exc:
+                            errors.append(f"{readme_path}: cannot read UTF-8: {exc}")
+                            continue
+                        if old_date in content:
+                            errors.append(
+                                f"{readme_path}: amendment left the old removal date "
+                                f"{old_date} in place"
+                            )
             kind = "removal-date amendment"
         else:
             earliest = date.fromisoformat(base_policy["earliest_removal"])

@@ -190,6 +190,16 @@ class LegacyPluginPolicyTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("may only substitute", result.stderr)
 
+    def test_amendment_cannot_leave_a_stale_readme_date(self) -> None:
+        self.amendment_on_branch()
+        (self.repo / "plugins" / "demo" / "README.md").write_text(
+            "Deprecated fixture; removal not before 2026-10-20. Edited anyway.\n",
+            encoding="utf-8",
+        )
+        result = self.check(["legacy-plugin-removal"])
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("left the old removal date 2026-10-20 in place", result.stderr)
+
     def test_amendment_must_update_every_notice_surface(self) -> None:
         self.adopt_policy_on_main()
         self.branch()
