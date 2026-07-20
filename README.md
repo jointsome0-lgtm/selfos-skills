@@ -71,6 +71,7 @@ The former domain packages (`sdd@selfos`, `design@selfos`, `decision@selfos`, `l
 | `deepen` | Scoped architecture-friction scan and owner decision loop | explicit only |
 | `grill-sdd` | Stress-test named SDD sections and land confirmed outcomes | explicit only |
 | `grilling` | Shared one-question-at-a-time owner decision primitive | automatic or explicit |
+| `handoff` | Compact privacy-safe context for a fresh agent in one temporary Markdown file | automatic or explicit |
 | `sdd-conventions` | Portable SDD conventions plus sync and Decision Log lint scripts | automatic or explicit |
 | `slice` | Turn one implementation-ready SDD scope into vertical issues | explicit only |
 | `teach` | Stateful multi-session teaching workspace | explicit only |
@@ -88,6 +89,7 @@ Compatibility describes hard runtime needs and conditional capabilities; descrip
 | `deepen` | `0.1.2` | Requires git, read access to the scoped repository and its history, permission to create a temporary HTML file outside the worktree, and a browser to view it. No OS constraint or required network; external issue-tracker write access is needed only to publish an owner-confirmed outcome. |
 | `grill-sdd` | `0.1.2` | Requires Python 3.9+ for bundled SDD helpers and read access to the target repository. No OS constraint or required network; repository write access and external issue-tracker integration are needed only to land owner-confirmed outcomes. |
 | `grilling` | `0.1.1` | Requires read access to owner-scoped sources. No specific CLI or OS; network, write access, and external integrations are needed only when the chosen facts or an owner-confirmed outcome require them. |
+| `handoff` | `0.1.0` | Requires permission to create one file in the operating system's temporary directory. No specific CLI, OS, network access, repository write access, or external integration is required. |
 | `sdd-conventions` | `0.1.1` | Requires Python 3.9+ for the standard-library helpers and write access to the target file when syncing. OS-independent and offline, with no external integration. |
 | `slice` | `0.1.2` | Requires Python 3.9+ for bundled SDD helpers, read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
 | `teach` | `0.1.1` | Requires read/write access to a user-approved learning workspace, network access to research and cite trusted resources, and a browser to view generated HTML. No specific CLI, OS, or authenticated external integration; platform opener access is optional and used only on request. |
