@@ -60,7 +60,17 @@ The preferred Claude package is the aggregate plugin over the canonical catalog:
 /reload-plugins
 ```
 
-The older domain packages (`sdd@selfos`, `design@selfos`, and so on) remain available temporarily for existing installations, but new work belongs under `skills/`.
+The older domain packages (`sdd@selfos`, `design@selfos`, and so on) are deprecated compatibility snapshots. Existing users should refresh the final cached notice, install the aggregate replacement, then remove the old package:
+
+```text
+/plugin marketplace update selfos
+/plugin update sdd@selfos
+/plugin install selfos-skills@selfos
+/plugin uninstall sdd@selfos
+/reload-plugins
+```
+
+The universal installer is the canonical path when selecting individual replacement skills; each legacy package README contains its exact command.
 
 ## Catalog
 
@@ -158,13 +168,24 @@ Every canonical skill bump gets a tag on the validated merge commit using the ex
 
 Before tagging, run the full CI validation set against the exact commit and confirm both adapter manifests equal the generated catalog version. Push every new per-skill tag plus the bundle tag, then create the single bundle Release; the tag set identifies the exact source revision of an independently installed skill without the original checkout.
 
-Legacy manifests under `plugins/` keep their existing versions and `{name}--v{version}` tags. They are compatibility snapshots, are not inputs to the canonical adapter derivation, and change only for their own compatibility or security fixes.
+Legacy manifests under `plugins/` keep independent versions and `{name}--v{version}` tags. They are compatibility snapshots, are not inputs to the canonical adapter derivation, and received their final planned bump for the dated deprecation notice. A later compatibility or security exception must strictly increase only the affected package version.
 
 ## Legacy package policy
 
-`plugins/` is a compatibility layer for users already installed through the former Claude Code marketplace structure. It is not the source of truth and should receive only compatibility or security fixes. New skills, shared references, documentation, indexing, and release work are driven from `skills/` and the aggregate adapters.
+`plugins/` was deprecated on **2026-07-20** and is retained only for users already installed through the former Claude Code marketplace structure. The six package manifests received one final deprecation bump so version-keyed caches can fetch their notices. New installations and all skill behavior use the canonical catalog:
 
-A later release can remove the legacy packages after downstream installations have migrated to `selfos-skills@selfos` or the universal `skills` installer.
+```bash
+npx skills add jointsome0-lgtm/selfos-skills --skill '*' --agent claude-code --global --yes
+```
+
+Nothing under `plugins/` is generated. `plugins/deprecation.json`, the legacy policy README, package READMEs, and package manifests are manually maintained deprecation metadata; the remaining skill bodies, examples, conventions, scripts, tests, and provenance files are frozen snapshots. CI rejects legacy-tree edits unless a maintainer applies `legacy-plugin-compatibility` or the explicit security escape hatch `legacy-plugin-security`; neither exception may create another legacy package, and the existing strict package-version gate still applies. The eventual all-at-once removal uses `legacy-plugin-removal`.
+
+The tree will not be removed before **2026-10-20**. Dedicated removal issue [#66](https://github.com/jointsome0-lgtm/selfos-skills/issues/66) stays blocked until:
+
+- `selfos`, `atlas`, `exp2res`, `tollgate`, and `story` no longer document or depend on the legacy packages;
+- repository and ecosystem docs point to the canonical installer or `selfos-skills@selfos`;
+- the canonical installation smoke matrix passes on the removal commit; and
+- a major-migration release note names every removed package, repeats the migration command, and explains the cache transition.
 
 ## Public repository rules
 

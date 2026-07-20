@@ -115,6 +115,7 @@ class CheckVersionBumpTest(unittest.TestCase):
         result = self.check()
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("plugins/demo", result.stderr)
+        self.assertIn("did not strictly increase", result.stderr)
         self.assertIn("bump plugins/demo/.claude-plugin/plugin.json", result.stderr)
 
     def test_legacy_content_change_with_bump_passes(self) -> None:
@@ -131,6 +132,15 @@ class CheckVersionBumpTest(unittest.TestCase):
         self.write_plugin("demo", "1.1.0")
         self.commit("legacy bump only")
         self.assertEqual(self.check().returncode, 0)
+
+    def test_legacy_version_downgrade_fails(self) -> None:
+        self.branch()
+        self.touch_plugin_skill("demo", "Invented edit shipped with a downgrade.")
+        self.write_plugin("demo", "0.9.0")
+        self.commit("downgrade legacy plugin")
+        result = self.check()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("did not strictly increase", result.stderr)
 
     def test_new_legacy_plugin_passes(self) -> None:
         self.branch()
