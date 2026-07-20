@@ -3,6 +3,9 @@ name: Validate portable Agent Skills
 on:
   push:
   pull_request:
+    # labeled/unlabeled: the legacy-plugin policy gate reads PR labels, so
+    # applying a maintainer label must trigger a fresh run without a push.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 permissions:
   contents: read
@@ -44,20 +47,29 @@ jobs:
         env:
           LEGACY_PLUGIN_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: python scripts/check_legacy_plugin_policy.py --base "origin/$GITHUB_BASE_REF"
+      # The frozen legacy copies under plugins/ vanish with the dated
+      # all-at-once removal (#66), so their checks must not outlive the tree.
       - name: Test portable SDD helpers
         run: |
           python skills/sdd-conventions/scripts/test_sync_conventions.py
           python skills/sdd-conventions/scripts/test_check_decision_log.py
-          python plugins/sdd/scripts/test_sync_conventions.py
-          python plugins/sdd/scripts/test_check_decision_log.py
+          if [ -d plugins ]; then
+            python plugins/sdd/scripts/test_sync_conventions.py
+            python plugins/sdd/scripts/test_check_decision_log.py
+          fi
       - name: ShellCheck portable helpers
-        run: find scripts skills plugins -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
+        run: |
+          dirs=(scripts skills)
+          if [ -d plugins ]; then dirs+=(plugins); fi
+          find "${dirs[@]}" -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
       - name: Test the Codex PR watcher
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q bats
           bats skills/watch/scripts/test_codex_pr_watch.bats
-          bats plugins/codex-pr/scripts/test_codex_pr_watch.bats
+          if [ -d plugins ]; then
+            bats plugins/codex-pr/scripts/test_codex_pr_watch.bats
+          fi
 
   install-matrix-config:
     runs-on: ubuntu-latest
