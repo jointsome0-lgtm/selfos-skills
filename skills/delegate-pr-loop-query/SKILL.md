@@ -123,7 +123,7 @@ Complete <exact PR URL> correctly and maintainably from exact HEAD `<full SHA>`,
 - `watch`
 ```
 
-Replace every placeholder with resolved, redacted content, with one exemption: when no explicit budget was supplied, the literal `<owner-sets-at-load>` budget sentinel is owner input, not resolvable content, and must survive in the saved artifact verbatim. Keep the quality-preservation sentence exactly once in the generated query. Do not add an Output section that asks for a second artifact; the delegated run's final report is enough.
+Replace every placeholder with resolved, redacted content, with one exemption: the literal string `<owner-sets-at-load>` is never replacement-eligible anywhere it appears, on any budget path. As the budget value it stands verbatim when no explicit budget was supplied (an explicit budget fills that one value slot instead), and the stop rule's reference to it survives verbatim in every generated query. Keep the quality-preservation sentence exactly once in the generated query. Do not add an Output section that asks for a second artifact; the delegated run's final report is enough.
 
 Confirm that the final path is inside the canonical temporary directory, the filename matches the resolved repository and PR number, the file is readable, and the query records the exact PR URL and HEAD SHA. On a failed check, remove the attempted file when safe and report a structured artifact error instead of falling back to the repository.
 
