@@ -4,7 +4,7 @@ description: Watches an open PR after each push, waits for the Codex cloud revie
 license: LICENSE.txt
 compatibility: Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; requires a POSIX-style shell environment but no specific OS.
 metadata:
-  selfos.version: "0.2.0"
+  selfos.version: "0.3.0"
 ---
 
 # Watch a Codex PR review
@@ -32,7 +32,7 @@ A round is one pushed or explicitly triggered review attempt ending in a fresh v
 With a finite budget, continue the existing review/fix loop while budget remains, judging every finding on its merits and keeping one ordinary commit per findings round. A clean verdict (`APPROVED` review state or 👍 reaction) on or before the final permitted round completes normally without handoff. When the last permitted round returns findings:
 
 1. Do not begin another implementation round.
-2. If the sibling `delegate-pr-loop-query` skill is available, generate its query artifact with the session's important non-recoverable context. Keep all current findings recoverable by referencing the PR and its review history, then report the artifact path, selected model, and effort. Carry a finite cap into the generated query only when the caller explicitly supplied one; the implicit default of five does not become a delegated cap.
+2. If the sibling `delegate-pr-loop-query` skill is available, generate its query artifact with the session's important non-recoverable context. Keep all current findings recoverable by referencing the PR and its review history, then report the artifact path, selected model, and effort. Carry a budget into the generated query only when the caller explicitly supplied one; otherwise the query ships with that skill's `<owner-sets-at-load>` budget placeholder for the owner to fill when loading it. Never substitute `unlimited`, and the implicit default of five does not become a delegated cap.
 3. If that skill is unavailable, summarize recurring findings and the current state and hand the decision to the owner.
 4. In either case, stop. Never launch the delegated agent; launching it is the owner's action in their own terminal.
 
