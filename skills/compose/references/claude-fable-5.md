@@ -1,6 +1,6 @@
 # Claude Fable 5
 
-Sources: Anthropic's [Prompting Claude Fable 5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5) and the cross-model [Claude prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices). Checked against upstream 2026-08-05.
+Sources: Anthropic's [Prompting Claude Fable 5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5) and the cross-model [Claude prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices). Checked against upstream 2026-08-04.
 
 Also covers Claude Mythos 5 (same underlying model). On conflict with the core skill, this file wins.
 

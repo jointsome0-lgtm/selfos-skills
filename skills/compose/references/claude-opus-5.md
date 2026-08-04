@@ -1,6 +1,6 @@
 # Claude Opus 5
 
-Sources: Anthropic's [Prompting Claude Opus 5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5) and the cross-model [Claude prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices). Checked against upstream 2026-08-05.
+Sources: Anthropic's [Prompting Claude Opus 5](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5) and the cross-model [Claude prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices). Checked against upstream 2026-08-04.
 
 On conflict with the core skill, this file wins.
 
