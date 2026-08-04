@@ -3,12 +3,12 @@ name: compose
 description: Composes lean, outcome-first prompts for the GPT-5.6 model family (gpt-5.6-sol / -terra / -luna) and Codex runs — goal, success criteria, constraints, tools, autonomy boundary, stop rules, and model/effort choice. Use when delegating coding, review, diagnosis, or research work to Codex or another GPT-backed agent, or when writing or updating a prompt or agent instructions for one.
 compatibility: Host-neutral Markdown guidance; no required tools, OS constraints, write access, or external integrations. Network access is optional for refreshing linked OpenAI guidance.
 metadata:
-  selfos.version: "0.1.2"
+  selfos.version: "0.1.3"
 ---
 
 # Composing GPT-5.6 / Codex prompts
 
-How to write prompts that delegate work to the GPT-5.6 model family — `gpt-5.6-sol` (flagship; the `gpt-5.6` alias routes here), `gpt-5.6-terra` (balanced cost), `gpt-5.6-luna` (high-volume) — in the Codex CLI, Codex cloud, or the API. Checked against the live guides on 2026-07-14; sources: OpenAI's [GPT-5.6 prompting guide](https://developers.openai.com/api/docs/guides/prompt-guidance-gpt-5p6) and [GPT-5.6 model guide](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-5.6).
+How to write prompts that delegate work to the GPT-5.6 model family — `gpt-5.6-sol` (flagship; the `gpt-5.6` alias routes here), `gpt-5.6-terra` (balanced cost), `gpt-5.6-luna` (high-volume) — in the Codex CLI, Codex cloud, or the API. Checked against the live guides on 2026-08-04; sources: OpenAI's [GPT-5.6 prompting guide](https://developers.openai.com/api/docs/guides/prompt-guidance-gpt-5p6) and [GPT-5.6 model guide](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-5.6).
 
 ## Core principle: lean and outcome-first
 
@@ -112,7 +112,7 @@ Keep both short, describe concrete writing choices rather than broad labels ("st
 | `gpt-5.6-terra` | balance of intelligence and cost |
 | `gpt-5.6-luna` | efficient, high-volume workloads |
 
-- Reasoning effort spans `none`–`max`. Ladder: `medium` is the balanced default; `low` for latency-sensitive work when quality holds; `high`/`xhigh` only when evals show a meaningful gain; reserve `max` for the hardest quality-first workloads and compare it against `xhigh` before adopting.
+- Reasoning effort spans `none`–`max` at the API, but the working ladder for delegated runs is `low`–`high`: `medium` is the balanced default; `low` for latency-sensitive or relay work when quality holds; `high` for the hardest delegated work, and only when evals or task shape show a meaningful gain. Never select `xhigh` or `max` for a build, review, or verification run — those tiers are reserved for a live design pass the owner explicitly requests, and the operating effort policy is canonical over any upstream ladder.
 - Before raising effort, check the prompt first: missing success criteria, dependency rules, tool-routing rules, or verification loops are cheaper to fix than a higher effort tier.
 - Migrating from 5.5/5.4: keep the old setting as the baseline, then test one level lower — 5.6 usually holds quality with fewer tokens.
 - Pro mode (`reasoning.mode: "pro"`, Responses API) applies more model work for a single high-stakes answer. Keep the same outcome-first prompt — never write "think harder" or "generate several candidates".

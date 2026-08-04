@@ -4,7 +4,7 @@ description: Creates one ready-to-run GPT-5.6 query that lets a fresh agent cont
 license: LICENSE.txt
 compatibility: Requires git, gh, network access, authenticated GitHub pull-request read access, and permission to create one file in the operating system's temporary directory. Repository write access is not used by the delegating run after artifact creation; the generated query may authorize it for the fresh run. The generated query directs the fresh run to the sibling `watch` skill, which must be installed in the delegated run's own environment.
 metadata:
-  selfos.version: "0.2.1"
+  selfos.version: "0.2.2"
 ---
 
 # Delegate a PR review loop
@@ -59,16 +59,14 @@ Apply the optional focus or constraint without discarding an invariant. If the o
 
 Follow the current sibling `compose` guidance when available. Use `gpt-5.6-sol` for frontier, correctness-first review and repair; `gpt-5.6-terra` when the remaining work is well-bounded and balancing capability with cost matters; and `gpt-5.6-luna` only for high-volume, low-risk mechanical continuation. Preserve a caller-specified model when it is compatible with the task and explain the choice in one concise sentence.
 
-This rubric follows the sibling `compose` ladder. `xhigh` remains the default after an exhausted multi-round orchestration budget because budget exhaustion usually indicates non-routine work.
+This rubric follows the sibling `compose` ladder, whose working scale for delegated runs caps at `high`. `high` is the default after an exhausted multi-round orchestration budget because budget exhaustion usually indicates non-routine work.
 
 Choose exactly one reasoning effort:
 
-- `medium` when the remaining work is genuinely routine and bounded, for example carrying one or two confirmed trivial fixes through to a clean verdict with no cross-component interactions;
-- `high` when the remaining work is local, bounded, and well understood;
-- `xhigh` when several review rounds exposed recurring or cross-component interactions; or
-- `max` only for the hardest unresolved architecture, security, data-integrity, migration, or cross-contract reasoning.
+- `medium` when the remaining work is genuinely routine and bounded, for example carrying one or two confirmed trivial fixes through to a clean verdict with no cross-component interactions; or
+- `high` for everything else, including well-understood local fixes and work where several review rounds exposed recurring or cross-component interactions.
 
-After an exhausted multi-round orchestration budget, default to `xhigh` unless the compacted context clearly supports `medium`, `high`, or `max`. Do not choose `max` merely because several rounds occurred. `ultra` is a separate multi-agent mode and must never appear as the reasoning-effort value.
+After an exhausted multi-round orchestration budget, default to `high` unless the compacted context clearly supports `medium`. `xhigh` and `max` sit above the working scale, are reserved for live design discussion with the owner, and must never appear in a generated query. `ultra` is a separate multi-agent mode and must never appear as the reasoning-effort value.
 
 ## 4. Write the single query artifact
 
@@ -80,7 +78,7 @@ The file has exactly these top-level sections and follows the lean sibling `comp
 # Run configuration
 
 Model: <gpt-5.6-sol | gpt-5.6-terra | gpt-5.6-luna>
-Reasoning effort: <medium | high | xhigh | max>
+Reasoning effort: <medium | high>
 Reason: <one concise sentence>
 
 # Query
