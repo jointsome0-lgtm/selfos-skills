@@ -4,8 +4,9 @@
 Diffs the worktree against the merge base with --base (the PR target in CI).
 Every changed tree below skills/<name>/ must strictly increase that skill's
 metadata.selfos.version in canonical SKILL.md. A bump-only diff passes. New
-skills pass with any valid non-zero version; removing a canonical SKILL.md
-does not, because the changed installable tree would have no version to bump.
+skills pass with any valid non-zero version. Removing a skill is allowed
+only as a whole-tree removal whose derived adapter version still strictly
+increases: fold the removed skill's components into VERSION_BASE.json.
 
 Both aggregate host manifest versions are the component-wise sum of all
 canonical skill versions. The gate validates that derived value even when a
@@ -191,6 +192,7 @@ def check_canonical_skill(
     merge_base: str,
     name: str,
     errors: list[str],
+    removed: list[str],
 ) -> bool:
     skill_path = f"skills/{name}/SKILL.md"
     shown = run_git("show", f"{merge_base}:{skill_path}")
@@ -199,13 +201,15 @@ def check_canonical_skill(
     try:
         head_raw = (root / skill_path).read_text(encoding="utf-8")
     except FileNotFoundError:
-        if base_exists:
+        if not base_exists:
+            errors.append(f"skills/{name}: changed tree has no canonical SKILL.md")
+        elif (root / "skills" / name).exists():
             errors.append(
-                f"skills/{name}: tree changed but canonical SKILL.md was removed; "
-                "a shipped skill must retain a bumped version"
+                f"skills/{name}: canonical SKILL.md was removed but other files remain; "
+                "remove the whole skill tree or restore a bumped SKILL.md"
             )
         else:
-            errors.append(f"skills/{name}: changed tree has no canonical SKILL.md")
+            removed.append(name)
         return False
     except (OSError, UnicodeError) as exc:
         errors.append(f"{skill_path}: cannot read UTF-8 file: {exc}")
@@ -265,7 +269,7 @@ def check_derived_adapters(root: Path, errors: list[str]) -> str | None:
     if not (root / "skills").is_dir():
         return None
     skills = discover_worktree_skills(root, errors)
-    expected, derivation_errors = derive_adapter_version(skills)
+    expected, derivation_errors = derive_adapter_version(skills, root)
     # discover_worktree_skills already reports the same per-skill errors.
     if derivation_errors or expected is None:
         return None
@@ -318,6 +322,7 @@ def main() -> int:
     paths = changed_paths(merge_base, errors)
     plugins: list[str] = []
     canonical: list[str] = []
+    removed: list[str] = []
     adapter_changes: list[str] = []
     checked_legacy = 0
     if paths is not None:
@@ -342,7 +347,7 @@ def main() -> int:
                 root, merge_base, manifest_path, f"plugins/{plugin}", errors
             )
         for name in canonical:
-            check_canonical_skill(root, merge_base, name, errors)
+            check_canonical_skill(root, merge_base, name, errors, removed)
 
         if adapter_changes:
             catalog_names = sorted(path.parent.name for path in (root / "skills").glob("*/SKILL.md"))
@@ -358,6 +363,18 @@ def main() -> int:
                 )
 
     adapter_version = check_derived_adapters(root, errors)
+
+    if removed and adapter_version is not None:
+        base_version = manifest_version_at(merge_base, ADAPTER_MANIFESTS[0], errors)
+        base_semver = parse_semver(base_version) if base_version is not None else None
+        head_semver = parse_semver(adapter_version)
+        if base_semver is not None and head_semver is not None and head_semver <= base_semver:
+            errors.append(
+                f"skill removal ({', '.join(sorted(removed))}) must strictly increase "
+                f"the derived adapter version, but it went from {base_version!r} to "
+                f"{adapter_version!r}; fold the removed components plus at least a "
+                "patch into VERSION_BASE.json"
+            )
 
     if errors:
         for error in errors:

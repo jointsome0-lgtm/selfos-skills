@@ -68,14 +68,12 @@ The former domain packages (`sdd@selfos`, `design@selfos`, `decision@selfos`, `l
 | --- | --- | --- |
 | `codebase-design` | Deep-module vocabulary, seams, adapters, deletion test, testability | automatic or explicit |
 | `compose` | Lean outcome-first prompts for GPT/Codex delegation | automatic or explicit |
-| `deepen` | Scoped architecture-friction scan and owner decision loop | explicit only |
 | `delegate-pr-loop-query` | Ready-to-run GPT-5.6 continuation query for an open PR review loop | automatic or explicit |
 | `grill-sdd` | Stress-test named SDD sections and land confirmed outcomes | explicit only |
 | `grilling` | Shared one-question-at-a-time owner decision primitive | automatic or explicit |
 | `handoff` | Compact privacy-safe context for a fresh agent in one temporary Markdown file | automatic or explicit |
 | `sdd-conventions` | Portable SDD conventions plus sync and Decision Log lint scripts | automatic or explicit |
 | `slice` | Turn one implementation-ready SDD scope into vertical issues | explicit only |
-| `teach` | Stateful multi-session teaching workspace | explicit only |
 | `watch` | Codex cloud PR push-review-fix loop | automatic or explicit |
 
 <!-- BEGIN GENERATED COMPATIBILITY; do not edit by hand. -->
@@ -85,17 +83,15 @@ Compatibility describes hard runtime needs and conditional capabilities; descrip
 
 | Skill | Version | Runtime compatibility |
 | --- | --- | --- |
-| `codebase-design` | `0.1.1` | Host-neutral Markdown guidance; no required tools, OS constraints, network access, write access, or external integrations. |
-| `compose` | `0.1.1` | Host-neutral Markdown guidance; no required tools, OS constraints, write access, or external integrations. Network access is optional for refreshing linked OpenAI guidance. |
-| `deepen` | `0.1.2` | Requires git, read access to the scoped repository and its history, permission to create a temporary HTML file outside the worktree, and a browser to view it. No OS constraint or required network; external issue-tracker write access is needed only to publish an owner-confirmed outcome. |
-| `delegate-pr-loop-query` | `0.2.0` | Requires git, gh, network access, authenticated GitHub pull-request read access, and permission to create one file in the operating system's temporary directory. Repository write access is not used by the delegating run after artifact creation; the generated query may authorize it for the fresh run. The generated query directs the fresh run to the sibling `watch` skill, which must be installed in the delegated run's own environment. |
-| `grill-sdd` | `0.1.2` | Requires Python 3.9+ for bundled SDD helpers and read access to the target repository. No OS constraint or required network; repository write access and external issue-tracker integration are needed only to land owner-confirmed outcomes. |
-| `grilling` | `0.1.1` | Requires read access to owner-scoped sources. No specific CLI or OS; network, write access, and external integrations are needed only when the chosen facts or an owner-confirmed outcome require them. |
-| `handoff` | `0.1.0` | Requires permission to create one file in the operating system's temporary directory. No specific CLI, OS, network access, repository write access, or external integration is required. |
-| `sdd-conventions` | `0.1.1` | Requires Python 3.9+ for the standard-library helpers and write access to the target file when syncing. OS-independent and offline, with no external integration. |
-| `slice` | `0.1.2` | Requires Python 3.9+ for bundled SDD helpers, read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
-| `teach` | `0.1.1` | Requires read/write access to a user-approved learning workspace, network access to research and cite trusted resources, and a browser to view generated HTML. No specific CLI, OS, or authenticated external integration; platform opener access is optional and used only on request. |
-| `watch` | `0.3.1` | Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; requires a POSIX-style shell environment but no specific OS. |
+| `codebase-design` | `0.1.2` | Host-neutral Markdown guidance; no required tools, OS constraints, network access, write access, or external integrations. |
+| `compose` | `0.1.2` | Host-neutral Markdown guidance; no required tools, OS constraints, write access, or external integrations. Network access is optional for refreshing linked OpenAI guidance. |
+| `delegate-pr-loop-query` | `0.2.1` | Requires git, gh, network access, authenticated GitHub pull-request read access, and permission to create one file in the operating system's temporary directory. Repository write access is not used by the delegating run after artifact creation; the generated query may authorize it for the fresh run. The generated query directs the fresh run to the sibling `watch` skill, which must be installed in the delegated run's own environment. |
+| `grill-sdd` | `0.1.3` | Requires Python 3.9+ for bundled SDD helpers and read access to the target repository. No OS constraint or required network; repository write access and external issue-tracker integration are needed only to land owner-confirmed outcomes. |
+| `grilling` | `0.1.2` | Requires read access to owner-scoped sources. No specific CLI or OS; network, write access, and external integrations are needed only when the chosen facts or an owner-confirmed outcome require them. |
+| `handoff` | `0.1.1` | Requires permission to create one file in the operating system's temporary directory. No specific CLI, OS, network access, repository write access, or external integration is required. |
+| `sdd-conventions` | `0.1.2` | Requires Python 3.9+ for the standard-library helpers and write access to the target file when syncing. OS-independent and offline, with no external integration. |
+| `slice` | `0.1.3` | Requires Python 3.9+ for bundled SDD helpers, read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
+| `watch` | `0.3.2` | Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; requires a POSIX-style shell environment but no specific OS. |
 <!-- END GENERATED COMPATIBILITY -->
 
 ## Repository layout
@@ -160,7 +156,7 @@ Canonical skills are versioned independently. `metadata.selfos.version` in each 
 
 Generated bundle copies carry the source skill's version unchanged because `scripts/build_bundles.py` copies the complete source tree byte for byte, adding only the `GENERATED.md` marker. When a dependency changes, bump the source skill and rerun the build, then also bump every composed skill whose regenerated tree changed. The version gate checks each changed top-level tree independently.
 
-The Claude and Codex aggregate manifest versions are generated, not released independently. `scripts/build_index.py` sums the major, minor, and patch components of every canonical skill version separately; for example, `1.2.3` plus `0.4.5` derives adapter version `1.6.8`. The gate requires every changed skill version to increase, so the derived adapter version strictly increases across release batches whenever canonical skill content changes: two batches can never share it. `python scripts/build_index.py` writes the same value to both manifests, while validation and `--check` reject drift. A nine-skill catalog of nine initial `0.1.0` releases would therefore derive adapter `0.9.0`; the derived value is both a cache identity for the validated version set and the catalog's release identity. It is not a bundle API version and implies no compatibility semantics between independently versioned skills.
+The Claude and Codex aggregate manifest versions are generated, not released independently. `scripts/build_index.py` sums the major, minor, and patch components of every canonical skill version separately and adds the committed `VERSION_BASE.json` offset; for example, `1.2.3` plus `0.4.5` on a zero base derives adapter version `1.6.8`. The gate requires every changed skill version to increase, and removing a skill requires folding the removed components into `VERSION_BASE.json` so the derived version still strictly increases, so the derived adapter version strictly increases across release batches whenever canonical skill content changes: two batches can never share it. `python scripts/build_index.py` writes the same value to both manifests, while validation and `--check` reject drift. A nine-skill catalog of nine initial `0.1.0` releases would therefore derive adapter `0.9.0`; the derived value is both a cache identity for the validated version set and the catalog's release identity. It is not a bundle API version and implies no compatibility semantics between independently versioned skills.
 
 Generated version-only edits to the two manifests are part of an ordinary skill release. Any other change under `.claude-plugin/`, `.codex-plugin/`, or `.agents/` changes the aggregate packaging for every skill, so it requires a patch-or-greater bump of every canonical skill even when no behavior changes. The gate distinguishes those substantive adapter edits from the generated version fields and prevents host caches from retaining stale packaging.
 

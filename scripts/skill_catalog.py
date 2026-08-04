@@ -240,10 +240,60 @@ def version_errors(skill: Skill) -> list[str]:
     return []
 
 
-def derive_adapter_version(skills: Iterable[Skill]) -> tuple[str | None, list[str]]:
-    """Derive a monotonic aggregate SemVer from canonical per-skill versions."""
-    totals = [0, 0, 0]
+VERSION_BASE_NAME = "VERSION_BASE.json"
+
+
+def load_version_base(root: Path) -> tuple[tuple[int, int, int] | None, list[str]]:
+    """Load the committed component-wise offset for derived adapter versions.
+
+    The offset absorbs the components of removed skills so the derived
+    aggregate stays monotonic when the catalog shrinks; a missing file is a
+    zero offset. Maintainers raise it only when removing a skill.
+    """
+    path = root / VERSION_BASE_NAME
+    where = display_path(path)
+    if path.is_symlink():
+        return None, [f"{where}: must be a regular file, not a symlink"]
+    if not path.exists():
+        return (0, 0, 0), []
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        return None, [f"{where}: invalid JSON: {exc}"]
+    if not isinstance(value, dict):
+        return None, [f"{where}: top-level JSON value must be an object"]
     errors: list[str] = []
+    unknown = sorted(set(value) - {"version", "removals"})
+    if unknown:
+        errors.append(
+            f"{where}: unsupported keys: {', '.join(unknown)}; "
+            "only 'version' and 'removals' are defined"
+        )
+    version = value.get("version")
+    parsed = parse_semver(version) if isinstance(version, str) else None
+    if parsed is None:
+        errors.append(
+            f"{where}: 'version' must be a semantic X.Y.Z string with no leading zeroes"
+        )
+    removals = value.get("removals", [])
+    if not isinstance(removals, list) or not all(isinstance(item, str) for item in removals):
+        errors.append(f"{where}: 'removals' must be a list of strings")
+    if errors:
+        return None, errors
+    return parsed, []
+
+
+def derive_adapter_version(
+    skills: Iterable[Skill], root: Path
+) -> tuple[str | None, list[str]]:
+    """Derive a monotonic aggregate SemVer from canonical per-skill versions.
+
+    The result is the version base loaded from root plus the component-wise
+    sum of every skill version. Removing a skill folds its components into
+    the version base, so the aggregate never decreases across releases.
+    """
+    base, errors = load_version_base(root)
+    totals = list(base) if base is not None else [0, 0, 0]
     for skill in skills:
         declared_errors = version_errors(skill)
         errors.extend(declared_errors)

@@ -39,10 +39,10 @@ class InstallSmokeMatrixTests(unittest.TestCase):
             canonical = root / "skills"
             installed = Path(temporary) / "installed"
             for base in (canonical, installed):
-                (base / "deepen" / "references" / "codebase-design").mkdir(parents=True)
+                (base / "slice" / "references" / "grilling").mkdir(parents=True)
                 (base / "watch" / "scripts").mkdir(parents=True)
-                (base / "deepen" / "SKILL.md").write_text("deepen\n", encoding="utf-8")
-                (base / "deepen" / "references" / "codebase-design" / "SKILL.md").write_text(
+                (base / "slice" / "SKILL.md").write_text("slice\n", encoding="utf-8")
+                (base / "slice" / "references" / "grilling" / "SKILL.md").write_text(
                     "composed\n", encoding="utf-8"
                 )
                 (base / "watch" / "SKILL.md").write_text("watch\n", encoding="utf-8")

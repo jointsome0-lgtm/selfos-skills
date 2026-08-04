@@ -4,7 +4,7 @@ description: Creates one compact, privacy-safe Markdown handoff in the operating
 license: LICENSE.txt
 compatibility: Requires permission to create one file in the operating system's temporary directory. No specific CLI, OS, network access, repository write access, or external integration is required.
 metadata:
-  selfos.version: "0.1.0"
+  selfos.version: "0.1.1"
 ---
 
 # Create a compact handoff
