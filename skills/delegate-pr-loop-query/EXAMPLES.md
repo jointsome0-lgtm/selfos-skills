@@ -29,11 +29,11 @@ Expected selection:
 | Finding ledger, conversation, command output, unrelated discussion | Omit. |
 | Credential and personal data | Replace with `[REDACTED: credential]` and `[REDACTED: personal data]`, or omit. |
 
-The selected run configuration is `gpt-5.6-sol` with `xhigh`: several rounds exposed validator, packaging, and platform interactions. The resulting query has the required Goal / Context / Constraints / Success criteria / Stop rules / Suggested skills structure, records `https://github.com/invented-org/orchard-tools/pull/17` and the full fixture SHA, names `watch` without copying its polling protocol, and contains the literal budget placeholder `round-budget=<owner-sets-at-load>` because the fixture supplies no explicit budget. Its quality-preservation constraint occurs once.
+The selected run configuration is `gpt-5.6-sol` with `high`: several rounds exposed validator, packaging, and platform interactions, the default exhausted-budget case. The resulting query has the required Goal / Context / Constraints / Success criteria / Stop rules / Suggested skills structure, records `https://github.com/invented-org/orchard-tools/pull/17` and the full fixture SHA, names `watch` without copying its polling protocol, and contains the literal budget placeholder `round-budget=<owner-sets-at-load>` because the fixture supplies no explicit budget. Its quality-preservation constraint occurs once.
 
 If the same fixture includes the explicit constraint `round-budget=2`, the query records `round-budget=2` and stops with remaining-state evidence after two delegated rounds unless approval arrives earlier. With the explicit constraint `round-budget=unlimited`, the query records `round-budget=unlimited` verbatim. No caller identity, model, quota, harness, or execution mode changes any fixture's budget, and no fixture ever receives `unlimited` without that explicit constraint.
 
-Starting with an empty canonical fixture temp directory, the run creates one owner-only child directory containing only `orchard-tools-pr-17-loop-query.md`. After it prints that path, `gpt-5.6-sol`, and `xhigh`, the fixture audit records no repository or PR mutation, watcher invocation, child agent, or delegated launch.
+Starting with an empty canonical fixture temp directory, the run creates one owner-only child directory containing only `orchard-tools-pr-17-loop-query.md`. After it prints that path, `gpt-5.6-sol`, and `high`, the fixture audit records no repository or PR mutation, watcher invocation, child agent, or delegated launch.
 
 ## Effort choices remain distinct
 
@@ -41,10 +41,10 @@ Starting with an empty canonical fixture temp directory, the run creates one own
 | --- | --- | --- |
 | One or two confirmed trivial documentation fixes with no cross-component interactions | `medium` | Genuinely routine and bounded. |
 | A well-understood local validator fix with focused regression coverage | `high` | Local, bounded, and understood. |
-| Repeated validator findings spanning CLI and library paths after the orchestration budget is exhausted | `xhigh` | Multi-round cross-component interaction; this is the default exhausted-budget case. |
-| Unresolved encrypted-record migration with rollback and integrity contracts | `max` | Hard data-integrity, migration, and cross-contract reasoning. |
+| Repeated validator findings spanning CLI and library paths after the orchestration budget is exhausted | `high` | Multi-round cross-component interaction; this is the default exhausted-budget case. |
+| Unresolved encrypted-record migration with rollback and integrity contracts | `high` | Even the hardest delegated reasoning caps at `high`; higher tiers are reserved for live owner design discussion. |
 
-An invented request for `ultra effort` does not produce that value: the effort field still uses one of the four values above. Multi-agent mode, if separately authorized, is an execution-mode decision rather than a reasoning-effort tier.
+An invented request for `ultra`, `xhigh`, or `max` effort does not produce those values: the effort field still uses `medium` or `high`. Multi-agent mode, if separately authorized, is an execution-mode decision rather than a reasoning-effort tier.
 
 ## Unresolved PR state fails without an artifact
 
