@@ -299,14 +299,86 @@ class CheckVersionBumpTest(unittest.TestCase):
         self.commit("add second canonical skill")
         self.assertEqual(self.check().returncode, 0)
 
-    def test_deleted_canonical_skill_fails(self) -> None:
-        self.set_up_catalog()
+    def test_deleted_canonical_skill_without_version_base_fails(self) -> None:
+        self.write_canonical_skill("catalog-demo", "1.0.0")
+        self.write_canonical_skill("catalog-extra", "0.1.0")
+        self.write_adapters("1.1.0")
+        self.commit("add two-skill catalog")
         self.branch()
-        shutil.rmtree(self.repo / "skills" / "catalog-demo")
-        self.commit("remove canonical skill")
+        shutil.rmtree(self.repo / "skills" / "catalog-extra")
+        self.write_adapters("1.0.0")
+        self.commit("remove canonical skill without folding the version base")
         result = self.check()
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("canonical SKILL.md was removed", result.stderr)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("must strictly increase", result.stderr)
+        self.assertIn("VERSION_BASE.json", result.stderr)
+
+    def test_deleted_canonical_skill_with_version_base_passes(self) -> None:
+        self.write_canonical_skill("catalog-demo", "1.0.0")
+        self.write_canonical_skill("catalog-extra", "0.1.0")
+        self.write_adapters("1.1.0")
+        self.commit("add two-skill catalog")
+        self.branch()
+        shutil.rmtree(self.repo / "skills" / "catalog-extra")
+        (self.repo / "VERSION_BASE.json").write_text(
+            '{"version": "0.1.1", "removals": ["invented removal note"]}\n',
+            encoding="utf-8",
+        )
+        self.write_adapters("1.1.1")
+        self.commit("remove canonical skill and fold the version base")
+        result = self.check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("adapter version 1.1.1 is current", result.stdout)
+
+    def test_version_base_reduction_regressing_adapter_fails(self) -> None:
+        self.write_canonical_skill("catalog-demo", "1.0.1")
+        (self.repo / "VERSION_BASE.json").write_text(
+            '{"version": "0.0.2"}\n', encoding="utf-8"
+        )
+        self.write_adapters("1.0.3")
+        self.commit("add catalog with version base")
+        self.branch()
+        self.write_canonical_skill("catalog-demo", "1.0.2", "Changed canonical body.")
+        (self.repo / "VERSION_BASE.json").write_text(
+            '{"version": "0.0.0"}\n', encoding="utf-8"
+        )
+        self.write_adapters("1.0.2")
+        self.commit("bump skill while lowering the version base")
+        result = self.check()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("decreased", result.stderr)
+        self.assertIn("VERSION_BASE.json", result.stderr)
+
+    def test_version_base_reduction_masking_bump_fails(self) -> None:
+        self.write_canonical_skill("catalog-demo", "1.0.1")
+        (self.repo / "VERSION_BASE.json").write_text(
+            '{"version": "0.0.2"}\n', encoding="utf-8"
+        )
+        self.write_adapters("1.0.3")
+        self.commit("add catalog with version base")
+        self.branch()
+        self.write_canonical_skill("catalog-demo", "1.0.2", "Changed canonical body.")
+        (self.repo / "VERSION_BASE.json").write_text(
+            '{"version": "0.0.1"}\n', encoding="utf-8"
+        )
+        self.commit("bump skill while masking it in the version base")
+        result = self.check()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("must strictly increase", result.stderr)
+        self.assertIn("stayed at", result.stderr)
+
+    def test_partial_canonical_skill_removal_fails(self) -> None:
+        self.set_up_catalog()
+        notes = self.repo / "skills" / "catalog-demo" / "references" / "notes.md"
+        notes.parent.mkdir(parents=True)
+        notes.write_text("Invented companion notes.\n", encoding="utf-8")
+        self.commit("add companion file")
+        self.branch()
+        (self.repo / "skills" / "catalog-demo" / "SKILL.md").unlink()
+        self.commit("delete only the canonical SKILL.md")
+        result = self.check()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("other files remain", result.stderr)
 
     def test_canonical_version_downgrade_fails(self) -> None:
         self.set_up_catalog()

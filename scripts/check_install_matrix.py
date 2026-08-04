@@ -105,10 +105,10 @@ def assert_skill_tree(canonical_root: Path, installed_root: Path, checkout_root:
                     f"installed skill {skill_name}: absolute checkout path in companion file: {relative}"
                 )
 
-    composed = installed_root / "deepen" / "references" / "codebase-design" / "SKILL.md"
+    composed = installed_root / "slice" / "references" / "grilling" / "SKILL.md"
     helper = installed_root / "watch" / "scripts" / "codex-pr-watch.sh"
     if not composed.is_file():
-        raise SmokeFailure("installed skill deepen: missing composed codebase-design/SKILL.md")
+        raise SmokeFailure("installed skill slice: missing composed grilling/SKILL.md")
     if not helper.is_file() or not os.access(helper, os.X_OK):
         raise SmokeFailure("installed skill watch: missing executable helper codex-pr-watch.sh")
 

@@ -1,0 +1,6 @@
+{
+  "version": "0.2.3",
+  "removals": [
+    "2026-08-04: removed unused skills teach 0.1.1 and deepen 0.1.2 (issue #81)"
+  ]
+}

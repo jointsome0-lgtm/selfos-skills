@@ -149,10 +149,50 @@ class SkillCatalogParserTest(unittest.TestCase):
         self.assertEqual(first_errors + second_errors, [])
         assert first is not None and second is not None
 
-        version, errors = derive_adapter_version((first, second))
+        version, errors = derive_adapter_version((first, second), first_path.parent)
 
         self.assertEqual(errors, [])
         self.assertEqual(version, "1.6.8")
+
+    def test_version_base_offsets_derived_adapter_version(self) -> None:
+        path = self.write_skill(
+            "Runs an invented workflow. Use when testing derived versions.",
+            "compatibility: No runtime requirements.\n"
+            "metadata:\n"
+            '  selfos.version: "1.2.3"\n',
+        )
+        skill, parse_errors = parse_skill(path)
+        self.assertEqual(parse_errors, [])
+        assert skill is not None
+        (path.parent / "VERSION_BASE.json").write_text(
+            '{"version": "0.2.4", "removals": ["invented removal note"]}\n',
+            encoding="utf-8",
+        )
+
+        version, errors = derive_adapter_version((skill,), path.parent)
+
+        self.assertEqual(errors, [])
+        self.assertEqual(version, "1.4.7")
+
+    def test_invalid_version_base_is_reported(self) -> None:
+        path = self.write_skill(
+            "Runs an invented workflow. Use when testing derived versions.",
+            "compatibility: No runtime requirements.\n"
+            "metadata:\n"
+            '  selfos.version: "1.2.3"\n',
+        )
+        skill, parse_errors = parse_skill(path)
+        self.assertEqual(parse_errors, [])
+        assert skill is not None
+        (path.parent / "VERSION_BASE.json").write_text(
+            '{"version": "01.0.0", "invented": true}\n', encoding="utf-8"
+        )
+
+        version, errors = derive_adapter_version((skill,), path.parent)
+
+        self.assertIsNone(version)
+        self.assertTrue(any("no leading zeroes" in error for error in errors))
+        self.assertTrue(any("unsupported keys" in error for error in errors))
 
     def test_shell_helper_requires_bash_declaration(self) -> None:
         path = self.write_skill(

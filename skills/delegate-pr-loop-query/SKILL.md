@@ -4,7 +4,7 @@ description: Creates one ready-to-run GPT-5.6 query that lets a fresh agent cont
 license: LICENSE.txt
 compatibility: Requires git, gh, network access, authenticated GitHub pull-request read access, and permission to create one file in the operating system's temporary directory. Repository write access is not used by the delegating run after artifact creation; the generated query may authorize it for the fresh run. The generated query directs the fresh run to the sibling `watch` skill, which must be installed in the delegated run's own environment.
 metadata:
-  selfos.version: "0.2.0"
+  selfos.version: "0.2.1"
 ---
 
 # Delegate a PR review loop

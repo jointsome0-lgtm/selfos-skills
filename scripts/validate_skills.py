@@ -213,7 +213,7 @@ def validate_adapters(skills: list[Skill]) -> list[str]:
     codex_marketplace = load_json(ROOT / ".agents" / "plugins" / "marketplace.json", errors)
     claude_marketplace = load_json(ROOT / ".claude-plugin" / "marketplace.json", errors)
 
-    expected_version, _ = derive_adapter_version(skills)
+    expected_version, _ = derive_adapter_version(skills, ROOT)
     for label, manifest in (("Codex", codex), ("Claude", claude)):
         if manifest is None:
             continue
