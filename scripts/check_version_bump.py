@@ -8,9 +8,12 @@ skills pass with any valid non-zero version. Removing a skill is allowed
 only as a whole-tree removal whose derived adapter version still strictly
 increases: fold the removed skill's components into VERSION_BASE.json.
 
-Both aggregate host manifest versions are the component-wise sum of all
-canonical skill versions. The gate validates that derived value even when a
-manifest was not touched, so stale generated adapters cannot pass CI.
+Both aggregate host manifest versions are the committed VERSION_BASE.json
+offset plus the component-wise sum of all canonical skill versions. The gate
+validates that derived value even when a manifest was not touched, so stale
+generated adapters cannot pass CI, and it may never decrease relative to the
+merge base — strictly increasing whenever a skill is removed or
+VERSION_BASE.json changes.
 Generated version-only manifest edits are exempt from separate guarding;
 other aggregate adapter or marketplace edits require packaging bumps across
 the full canonical catalog so host caches also see those changes.
@@ -31,6 +34,7 @@ import sys
 from pathlib import Path
 
 from skill_catalog import (
+    VERSION_BASE_NAME,
     Skill,
     derive_adapter_version,
     parse_semver,
@@ -364,17 +368,24 @@ def main() -> int:
 
     adapter_version = check_derived_adapters(root, errors)
 
-    if removed and adapter_version is not None:
+    if paths is not None and adapter_version is not None:
         base_version = manifest_version_at(merge_base, ADAPTER_MANIFESTS[0], errors)
         base_semver = parse_semver(base_version) if base_version is not None else None
         head_semver = parse_semver(adapter_version)
-        if base_semver is not None and head_semver is not None and head_semver <= base_semver:
-            errors.append(
-                f"skill removal ({', '.join(sorted(removed))}) must strictly increase "
-                f"the derived adapter version, but it went from {base_version!r} to "
-                f"{adapter_version!r}; fold the removed components plus at least a "
-                "patch into VERSION_BASE.json"
-            )
+        if base_semver is not None and head_semver is not None:
+            if head_semver < base_semver:
+                errors.append(
+                    f"derived adapter version decreased from {base_version!r} to "
+                    f"{adapter_version!r}; it must never decrease and must strictly "
+                    "increase when skills are removed; raise VERSION_BASE.json "
+                    "instead of lowering it"
+                )
+            elif head_semver == base_semver and (removed or VERSION_BASE_NAME in paths):
+                errors.append(
+                    f"skill removal or a {VERSION_BASE_NAME} change must strictly "
+                    "increase the derived adapter version, but it stayed at "
+                    f"{adapter_version!r}; fold at least a patch into {VERSION_BASE_NAME}"
+                )
 
     if errors:
         for error in errors:

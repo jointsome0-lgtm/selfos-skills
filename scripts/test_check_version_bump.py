@@ -330,6 +330,43 @@ class CheckVersionBumpTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("adapter version 1.1.1 is current", result.stdout)
 
+    def test_version_base_reduction_regressing_adapter_fails(self) -> None:
+        self.write_canonical_skill("catalog-demo", "1.0.1")
+        (self.repo / "VERSION_BASE.json").write_text(
+            '{"version": "0.0.2"}\n', encoding="utf-8"
+        )
+        self.write_adapters("1.0.3")
+        self.commit("add catalog with version base")
+        self.branch()
+        self.write_canonical_skill("catalog-demo", "1.0.2", "Changed canonical body.")
+        (self.repo / "VERSION_BASE.json").write_text(
+            '{"version": "0.0.0"}\n', encoding="utf-8"
+        )
+        self.write_adapters("1.0.2")
+        self.commit("bump skill while lowering the version base")
+        result = self.check()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("decreased", result.stderr)
+        self.assertIn("VERSION_BASE.json", result.stderr)
+
+    def test_version_base_reduction_masking_bump_fails(self) -> None:
+        self.write_canonical_skill("catalog-demo", "1.0.1")
+        (self.repo / "VERSION_BASE.json").write_text(
+            '{"version": "0.0.2"}\n', encoding="utf-8"
+        )
+        self.write_adapters("1.0.3")
+        self.commit("add catalog with version base")
+        self.branch()
+        self.write_canonical_skill("catalog-demo", "1.0.2", "Changed canonical body.")
+        (self.repo / "VERSION_BASE.json").write_text(
+            '{"version": "0.0.1"}\n', encoding="utf-8"
+        )
+        self.commit("bump skill while masking it in the version base")
+        result = self.check()
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("must strictly increase", result.stderr)
+        self.assertIn("stayed at", result.stderr)
+
     def test_partial_canonical_skill_removal_fails(self) -> None:
         self.set_up_catalog()
         notes = self.repo / "skills" / "catalog-demo" / "references" / "notes.md"
