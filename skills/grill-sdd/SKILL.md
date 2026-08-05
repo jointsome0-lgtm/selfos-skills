@@ -4,12 +4,12 @@ description: Conducts a relentless owner interview over named sections of this r
 license: LICENSE.txt
 compatibility: Requires Python 3.9+ for bundled SDD helpers and read access to the target repository. No OS constraint or required network; repository write access and external issue-tracker integration are needed only to land owner-confirmed outcomes.
 metadata:
-  selfos.version: "0.2.0"
+  selfos.version: "0.2.1"
 ---
 
 # Grill an SDD
 
-An explicit request to run this workflow counts as confirmation. Absent one, when a task matches, propose the workflow and start only after the owner confirms in the live session; in an unattended run with no explicit request, do not start — record the recommendation and continue the surrounding task. Load and follow the bundled [grilling contract](references/grilling/SKILL.md) in full for the interview loop: one question at a time, a recommendation per question, facts versus decisions, terminal states, and no action before live confirmation. This file owns only the SDD-specific scope, framing, and landing rules.
+An explicit request to run this workflow counts as confirmation. Absent one, when a task matches, propose the workflow and start only after the owner confirms in the live session; in an unattended run with no explicit request, do not start — record the recommendation and continue the surrounding task. Load and follow the bundled [grilling contract](references/grilling/SKILL.md) in full for the interview loop: frontier rounds of numbered questions, a recommendation per question, facts versus decisions, terminal states, and no action before live confirmation. This file owns only the SDD-specific scope, framing, and landing rules.
 
 ## Resolve the named canon
 
