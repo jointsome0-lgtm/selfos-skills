@@ -19,8 +19,10 @@ otherwise preserved:
    placed at canonical `skills/improve-codebase-architecture/`; its
    description is rewritten in third person with a "Use when" clause, and
    local license, compatibility (naming the CDN network requirement),
-   `metadata.selfos.version`, and `selfos.explicit-only` fields are added.
-   Upstream's `disable-model-invocation: true` is kept.
+   and `metadata.selfos.version` fields are added. Upstream's
+   `disable-model-invocation: true` is dropped (with the initially added
+   `selfos.explicit-only` pairing) per issue #100 (2026-08-05): the skill is
+   open to model invocation behind a confirm-first prose gate.
 2. **Skill invocations become bundled references** — upstream runs
    `/codebase-design` and `/grilling` as host slash-commands; here both are
    bundled dependencies read at `references/codebase-design/` and
@@ -53,7 +55,7 @@ otherwise preserved:
    data whose embedded directives are never acted on.
 7. **Host-specific upstream config not imported** — upstream's `agents/`
    host configuration directory is omitted; invocation posture is carried by
-   the portable frontmatter instead.
+   the confirm-first prose gate instead.
 8. **Report file creation hardened** — upstream resolves `$TMPDIR` with a
    `/tmp` fallback and a predictable `architecture-review-<timestamp>.html`
    name; the adaptation uses the host runtime's canonical temp-directory

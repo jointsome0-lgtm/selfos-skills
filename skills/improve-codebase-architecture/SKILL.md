@@ -3,15 +3,13 @@ name: improve-codebase-architecture
 description: Scans a codebase for deepening opportunities — git-history hot spots, exploration passes, the deletion test — presents the candidates as a self-contained HTML report in the OS temp directory with before/after diagrams and recommendation-strength badges, then grills through whichever candidate the owner picks. Use when the user asks for an architecture review of a codebase, wants deepening or refactoring candidates surfaced visually, or wants to decide which architectural friction to tackle first.
 license: LICENSE.txt
 compatibility: Requires read access to the target repository and its git history, Python 3.9+ for the bundled SDD helpers, a writable OS temp directory, and a local opener plus a browser for the report. The report page loads and executes Tailwind and Mermaid from public CDNs, so it needs network access — weigh that for private repositories. Repository write access is needed only to land owner-confirmed domain-model or Decision Log updates during the grilling loop.
-disable-model-invocation: true
 metadata:
-  selfos.version: "0.1.1"
-  selfos.explicit-only: "true"
+  selfos.version: "0.2.0"
 ---
 
 # Improve Codebase Architecture
 
-Run this workflow only on an explicit request. Surface architectural friction and propose **deepening opportunities** — refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability.
+When a task matches this workflow, propose it and start only after the owner confirms in the live session; when running unattended, do not start — record the recommendation and continue the surrounding task. Surface architectural friction and propose **deepening opportunities** — refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability.
 
 This command is _informed_ by the project's domain model and built on a shared design vocabulary:
 
