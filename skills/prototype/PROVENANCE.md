@@ -22,13 +22,16 @@ shared rules are otherwise preserved):
    upstream commits the finished prototype to an unspecified throwaway branch
    after the fact; here all prototype work happens from the start on a
    throwaway branch checked out in a `<repo>/.worktrees/<name>` worktree,
-   never the primary checkout. Only the validated decision lands on main
-   through the normal change process; the branch is pushed and kept as the
-   primary source, and the worktree is removed afterwards.
+   never the primary checkout, with the worktree directory ignored before it
+   is created. Only the validated decision lands on the repository's default
+   integration branch through the normal change process; the branch is pushed
+   (or kept local when no writable remote exists) as the primary source, and
+   the worktree is removed afterwards.
 3. **Context pointer made mandatory and structured** — upstream leaves "a
    context pointer to that branch on the implementation issue"; here the
    comment on the driving issue must name the prototype branch, the question
-   it settled, and the verdict.
+   it settled, and the verdict, with defined fallbacks when no driving issue
+   or tracker exists.
 4. **Outbound-text policy added** — issue comments and commit messages follow
    the ecosystem's neutral-prose and public-data policy (invented examples
    only; no personal data, credentials, private paths, or local agent state).

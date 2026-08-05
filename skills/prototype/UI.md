@@ -97,12 +97,12 @@ Surface the URL (and the `?variant=` keys). The user will flip through whenever 
 
 ### 6. Capture the answer and clean up
 
-Once a variant has won, capture the answer — which variant and why — then capture the prototype the way the [SKILL](SKILL.md) describes. Fold the winner into the real code on main; the full variant set stays behind on the throwaway worktree branch as the primary source, pointed to from the driving issue:
+Once a variant has won, capture the answer — which variant and why — then capture the prototype the way the [SKILL](SKILL.md) describes. Fold the winner into the real code on the default branch; the full variant set stays behind on the throwaway worktree branch as the primary source, pointed to from the driving issue:
 
-- **Sub-shape A** — fold the winner into the existing page on main; the losing variants and the switcher never leave the prototype branch.
-- **Sub-shape B** — promote the winning variant to a real route on main; the throwaway route and the switcher never leave the prototype branch.
+- **Sub-shape A** — fold the winner into the existing page on the default branch; the losing variants and the switcher never leave the prototype branch.
+- **Sub-shape B** — promote the winning variant to a real route on the default branch; the throwaway route and the switcher never leave the prototype branch.
 
-Variant components and a switcher left on main rot fast and confuse the next reader — main keeps only the validated decision, and the branch pointer on the driving issue keeps the full set reachable.
+Variant components and a switcher left on the default branch rot fast and confuse the next reader — it keeps only the validated decision, and the branch pointer on the driving issue keeps the full set reachable.
 
 ## Anti-patterns
 

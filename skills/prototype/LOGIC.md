@@ -68,7 +68,7 @@ Give the user the run command. They'll drive it themselves; the interesting mome
 
 ### 7. Capture the answer and the prototype
 
-Once the prototype has answered its question, capture the answer, then capture the prototype the way the [SKILL](SKILL.md) describes. The logic-specific mapping: the validated reducer / machine / function set is what lifts into the real module on main (the decision, absorbed); the TUI shell stays with the rest of the prototype on its throwaway worktree branch, pointed to from the driving issue.
+Once the prototype has answered its question, capture the answer, then capture the prototype the way the [SKILL](SKILL.md) describes. The logic-specific mapping: the validated reducer / machine / function set is what lifts into the real module on the default branch (the decision, absorbed); the TUI shell stays with the rest of the prototype on its throwaway worktree branch, pointed to from the driving issue.
 
 ## Anti-patterns
 
