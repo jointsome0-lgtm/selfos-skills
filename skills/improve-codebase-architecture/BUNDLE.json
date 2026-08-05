@@ -1,0 +1,6 @@
+{
+  "dependencies": [
+    "codebase-design",
+    "grilling"
+  ]
+}
