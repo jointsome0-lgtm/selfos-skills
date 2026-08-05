@@ -23,13 +23,23 @@ whose Decision Log the effort lands in.
 ## Preflight
 
 Sub-issues and issue dependencies must be enabled for the repository
-(generally available on github.com; verify on GHES). Probe read-only
-and stop with a clear message on an error rather than falling back to
-another store:
+(generally available on github.com; verify on GHES) — and one can be
+enabled without the other. Probe **both** endpoints read-only, against
+any existing issue number, and stop with a clear message on an error
+**before** mutating anything — labels, map, or tickets — rather than
+failing mid-chart or falling back to another store:
 
 ```bash
-gh api repos/$R/issues/$MAP/sub_issues --jq length
+n=$(gh issue list --repo "$R" --state all --limit 1 \
+  --json number --jq '.[0].number')
+gh api repos/$R/issues/$n/sub_issues --jq length
+gh api repos/$R/issues/$n/dependencies/blocked_by --jq length
 ```
+
+In a repository with no issues at all, create the map issue first (a
+plain issue works everywhere) and probe against its number before
+creating labels or tickets — one stray issue to close is the worst
+case, not a half-built map.
 
 Create the labels once per repository (safe to re-run):
 
@@ -77,16 +87,33 @@ Open, unassigned sub-issues with no open blocker:
 gh api --paginate repos/$R/issues/$MAP/sub_issues \
   --jq '.[] | select(.state=="open" and (.assignees|length)==0) | .number' |
 while read -r n; do
-  open=$(gh api --paginate repos/$R/issues/$n/dependencies/blocked_by \
-    --jq '[.[] | select(.state=="open")] | length')
+  open=$(gh api --paginate --slurp repos/$R/issues/$n/dependencies/blocked_by \
+    --jq '[.[][] | select(.state=="open")] | length')
   [ "$open" -eq 0 ] && echo "$n"
 done
 ```
 
+`--slurp` matters: plain `--paginate` applies `--jq` to each page
+separately, so a ticket with more than one page of blockers would
+yield several counts (`0`, `0`, …) and break the integer comparison.
+
 ## Claim, resolve, close
+
+Assigning is not atomic — `--add-assignee` adds to a list, and two
+sessions racing on the same frontier can both succeed. Claim, then
+re-fetch: proceed only as the sole assignee, otherwise withdraw and
+take the next frontier ticket.
 
 ```bash
 gh issue edit "$N" --repo "$R" --add-assignee @me   # claim — before any work
+me=$(gh api user --jq .login)
+claimants=$(gh api repos/$R/issues/$N --jq '[.assignees[].login] | join(",")')
+if [ "$claimants" != "$me" ]; then
+  gh issue edit "$N" --repo "$R" --remove-assignee @me   # lost the race
+fi
+```
+
+```bash
 gh issue comment "$N" --repo "$R" --body-file resolution.md
 gh issue close "$N" --repo "$R"
 ```

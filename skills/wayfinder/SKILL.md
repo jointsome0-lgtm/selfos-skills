@@ -247,9 +247,11 @@ User invokes with a loose idea.
    before they can reference each other). Wiring sorts them into the
    frontier and the blocked; everything you can't yet specify stays in
    **Not yet specified**.
-5. **Fire the research subagents.** For each `research` ticket you just
-   created, spin up a background subagent per the `research` skill to
-   resolve it in parallel.
+5. **Fire the research subagents.** For each **unblocked** `research`
+   ticket you just created, spin up a background subagent per the
+   `research` skill to resolve it in parallel. A blocked research
+   ticket waits for the frontier — fired early, it would investigate
+   against prerequisites that haven't been decided yet.
 6. Stop — charting is one session's work; it hand-resolves nothing.
 
 ### Work through the map
@@ -275,8 +277,13 @@ without one, you pick the next decision, not the user.
    Then post the **resolution comment**: the entry line quoted
    verbatim, plus a link to the landing commit or pull request.
    **Close** the ticket only after the entry has landed, and append its
-   line to the map's Decisions-so-far. The ticket without a landed log
-   entry is unresolved, however finished the discussion looks.
+   line to the map's Decisions-so-far. A decision ticket without a
+   landed log entry is unresolved, however finished the discussion
+   looks. The exception is a `task` ticket: it decides nothing, so its
+   resolution comment records what was done and the resulting facts —
+   no log entry, and no line in Decisions-so-far. Any decision a task
+   surfaces becomes its own ticket, resolved through the log like every
+   other.
 5. Add newly-surfaced tickets (create-then-wire); graduate any fog the
    answer has made specifiable, clearing each graduated patch from
    **Not yet specified** so it lives only as its new ticket. If the
