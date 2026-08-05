@@ -45,11 +45,16 @@ Invalid examples (ASCII dash; impossible date; missing rejected clause):
 
 Word count joins an entry's lines with spaces, removes the leading prefix,
 all HTML comments and inline Markdown link targets while retaining labels,
-then counts whitespace-separated tokens. Above `--warn-words` (default 80)
+then counts whitespace-separated tokens. Above `--warn-words` (default 40)
 the lint warns that the target is about 40 words; above `--max-words`
-(default 140) it also errors unless waived. Length is a graduated signal by
+(default 80) it also errors unless waived. Length is a graduated signal by
 design — a hard low cap was rejected in the shaping issue as brittle and
-gameable.
+gameable. An entry is one or two sentences: the decision, then the rejected
+alternative with its reason. The defaults tightened from 140/80 after the
+exp2res compression campaign (jointsome0-lgtm/exp2res#191) showed the looser
+ceiling never bound 1–2 sentence entries; a repository with an uncompressed
+log passes looser caps at its own invocation site, or uses `--baseline` for
+grandfathered history.
 
 A waiver is repository-owned and must be the exact comment above, at the
 first-line end or alone on a continuation. Its reason is mandatory; it
@@ -77,7 +82,7 @@ entries is a separate owner decision, not this tool's job.
 
 Vendor the lint the same way as the conventions tool (see `README.md` in
 this folder): copy `../scripts/check_decision_log.py` into the consuming
-repository, record its `CHECKER_VERSION` (currently `1.1.0`), wire it into
+repository, record its `CHECKER_VERSION` (currently `2.0.0`), wire it into
 local CI, and update the copy only through an explicit PR. The file is
 Python 3.9-compatible, stdlib-only, offline, and imports nothing from this
 repository — a fresh subsystem checkout lints with no plugin installed.
