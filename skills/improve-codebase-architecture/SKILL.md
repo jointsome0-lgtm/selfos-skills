@@ -9,7 +9,7 @@ metadata:
 
 # Improve Codebase Architecture
 
-When a task matches this workflow, propose it and start only after the owner confirms in the live session; when running unattended, do not start — record the recommendation and continue the surrounding task. Surface architectural friction and propose **deepening opportunities** — refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability.
+An explicit request to run this workflow counts as confirmation. Absent one, when a task matches, propose the workflow and start only after the owner confirms in the live session; in an unattended run with no explicit request, do not start — record the recommendation and continue the surrounding task. Surface architectural friction and propose **deepening opportunities** — refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability.
 
 This command is _informed_ by the project's domain model and built on a shared design vocabulary:
 

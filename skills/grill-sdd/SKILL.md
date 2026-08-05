@@ -9,7 +9,7 @@ metadata:
 
 # Grill an SDD
 
-When a task matches this workflow, propose it and start only after the owner confirms in the live session; when running unattended, do not start — record the recommendation and continue the surrounding task. Load and follow the bundled [grilling contract](references/grilling/SKILL.md) in full for the interview loop: one question at a time, a recommendation per question, facts versus decisions, terminal states, and no action before live confirmation. This file owns only the SDD-specific scope, framing, and landing rules.
+An explicit request to run this workflow counts as confirmation. Absent one, when a task matches, propose the workflow and start only after the owner confirms in the live session; in an unattended run with no explicit request, do not start — record the recommendation and continue the surrounding task. Load and follow the bundled [grilling contract](references/grilling/SKILL.md) in full for the interview loop: one question at a time, a recommendation per question, facts versus decisions, terminal states, and no action before live confirmation. This file owns only the SDD-specific scope, framing, and landing rules.
 
 ## Resolve the named canon
 

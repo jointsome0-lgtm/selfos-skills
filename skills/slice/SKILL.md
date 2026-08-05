@@ -9,7 +9,7 @@ metadata:
 
 # Slice an approved scope
 
-When a task matches this workflow, propose it and start only after the owner confirms in the live session; when running unattended, do not start — record the recommendation and continue the surrounding task. Turn exactly one implementation-ready SDD section, phase, or approved parent issue into a dependency-ordered graph of vertical GitHub issues. Resolve owner choices through the bundled [grilling contract](references/grilling/SKILL.md); publish only after fresh confirmation of every final payload.
+An explicit request to run this workflow counts as confirmation. Absent one, when a task matches, propose the workflow and start only after the owner confirms in the live session; in an unattended run with no explicit request, do not start — record the recommendation and continue the surrounding task. Turn exactly one implementation-ready SDD section, phase, or approved parent issue into a dependency-ordered graph of vertical GitHub issues. Resolve owner choices through the bundled [grilling contract](references/grilling/SKILL.md); publish only after fresh confirmation of every final payload.
 
 ## Resolve canon first
 
