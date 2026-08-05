@@ -88,7 +88,7 @@ Compatibility describes hard runtime needs and conditional capabilities; descrip
 | Skill | Version | Runtime compatibility |
 | --- | --- | --- |
 | `codebase-design` | `0.1.2` | Host-neutral Markdown guidance; no required tools, OS constraints, network access, write access, or external integrations. |
-| `compose` | `0.2.0` | Host-neutral Markdown guidance; no required tools, OS constraints, write access, or external integrations. Network access is optional for refreshing linked provider guidance. |
+| `compose` | `0.2.1` | Host-neutral Markdown guidance; no required tools, OS constraints, write access, or external integrations. Network access is optional for refreshing linked provider guidance. |
 | `delegate-pr-loop-query` | `0.3.0` | Requires git, gh, network access, authenticated GitHub pull-request read access, and permission to create one file in the operating system's temporary directory. Repository write access is not used by the delegating run after artifact creation; the generated query may authorize it for the fresh run. The generated query directs the fresh run to the sibling `watch` skill, which must be installed in the delegated run's own environment. |
 | `grill-sdd` | `0.2.1` | Requires Python 3.9+ for bundled SDD helpers and read access to the target repository. No OS constraint or required network; repository write access and external issue-tracker integration are needed only to land owner-confirmed outcomes. |
 | `grilling` | `0.2.0` | Requires read access to owner-scoped sources. No specific CLI or OS; network, write access, and external integrations are needed only when the chosen facts or an owner-confirmed outcome require them. |

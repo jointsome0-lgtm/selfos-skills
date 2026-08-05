@@ -1,4 +1,5 @@
 # BEGIN generated skill bundles; managed by scripts/build_bundles.py.
+skills/delegate-pr-loop-query/references/compose/** linguist-generated=true
 skills/delegate-pr-loop-query/references/handoff/** linguist-generated=true
 skills/grill-sdd/references/grilling/** linguist-generated=true
 skills/grill-sdd/references/sdd-conventions/** linguist-generated=true
