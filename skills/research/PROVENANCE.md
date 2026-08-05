@@ -23,7 +23,8 @@ rule, and the single-findings-file shape are otherwise preserved):
    the host's subagent mechanism, defers model choice to the
    capability-routing canon in the repository's agent instructions instead
    of hard-coding a model, and requires a self-written, outcome-first
-   delegate prompt.
+   delegate prompt. On hosts without a subagent mechanism the same
+   investigation runs inline instead of being skipped.
 3. **Citation rule doubled as the delegated-claims standard** — upstream
    requires citing each claim's source; here the citation is additionally
    framed as the artifact that makes a delegated claim verifiable, per the
@@ -32,8 +33,11 @@ rule, and the single-findings-file shape are otherwise preserved):
 4. **Ticket-driven findings placement added** — upstream only matches the
    repo's existing notes convention; here, when the research is driven from
    a ticket whose workflow expects it, the findings file is committed on a
-   throwaway `research/<name>` branch with a context pointer from the
-   ticket, and only the resulting decision graduates into the Decision Log.
+   throwaway `research/<name>` branch — created in a
+   `<repo>/.worktrees/<name>` worktree per the ecosystem's worktree
+   convention and pushed (or kept local when no writable remote exists,
+   with the pointer saying so) — with a context pointer from the ticket,
+   and only the resulting decision graduates into the Decision Log.
 5. **Outbound-text policy added** — findings files in public repositories
    follow the ecosystem's neutral-prose and public-data policy and cite
    only publicly reachable sources. Upstream has no such constraint.
