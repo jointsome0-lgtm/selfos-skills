@@ -1,17 +1,17 @@
 ---
 name: delegate-pr-loop-query
-description: Creates one ready-to-run GPT-5.6 query that lets a fresh agent continue an open pull request through its remaining Codex review rounds. Use when the current agent must stop operating a PR but the PR still needs review, fixes, and an exact-HEAD clean verdict.
+description: Creates one ready-to-run delegated query — targeting a model chosen through the bundled compose skill's per-model references — that lets a fresh agent continue an open pull request through its remaining Codex review rounds. Use when the current agent must stop operating a PR but the PR still needs review, fixes, and an exact-HEAD clean verdict.
 license: LICENSE.txt
 compatibility: Requires git, gh, network access, authenticated GitHub pull-request read access, and permission to create one file in the operating system's temporary directory. Repository write access is not used by the delegating run after artifact creation; the generated query may authorize it for the fresh run. The generated query directs the fresh run to the sibling `watch` skill, which must be installed in the delegated run's own environment.
 metadata:
-  selfos.version: "0.2.2"
+  selfos.version: "0.3.0"
 ---
 
 # Delegate a PR review loop
 
-Use this composite workflow when quota economics require the current orchestrator to stop but the pull request must keep moving on GPT-5.6 quota. Accept an optional focus or constraint and make it prominent in the generated query. This skill creates the query; it never launches or relays the delegated run.
+Use this composite workflow when quota economics require the current orchestrator to stop but the pull request must keep moving on a different executor's quota. Accept an optional focus or constraint and make it prominent in the generated query. This skill creates the query; it never launches or relays the delegated run.
 
-Use the bundled [handoff primitive](references/handoff/SKILL.md) for context selection, durable references, redaction, and suggested-skill discipline. Consult the sibling `compose` skill for current outcome-first structure and model guidance, and name the sibling `watch` skill as the delegated execution workflow. Do not copy either sibling's full instructions into the query.
+Use the bundled [handoff primitive](references/handoff/SKILL.md) for context selection, durable references, redaction, and suggested-skill discipline. Consult the bundled [compose skill](references/compose/SKILL.md) — or a newer installed sibling copy when present — for current outcome-first structure and its per-model reference routing, and name the sibling `watch` skill as the delegated execution workflow. Do not copy compose's or watch's full instructions into the query.
 
 ## 1. Resolve the exact PR state
 
@@ -57,28 +57,31 @@ Apply the optional focus or constraint without discarding an invariant. If the o
 
 ## 3. Select model and reasoning effort
 
-Follow the current sibling `compose` guidance when available. Use `gpt-5.6-sol` for frontier, correctness-first review and repair; `gpt-5.6-terra` when the remaining work is well-bounded and balancing capability with cost matters; and `gpt-5.6-luna` only for high-volume, low-risk mechanical continuation. Preserve a caller-specified model when it is compatible with the task and explain the choice in one concise sentence.
+Choose the executor through the bundled `compose` skill's per-model reference routing table rather than a model list embedded here; a new provider or model becomes selectable by adding a reference there, with no change to this skill. Record the routing table's executable model id, not a display name, so the artifact stays ready to run. Select by task shape: default to the routing table's current best fit for frontier, correctness-first review and repair (at this writing `gpt-5.6-sol`); pick a capability-balanced model when the remaining work is well-bounded and cost matters; pick a high-volume model only for low-risk mechanical continuation. Preserve a caller-specified model when it is compatible with the task and explain the choice in one concise sentence.
 
-This rubric follows the sibling `compose` ladder, whose working scale for delegated runs caps at `high`. `high` is the default after an exhausted multi-round orchestration budget because budget exhaustion usually indicates non-routine work.
+Before writing the artifact, read the selected model's `compose` reference and tailor the generated query to it — leanness versus explicit steering, verification phrasing, and any model-specific cautions the reference names. On conflict between that reference and this skill's template prose, the reference wins for prose style; this skill's sections, invariants, and stop rules always survive.
+
+This rubric follows the bundled `compose` ladder, whose working scale for delegated runs caps at `high`. `high` is the default after an exhausted multi-round orchestration budget because budget exhaustion usually indicates non-routine work.
 
 Choose exactly one reasoning effort:
 
+- `low` only when the remaining work is pure watch-and-relay with no expected new findings — the owner-confirmed change is already pushed as the resolved HEAD, satisfying section 1, and the fresh run only needs to see the review rounds through to a clean verdict — and quality demonstrably holds at that tier;
 - `medium` when the remaining work is genuinely routine and bounded, for example carrying one or two confirmed trivial fixes through to a clean verdict with no cross-component interactions; or
 - `high` for everything else, including well-understood local fixes and work where several review rounds exposed recurring or cross-component interactions.
 
-After an exhausted multi-round orchestration budget, default to `high` unless the compacted context clearly supports `medium`. `xhigh` and `max` sit above the working scale, are reserved for live design discussion with the owner, and must never appear in a generated query. `ultra` is a separate multi-agent mode and must never appear as the reasoning-effort value.
+After an exhausted multi-round orchestration budget, default to `high` unless the compacted context clearly supports a lower tier. `xhigh` and `max` sit above the working scale, are reserved for live design discussion with the owner, and must never appear in a generated query. `ultra` is a separate multi-agent mode and must never appear as the reasoning-effort value.
 
 ## 4. Write the single query artifact
 
 Resolve the canonical OS temporary directory through the host runtime. Create one unpredictable owner-only temporary directory beneath it and exactly one Markdown file inside, named `<repo>-pr-<number>-loop-query.md`. Use exclusive creation with owner-only file permissions where supported. Write no repository file and no second handoff, sidecar, log, or metadata artifact.
 
-The file has exactly these top-level sections and follows the lean sibling `compose` structure:
+The file has exactly these top-level sections and follows the lean bundled `compose` structure:
 
 ```markdown
 # Run configuration
 
-Model: <gpt-5.6-sol | gpt-5.6-terra | gpt-5.6-luna>
-Reasoning effort: <medium | high>
+Model: <model id from the compose per-model routing table>
+Reasoning effort: <low | medium | high>
 Reason: <one concise sentence>
 
 # Query

@@ -4,4 +4,5 @@
 
 ## Bundled reference provenance
 
+- `references/compose/PROVENANCE.md`
 - `references/handoff/PROVENANCE.md`

@@ -67,8 +67,8 @@ The former domain packages (`sdd@selfos`, `design@selfos`, `decision@selfos`, `l
 | Skill | Purpose | Activation |
 | --- | --- | --- |
 | `codebase-design` | Deep-module vocabulary, seams, adapters, deletion test, testability | automatic or explicit |
-| `compose` | Lean outcome-first prompts for GPT/Codex delegation | automatic or explicit |
-| `delegate-pr-loop-query` | Ready-to-run GPT-5.6 continuation query for an open PR review loop | automatic or explicit |
+| `compose` | Lean outcome-first prompts for delegating to another model or agent | automatic or explicit |
+| `delegate-pr-loop-query` | Ready-to-run continuation query for an open PR review loop, targeting a model from compose's routing table | automatic or explicit |
 | `grill-sdd` | Stress-test named SDD sections and land confirmed outcomes | automatic or explicit (confirm first) |
 | `grilling` | Shared one-question-at-a-time owner decision primitive | automatic or explicit |
 | `handoff` | Compact privacy-safe context for a fresh agent in one temporary Markdown file | automatic or explicit |
@@ -88,8 +88,8 @@ Compatibility describes hard runtime needs and conditional capabilities; descrip
 | Skill | Version | Runtime compatibility |
 | --- | --- | --- |
 | `codebase-design` | `0.1.2` | Host-neutral Markdown guidance; no required tools, OS constraints, network access, write access, or external integrations. |
-| `compose` | `0.2.0` | Host-neutral Markdown guidance; no required tools, OS constraints, write access, or external integrations. Network access is optional for refreshing linked provider guidance. |
-| `delegate-pr-loop-query` | `0.2.2` | Requires git, gh, network access, authenticated GitHub pull-request read access, and permission to create one file in the operating system's temporary directory. Repository write access is not used by the delegating run after artifact creation; the generated query may authorize it for the fresh run. The generated query directs the fresh run to the sibling `watch` skill, which must be installed in the delegated run's own environment. |
+| `compose` | `0.2.1` | Host-neutral Markdown guidance; no required tools, OS constraints, write access, or external integrations. Network access is optional for refreshing linked provider guidance. |
+| `delegate-pr-loop-query` | `0.3.0` | Requires git, gh, network access, authenticated GitHub pull-request read access, and permission to create one file in the operating system's temporary directory. Repository write access is not used by the delegating run after artifact creation; the generated query may authorize it for the fresh run. The generated query directs the fresh run to the sibling `watch` skill, which must be installed in the delegated run's own environment. |
 | `grill-sdd` | `0.2.1` | Requires Python 3.9+ for bundled SDD helpers and read access to the target repository. No OS constraint or required network; repository write access and external issue-tracker integration are needed only to land owner-confirmed outcomes. |
 | `grilling` | `0.2.0` | Requires read access to owner-scoped sources. No specific CLI or OS; network, write access, and external integrations are needed only when the chosen facts or an owner-confirmed outcome require them. |
 | `handoff` | `0.1.1` | Requires permission to create one file in the operating system's temporary directory. No specific CLI, OS, network access, repository write access, or external integration is required. |
