@@ -31,8 +31,10 @@ The research job:
    where. When the research is driven from a ticket whose workflow
    expects it (e.g., a wayfinder `research` ticket), commit the findings
    file on a throwaway `research/<name>` branch instead — created in a
-   worktree at `<repo>/.worktrees/<name>`, never in the primary checkout
-   — and push the branch, then leave a context pointer to it on the
+   worktree at `<repo>/.worktrees/<name>`, never in the primary
+   checkout, after making sure `.worktrees/` is ignored (repository
+   `.gitignore`, `.git/info/exclude`, or a global git ignore file) so
+   the worktree never shows up as an untracked path — and push the branch, then leave a context pointer to it on the
    ticket; when no writable remote exists, the branch stays local and
    the pointer says so. Only the resulting decision graduates into the
    Decision Log.
