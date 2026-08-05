@@ -6,10 +6,12 @@ manifest at skills/<name>/BUNDLE.json:
 
     {"dependencies": ["codebase-design", "grilling"]}
 
-For every declared dependency this tool copies the complete canonical
-skills/<dependency>/ tree to skills/<name>/references/<dependency>/, stamps
-the copy with a GENERATED.md marker so it self-identifies as a build
-artifact, removes generated trees whose declaration is gone, and maintains a
+For every declared dependency this tool copies the canonical
+skills/<dependency>/ tree to skills/<name>/references/<dependency>/ —
+omitting test files (test_*.py), which CI runs from the canonical tree
+only — stamps the copy with a GENERATED.md marker so it self-identifies
+as a build artifact, removes generated trees whose declaration is gone,
+and maintains a
 managed linguist-generated block in .gitattributes so reviews fold
 regenerated trees away from authored changes.
 
@@ -36,6 +38,8 @@ from skill_catalog import (
     discover_skills,
     display_path,
     load_bundle_manifest,
+    omitted_from_bundle,
+    source_files,
     symlink_errors,
 )
 
@@ -45,15 +49,23 @@ GITATTRIBUTES_END = "# END generated skill bundles."
 REBUILD_HINT = "run python scripts/build_bundles.py to regenerate the bundles"
 
 
-def render_marker(composed: Skill, dependency: Skill) -> str:
+def render_marker(composed: Skill, dependency: Skill, omits_tests: bool = False) -> str:
     """Deterministic self-identification stamped into every generated copy."""
+    fidelity = "a copy" if omits_tests else "a byte-for-byte copy"
+    omission = (
+        "Test files (`test_*.py`) are omitted: CI runs them from the\n"
+        "canonical tree only.\n"
+        if omits_tests
+        else ""
+    )
     return (
         "# Generated bundle copy — do not edit\n"
         "\n"
-        f"This tree is a build artifact: a byte-for-byte copy of the canonical\n"
+        f"This tree is a build artifact: {fidelity} of the canonical\n"
         f"skill `skills/{dependency.name}/` (version {dependency.version}) bundled into\n"
         f"`skills/{composed.name}/` as declared by "
         f"`skills/{composed.name}/{BUNDLE_MANIFEST_NAME}`.\n"
+        f"{omission}"
         "\n"
         "Edit the canonical source instead, then refresh every bundle with\n"
         "`python scripts/build_bundles.py`. CI rejects drift via\n"
@@ -141,7 +153,14 @@ def copy_tree_atomically(
     temporary = Path(tempfile.mkdtemp(prefix=f".{destination.name}.", dir=destination.parent))
     try:
         staged = temporary / destination.name
-        shutil.copytree(source, staged, symlinks=True)
+        shutil.copytree(
+            source,
+            staged,
+            symlinks=True,
+            ignore=lambda _directory, names: [
+                name for name in names if omitted_from_bundle(Path(name))
+            ],
+        )
         staged_unsafe = symlink_errors(staged)
         if staged_unsafe:
             raise ValueError("; ".join(staged_unsafe))
@@ -244,7 +263,11 @@ def run(
                     "resolves outside the composed skill folder"
                 )
                 continue
-            marker = render_marker(composed, source)
+            marker = render_marker(
+                composed,
+                source,
+                omits_tests=any(map(omitted_from_bundle, source_files(source.root))),
+            )
             extra = {GENERATED_MARKER_NAME: marker.encode("utf-8")}
             drift = compare_trees(source.root, destination, extra)
             if not drift:
