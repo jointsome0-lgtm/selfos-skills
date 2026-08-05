@@ -248,7 +248,9 @@ User invokes with a loose idea.
    frontier and the blocked; everything you can't yet specify stays in
    **Not yet specified**.
 5. **Fire the research subagents.** For each **unblocked** `research`
-   ticket you just created, spin up a background subagent per the
+   ticket you just created, **claim it first** — assign it, so it
+   leaves the frontier and no concurrent session duplicates the
+   investigation — then spin up a background subagent per the
    `research` skill to resolve it in parallel. A blocked research
    ticket waits for the frontier — fired early, it would investigate
    against prerequisites that haven't been decided yet.
@@ -260,14 +262,21 @@ User invokes with a map (URL or number). A ticket is **optional** —
 without one, you pick the next decision, not the user.
 
 1. Load the **map** — the low-res view, not every ticket body.
-2. Choose the ticket. If the user named one, use it. Otherwise take the
+2. Choose the ticket. If the user named one, verify it is open,
+   unblocked, and unclaimed before using it — a blocked ticket resolved
+   early lands a decision whose prerequisites haven't closed, so stop
+   and say which blocker is still open instead. Otherwise take the
    first frontier ticket in order. **Claim it**: assign it to yourself
    before any work.
 3. Resolve it — **zoom as needed**: fetch the full body of any related
    or closed ticket on demand; invoke the skills the `## Notes` block
    names. If in doubt, run the bundled grilling contract (and the
    host's domain-modeling skill when installed).
-4. **Land the decision, then close.** The decision lands in the
+4. **Land the decision, then close.** First check scope: if resolving
+   revealed that this ticket sits beyond the destination, nothing lands
+   — rule it out of scope instead (step 5) so a scope boundary never
+   pollutes the log or Decisions-so-far. Otherwise the decision lands
+   in the
    repository's Decision Log through the repo's normal change flow —
    direct commit or pull request, whichever the repository's convention
    is — as one dated entry carrying the rejected alternative and ending
