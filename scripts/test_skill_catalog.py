@@ -19,6 +19,7 @@ from skill_catalog import (
     compatibility_errors,
     compare_trees,
     derive_adapter_version,
+    omitted_from_bundle,
     parse_skill,
     validate_provenance,
     version_errors,
@@ -307,6 +308,39 @@ class VendoredTreeSafetyTest(unittest.TestCase):
     def setUp(self) -> None:
         self.directory = Path(tempfile.mkdtemp(prefix="vendored-tree-test."))
         self.addCleanup(shutil.rmtree, self.directory, ignore_errors=True)
+
+    def test_bundle_omission_matches_python_test_files_only(self) -> None:
+        for name in ("test_invented.py", "scripts/test_invented.py", "test_.py"):
+            self.assertTrue(omitted_from_bundle(Path(name)), name)
+        for name in (
+            "invented_test.py",
+            "test_invented.md",
+            "contest_invented.py",
+            "test_invented.pyc",
+            "SKILL.md",
+        ):
+            self.assertFalse(omitted_from_bundle(Path(name)), name)
+
+    def test_comparison_ignores_omitted_test_files_in_source(self) -> None:
+        source = self.directory / "source"
+        destination = self.directory / "destination"
+        source.mkdir()
+        destination.mkdir()
+        (source / "KEPT.md").write_text("Invented content.\n", encoding="utf-8")
+        (destination / "KEPT.md").write_text("Invented content.\n", encoding="utf-8")
+        (source / "test_invented.py").write_text("assert True\n", encoding="utf-8")
+
+        self.assertEqual(compare_trees(source, destination), [])
+
+        (destination / "test_invented.py").write_text("assert True\n", encoding="utf-8")
+        errors = compare_trees(source, destination)
+        self.assertTrue(
+            any(
+                "unexpected vendored file" in error and "test_invented.py" in error
+                for error in errors
+            ),
+            errors,
+        )
 
     def test_comparison_rejects_symlink_in_source_tree(self) -> None:
         source = self.directory / "source"

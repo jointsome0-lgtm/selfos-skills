@@ -42,6 +42,15 @@ BUNDLE_MANIFEST_NAME = "BUNDLE.json"
 # Marker stamped at the root of every generated dependency copy so the tree
 # self-identifies as a build artifact; reserved at canonical skill roots.
 GENERATED_MARKER_NAME = "GENERATED.md"
+# Test files are omitted from generated bundle copies: bundling exists so the
+# vendored tools work standalone, not so they self-test standalone, and CI
+# runs these tests from each canonical skill tree only.
+BUNDLE_OMITTED_TEST_RE = re.compile(r"test_.*\.py")
+
+
+def omitted_from_bundle(relative: Path) -> bool:
+    """True for source files the bundle builder omits from generated copies."""
+    return BUNDLE_OMITTED_TEST_RE.fullmatch(relative.name) is not None
 
 
 @dataclass(frozen=True)
@@ -390,11 +399,17 @@ def compare_trees(
     extra_files maps destination-relative POSIX paths to the exact bytes the
     generator would write there (for example the generated-copy marker); a
     canonical source shipping a file at a reserved extra path is an error.
+    Source files the bundle builder omits (see omitted_from_bundle) are not
+    expected in the destination and are unexpected when present there.
     """
     errors = symlink_errors(source) + symlink_errors(destination)
     if errors:
         return errors
-    source_map = source_files(source)
+    source_map = {
+        relative: path
+        for relative, path in source_files(source).items()
+        if not omitted_from_bundle(relative)
+    }
     extra = {Path(name): content for name, content in (extra_files or {}).items()}
     for relative in sorted(extra):
         if relative in source_map:

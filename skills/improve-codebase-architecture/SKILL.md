@@ -5,7 +5,7 @@ license: LICENSE.txt
 compatibility: Requires read access to the target repository and its git history, Python 3.9+ for the bundled SDD helpers, a writable OS temp directory, and a local opener plus a browser for the report. The report page loads and executes Tailwind and Mermaid from public CDNs, so it needs network access — weigh that for private repositories. Repository write access is needed only to land owner-confirmed domain-model or Decision Log updates during the grilling loop.
 disable-model-invocation: true
 metadata:
-  selfos.version: "0.1.0"
+  selfos.version: "0.1.1"
   selfos.explicit-only: "true"
 ---
 

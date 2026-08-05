@@ -200,6 +200,7 @@ class BundleBuildTest(unittest.TestCase):
         self.assertIn("do not edit", marker)
         self.assertIn("skills/leaf-invented/", marker)
         self.assertIn("version 0.1.0", marker)
+        self.assertIn("byte-for-byte", marker)  # no test files, so nothing omitted
         attributes = self.gitattributes.read_text(encoding="utf-8")
         self.assertIn(
             "skills/composed-invented/references/leaf-invented/** linguist-generated=true",
@@ -208,6 +209,46 @@ class BundleBuildTest(unittest.TestCase):
 
         changed_again, problems_again = self.build()
         self.assertEqual((changed_again, problems_again), (0, []))
+        self.assertEqual(self.build(check=True), (0, []))
+
+    def test_test_files_are_omitted_from_bundle_copies(self) -> None:
+        scripts = self.leaf.root / "scripts"
+        scripts.mkdir()
+        (scripts / "tool_invented.py").write_text("print('invented')\n", encoding="utf-8")
+        (scripts / "test_tool_invented.py").write_text("assert True\n", encoding="utf-8")
+
+        changed, problems = self.build()
+
+        self.assertEqual(problems, [])
+        self.assertGreater(changed, 0)
+        destination = self.composed.root / "references" / "leaf-invented"
+        self.assertTrue((destination / "scripts" / "tool_invented.py").is_file())
+        self.assertFalse((destination / "scripts" / "test_tool_invented.py").exists())
+        marker = (destination / GENERATED_MARKER_NAME).read_text(encoding="utf-8")
+        self.assertIn("Test files (`test_*.py`) are omitted", marker)
+        self.assertNotIn("byte-for-byte", marker)
+        self.assertEqual(self.build(check=True), (0, []))
+
+    def test_lingering_test_file_in_copy_is_reported_and_removed(self) -> None:
+        self.build()
+        lingering = (
+            self.composed.root / "references" / "leaf-invented" / "test_lingering.py"
+        )
+        lingering.write_text("assert True\n", encoding="utf-8")
+
+        _, problems = self.build(check=True)
+        self.assertTrue(
+            any(
+                "unexpected vendored file" in problem and "test_lingering.py" in problem
+                for problem in problems
+            ),
+            problems,
+        )
+
+        changed, build_problems = self.build()
+        self.assertEqual(build_problems, [])
+        self.assertGreater(changed, 0)
+        self.assertFalse(lingering.exists())
         self.assertEqual(self.build(check=True), (0, []))
 
     def test_check_reports_drift_and_build_repairs_it(self) -> None:
