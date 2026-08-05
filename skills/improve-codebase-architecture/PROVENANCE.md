@@ -64,6 +64,14 @@ otherwise preserved:
 9. **Windows opener corrected** — upstream advertises `start <path>`, which
    treats a quoted space-containing path as the window title; the adaptation
    uses `start "" "<path>"`.
+10. **Hot-spot scan made file-aware** — upstream infers hot spots from
+    `git log --oneline` subjects; the adaptation aggregates changed paths
+    from `git log --name-only`/`--stat` so churn, not commit-message
+    wording, selects the hot spots.
+11. **Instruction files loaded before exploration** — new prose with no
+    upstream counterpart: the target repository's recognized instruction
+    files are loaded before any history or code scan, and their read-scope
+    rules bind throughout exploration, not only when landing edits.
 
 ## skills/improve-codebase-architecture/HTML-REPORT.md
 
