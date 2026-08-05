@@ -1,6 +1,6 @@
 # Examples
 
-Short invented transcripts of grilling an SDD. Every repository, §, decision, and number below is invented. The interview mechanics — one question at a time, a recommendation per question, the terminal states — belong to the `grilling` primitive; what is shown here is the SDD framing and where outcomes land.
+Short invented transcripts of grilling an SDD. Every repository, §, decision, and number below is invented. The interview mechanics — frontier rounds of numbered questions, a recommendation per question, the terminal states — belong to the `grilling` primitive; what is shown here is the SDD framing and where outcomes land.
 
 ## Repository-resolvable fact: looked up, not asked
 

@@ -1,7 +1,7 @@
 # Generated bundle copy — do not edit
 
 This tree is a build artifact: a byte-for-byte copy of the canonical
-skill `skills/grilling/` (version 0.1.2) bundled into
+skill `skills/grilling/` (version 0.2.0) bundled into
 `skills/wayfinder/` as declared by `skills/wayfinder/BUNDLE.json`.
 
 Edit the canonical source instead, then refresh every bundle with

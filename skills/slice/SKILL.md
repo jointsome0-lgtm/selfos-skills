@@ -4,7 +4,7 @@ description: Slices one implementation-ready SDD section, phase, or approved par
 license: LICENSE.txt
 compatibility: Requires Python 3.9+ for bundled SDD helpers, read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint.
 metadata:
-  selfos.version: "0.2.0"
+  selfos.version: "0.2.1"
 ---
 
 # Slice an approved scope
@@ -31,7 +31,7 @@ Write every outbound title and body in neutral original prose. Never copy source
 
 ## Decide and publish
 
-Present seams, granularity, blocking edges, and merge/split choices with a recommendation each, then run the grilling loop one decision at a time. In a non-interactive run, stop at the proposed graph and exact drafts.
+Present seams, granularity, blocking edges, and merge/split choices with a recommendation each, then run the grilling loop in frontier rounds. In a non-interactive run, stop at the proposed graph and exact drafts.
 
 For an interactive publication, show the exact titles, bodies, blocking relations, destination repository, and current visibility. Take a fresh explicit confirmation after that display, recheck visibility immediately before writing, and publish blockers first. Drafts use symbolic blocker IDs (`T1`, `T2`, …); substituting those symbols with the real issue numbers is the only post-confirmation edit allowed.
 
