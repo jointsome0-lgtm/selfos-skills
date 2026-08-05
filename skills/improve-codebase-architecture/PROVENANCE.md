@@ -52,6 +52,13 @@ otherwise preserved:
 7. **Host-specific upstream config not imported** — upstream's `agents/`
    host configuration directory is omitted; invocation posture is carried by
    the portable frontmatter instead.
+8. **Report file creation hardened** — upstream resolves `$TMPDIR` with a
+   `/tmp` fallback and a predictable `architecture-review-<timestamp>.html`
+   name; the adaptation uses the host runtime's canonical temp-directory
+   facility, an unguessable `<timestamp>-<random>` name with exclusive
+   creation and owner-only permissions where supported, and an
+   outside-the-repository check before opening (same rules as the `handoff`
+   skill's temporary-file contract).
 
 ## skills/improve-codebase-architecture/HTML-REPORT.md
 
@@ -72,6 +79,10 @@ style guidance, and tone rules are otherwise verbatim upstream text:
 2. **`/codebase-design` skill references become bundled-reference links** —
    the three mentions of the `/codebase-design` skill point at
    `references/codebase-design/SKILL.md`.
+3. **Mermaid locked to strict security mode** — upstream's scaffold sets
+   `securityLevel: "loose"`; the adaptation sets `strict` and adds a rule to
+   escape repository-derived text before interpolating it into diagrams,
+   because diagram labels come from untrusted repository data.
 
 ## Bundled reference provenance
 
