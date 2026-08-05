@@ -82,7 +82,7 @@ entries is a separate owner decision, not this tool's job.
 
 Vendor the lint the same way as the conventions tool (see `README.md` in
 this folder): copy `../scripts/check_decision_log.py` into the consuming
-repository, record its `CHECKER_VERSION` (currently `1.2.0`), wire it into
+repository, record its `CHECKER_VERSION` (currently `2.0.0`), wire it into
 local CI, and update the copy only through an explicit PR. The file is
 Python 3.9-compatible, stdlib-only, offline, and imports nothing from this
 repository — a fresh subsystem checkout lints with no plugin installed.

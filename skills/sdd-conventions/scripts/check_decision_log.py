@@ -16,7 +16,7 @@ import sys
 from typing import Iterable, Optional, Sequence
 
 
-CHECKER_VERSION = "1.2.0"
+CHECKER_VERSION = "2.0.0"
 
 ENTRY_RE = re.compile(r"^- (?P<date>\d{4}-\d{2}-\d{2}) — (?P<text>.*)$")
 ATX_HEADING_RE = re.compile(
