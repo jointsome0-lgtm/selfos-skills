@@ -251,6 +251,23 @@ class DecisionLogCheckerTests(unittest.TestCase):
                 self.assertNotIn("above the 13-word ceiling", result.stderr)
                 self.assertIn("above the 12-word warning threshold", result.stderr)
 
+    def test_default_caps_are_80_ceiling_and_40_warning(self) -> None:
+        at_warning = self.write_fixture("default-warn-pass.md", invented_entry(28))
+        at_ceiling = self.write_fixture("default-ceiling-pass.md", invented_entry(68))
+        over_ceiling = self.write_fixture("default-ceiling-fail.md", invented_entry(69))
+
+        self.assert_clean(self.run_checker(at_warning))
+
+        warned = self.run_checker(at_ceiling)
+        self.assertEqual(warned.returncode, 0, warned.stderr)
+        self.assertIn("above the 40-word warning threshold", warned.stderr)
+        self.assertNotIn("above the 80-word ceiling", warned.stderr)
+
+        failed = self.run_checker(over_ceiling)
+        self.assertEqual(failed.returncode, 1)
+        self.assertIn("above the 80-word ceiling", failed.stderr)
+        self.assertIn("above the 40-word warning threshold", failed.stderr)
+
     def test_waiver_requires_reason_and_exact_placement(self) -> None:
         valid = self.write_fixture(
             "waiver-valid.md",
