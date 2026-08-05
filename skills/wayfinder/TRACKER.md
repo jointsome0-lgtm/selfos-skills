@@ -36,10 +36,11 @@ gh api repos/$R/issues/$n/sub_issues --jq length
 gh api repos/$R/issues/$n/dependencies/blocked_by --jq length
 ```
 
-In a repository with no issues at all, create the map issue first (a
-plain issue works everywhere) and probe against its number before
-creating labels or tickets — one stray issue to close is the worst
-case, not a half-built map.
+In a repository with no issues at all, create the labels first (label
+creation needs no issues), then the map carrying its `wayfinder:map`
+label — a plain labelled issue works everywhere — and probe against
+its number before creating any tickets. One stray issue to close is
+the worst case, not a half-built map.
 
 Create the labels once per repository (safe to re-run):
 
@@ -60,11 +61,15 @@ gh issue create --repo "$R" --title "<map name>" \
 ## Create a ticket, then attach it
 
 `gh issue create` prints the new issue's URL; the number is its last
-path segment.
+path segment. `$TYPE` is the ticket's type — `research`, `prototype`,
+`grilling`, or `task`. During charting, create every ticket claimed
+(`--assignee @me`) so a half-wired map never shows a falsely-unblocked
+frontier; release the claim (`--remove-assignee @me`) only after the
+blocking edges are wired.
 
 ```bash
 url=$(gh issue create --repo "$R" --title "<ticket name>" \
-  --label wayfinder:grilling --body-file ticket.md)
+  --label "wayfinder:$TYPE" --assignee @me --body-file ticket.md)
 n=${url##*/}
 id=$(gh api repos/$R/issues/$n --jq .id)
 gh api -X POST repos/$R/issues/$MAP/sub_issues -F sub_issue_id=$id

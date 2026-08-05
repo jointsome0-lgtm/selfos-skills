@@ -243,17 +243,21 @@ User invokes with a loose idea.
    filled in, Decisions-so-far empty, the fog sketched into **Not yet
    specified**.
 4. **Create the tickets you can specify now** as sub-issues of the map
-   — then wire blocking edges in a **second pass** (issues need ids
-   before they can reference each other). Wiring sorts them into the
-   frontier and the blocked; everything you can't yet specify stays in
-   **Not yet specified**.
+   — born **claimed** (self-assigned), so the half-wired map never
+   shows a falsely-unblocked frontier to a parallel session — then wire
+   blocking edges in a **second pass** (issues need ids before they can
+   reference each other). Once the edges are in place, release the
+   claims, keeping only those on the unblocked research tickets step 5
+   is about to fire. Wiring sorts tickets into the frontier and the
+   blocked; everything you can't yet specify stays in **Not yet
+   specified**.
 5. **Fire the research subagents.** For each **unblocked** `research`
-   ticket you just created, **claim it first** — assign it, so it
-   leaves the frontier and no concurrent session duplicates the
-   investigation — then spin up a background subagent per the
-   `research` skill to resolve it in parallel. A blocked research
-   ticket waits for the frontier — fired early, it would investigate
-   against prerequisites that haven't been decided yet.
+   ticket you just created — still claimed from step 4, so no
+   concurrent session duplicates the investigation — spin up a
+   background subagent per the `research` skill to resolve it in
+   parallel. A blocked research ticket waits for the frontier — fired
+   early, it would investigate against prerequisites that haven't been
+   decided yet.
 6. Stop — charting is one session's work; it hand-resolves nothing.
 
 ### Work through the map
@@ -288,11 +292,13 @@ without one, you pick the next decision, not the user.
    **Close** the ticket only after the entry has landed, and append its
    line to the map's Decisions-so-far. A decision ticket without a
    landed log entry is unresolved, however finished the discussion
-   looks. The exception is a `task` ticket: it decides nothing, so its
-   resolution comment records what was done and the resulting facts —
-   no log entry, and no line in Decisions-so-far. Any decision a task
-   surfaces becomes its own ticket, resolved through the log like every
-   other.
+   looks. The exceptions are the tickets with nothing to decide: a
+   `task` ticket closes on a resolution comment recording what was done
+   and the resulting facts, and a `research` ticket whose question was
+   pure investigation closes on its findings and context pointer — in
+   either case no log entry and no line in Decisions-so-far. Any
+   decision a task or research run surfaces becomes its own ticket,
+   resolved through the log like every other.
 5. Add newly-surfaced tickets (create-then-wire); graduate any fog the
    answer has made specifiable, clearing each graduated patch from
    **Not yet specified** so it lives only as its new ticket. If the
