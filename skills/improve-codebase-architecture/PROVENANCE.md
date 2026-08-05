@@ -61,6 +61,9 @@ otherwise preserved:
    creation and owner-only permissions where supported, and an
    outside-the-repository check before opening (same rules as the `handoff`
    skill's temporary-file contract).
+9. **Windows opener corrected** — upstream advertises `start <path>`, which
+   treats a quoted space-containing path as the window title; the adaptation
+   uses `start "" "<path>"`.
 
 ## skills/improve-codebase-architecture/HTML-REPORT.md
 
