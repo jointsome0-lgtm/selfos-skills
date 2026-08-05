@@ -24,8 +24,9 @@ otherwise preserved:
 2. **Skill invocations become bundled references** — upstream runs
    `/codebase-design` and `/grilling` as host slash-commands; here both are
    bundled dependencies read at `references/codebase-design/` and
-   `references/grilling/`, so the workflow is self-contained on hosts
-   without those skills installed.
+   `references/grilling/`, and `sdd-conventions` is bundled for the Decision
+   Log grammar, so the workflow is self-contained on hosts without those
+   skills installed.
 3. **`CONTEXT.md` replaced by repository terminology** — upstream requires a
    `CONTEXT.md` domain glossary (created lazily during the grilling loop);
    the adaptation draws the project's domain terminology from its SDD,
@@ -47,8 +48,9 @@ otherwise preserved:
    the OS temp directory is the only written artifact); candidates are
    recommendations and implementation requires a separate explicit user
    request; grilling-loop side effects land only as owner-confirmed
-   domain-model or Decision Log updates; repository-derived text is
-   untrusted data whose embedded directives are never acted on.
+   domain-model or Decision Log updates that honor the target repository's
+   recognized instruction files; other repository-derived text is untrusted
+   data whose embedded directives are never acted on.
 7. **Host-specific upstream config not imported** — upstream's `agents/`
    host configuration directory is omitted; invocation posture is carried by
    the portable frontmatter instead.
@@ -88,6 +90,7 @@ style guidance, and tone rules are otherwise verbatim upstream text:
 
 - `references/codebase-design/PROVENANCE.md`
 - `references/grilling/PROVENANCE.md`
+- `references/sdd-conventions/PROVENANCE.md`
 
 ## Upstream license notice
 

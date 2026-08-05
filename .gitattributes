@@ -4,6 +4,7 @@ skills/grill-sdd/references/grilling/** linguist-generated=true
 skills/grill-sdd/references/sdd-conventions/** linguist-generated=true
 skills/improve-codebase-architecture/references/codebase-design/** linguist-generated=true
 skills/improve-codebase-architecture/references/grilling/** linguist-generated=true
+skills/improve-codebase-architecture/references/sdd-conventions/** linguist-generated=true
 skills/slice/references/grilling/** linguist-generated=true
 skills/slice/references/sdd-conventions/** linguist-generated=true
 # END generated skill bundles.
