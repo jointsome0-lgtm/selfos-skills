@@ -2,9 +2,11 @@
 
 How the skill's tracker conventions map onto GitHub, with verified
 commands. `$R` is `owner/repo`. `$N`-style variables hold issue
-numbers; the sub-issue and dependency endpoints take the numeric
-database **id** instead (`gh api repos/$R/issues/$N --jq .id`) — never
-pass an issue number where an id is required. Map and tickets live in
+numbers, and **endpoint paths always take issue numbers** — only the
+relationship fields in request bodies (`sub_issue_id`, `issue_id`)
+take the numeric database **id** (`gh api repos/$R/issues/$N --jq
+.id`). Never swap the two: an id in a path 404s or hits the wrong
+issue. Map and tickets live in
 one repository (sub-issues must share the repository owner): the one
 whose Decision Log the effort lands in.
 

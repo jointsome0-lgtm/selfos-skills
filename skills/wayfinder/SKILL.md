@@ -298,7 +298,11 @@ without one, you pick the next decision, not the user.
    pure investigation closes on its findings and context pointer — in
    either case no log entry and no line in Decisions-so-far. Any
    decision a task or research run surfaces becomes its own ticket,
-   resolved through the log like every other.
+   resolved through the log like every other. One more gate on the
+   close: when the answer surfaces new tickets or fog, create and wire
+   them (step 5) **before** closing this one — otherwise the map can
+   momentarily show no open tickets and no fog, and a parallel session
+   could hand off to `slice` on a route that isn't actually clear.
 5. Add newly-surfaced tickets (create-then-wire); graduate any fog the
    answer has made specifiable, clearing each graduated patch from
    **Not yet specified** so it lives only as its new ticket. If the
@@ -313,4 +317,8 @@ slicing it into tracer-bullet issues is a fresh session's work, not
 this skill's.
 
 The user may run unblocked tickets in parallel, so expect other
-sessions to be editing the tracker concurrently.
+sessions to be editing the tracker concurrently. Map-body edits are
+whole-body replacements, not merges — so re-read the map immediately
+before saving, apply your lines to that fresh body, and check after
+saving that your edit and any concurrent one both survived; on a lost
+update, re-merge and retry.
