@@ -1,10 +1,10 @@
 ---
 name: watch
-description: Watches an open PR after each push, waits for the Codex cloud review verdict, and iterates fixes within a caller-owned round budget. Use when the user asks to babysit a PR, watch or wait for the Codex review, or run the push-review-fix loop.
+description: Watches an open PR after each push, waits for the Codex cloud review verdict, iterates fixes within a caller-owned round budget, and sees a clean verdict through CI checks and merge. Use when the user asks to babysit a PR, watch or wait for the Codex review, or run the push-review-fix loop.
 license: LICENSE.txt
 compatibility: Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; requires a POSIX-style shell environment but no specific OS.
 metadata:
-  selfos.version: "0.3.2"
+  selfos.version: "0.4.0"
 ---
 
 # Watch a Codex PR review
@@ -18,7 +18,7 @@ On every push to an open PR, the Codex bot may react 👀, review, then post an 
 1. Ensure the round's work is committed and pushed to the PR branch.
 2. Run `scripts/codex-pr-watch.sh` in the background when the host can surface completion, otherwise in the foreground. Defaults: current repository, current branch's PR, expected head from `git rev-parse HEAD`, 30-second polling, 25-minute timeout. See `--help` for `--pr`, `--repo`, `--trigger`, `--no-trigger`, and other flags.
 3. Act on the exit code:
-   - **0 APPROVED** — the watcher found a fresh 👍 reaction; report the clean verdict and stop.
+   - **0 APPROVED** — the watcher found a fresh 👍 reaction; report the clean verdict and finish the loop per the post-verdict guardrail.
    - **2 REVIEW** — inspect the reported review state, body, and every `path:line` comment. An `APPROVED` review state is a clean verdict only when the reported review targets the expected HEAD; a review for a different HEAD never completes the round regardless of its state — restart the watcher for the current head instead. Otherwise treat the review as findings: fix each finding or explicitly rebut it; never silently drop one. Commit, push, and start another round. When every finding is rebutted and the head did not change, use `--trigger` so the old same-head review is not accepted again.
    - **3 TIMEOUT** — read the log. If the PR head moved, restart the watcher for the new head — even after a posted trigger, the bot reviews the current head, which a watcher pinned to the old one ignores. If the watcher posted `@codex review`, the head did not move, and no verdict followed, report a likely integration problem. Otherwise follow the logged remediation: fix write access and re-run with `--trigger`, or verify a pre-cutoff `APPROVED` review state or 👍 reaction manually.
    - **4 PR_NOT_OPEN** — the PR was merged or closed; stop and report.
@@ -38,13 +38,14 @@ With a finite budget, continue the existing review/fix loop while budget remains
 
 Optionally treat the finite budget as exhausted early when two consecutive findings rounds fail to shrink the set of confirmed in-scope findings, then follow the same exhaustion steps.
 
-With explicit `round-budget=unlimited`, continue beyond a fifth findings round and stop only for a clean verdict (`APPROVED` review state or 👍 reaction), a closed or merged PR, exhausted timeout handling, or a required owner-level decision.
+With explicit `round-budget=unlimited`, continue beyond a fifth findings round and leave the review loop only for a clean verdict (`APPROVED` review state or 👍 reaction) — which proceeds into the post-verdict guardrail, not a stop — a closed or merged PR, exhausted timeout handling, or a required owner-level decision.
 
 ## Guardrails
 
 - Judge findings on the merits. Disagreement is allowed; ignoring is not.
 - Use one ordinary commit per round and no force-pushes.
 - Preserve fresh-verdict and expected-HEAD checks, heed stale-head warnings, and use `--trigger` for a same-HEAD re-review after rebutting every finding.
+- The loop ends at merge, not at the verdict: after a clean verdict, wait for CI with `gh pr checks <PR> --watch` (never a custom poll loop); a `no checks reported` failure counts as a passing CI phase once confirmed to mean the repository runs no checks for this PR, not checks that have not registered yet. Then merge — only when the caller has explicitly requested or pre-authorized merging (a standing policy counts), and by their merge method — as a direct merge passing `--match-head-commit <verdict-head>`, never `--auto`: checks are already green, and the atomic head guard does not extend to a delayed merge. A head mismatch means the verdict went stale — restart the watcher for the current head. Where a required merge queue makes a direct guarded merge impossible, report the clean verdict and green checks and leave merging to the caller. Carry the watched repository into both commands with `--repo`. Red checks: report them; remediation stays with the caller. Without merge authorization: report and stop.
 - Poll politely; do not manually scrape the PR page.
 - A late start is fine because freshness is anchored to the push or explicit trigger, not watcher launch time.
 - If the owner explicitly chooses to merge early, preserve unaddressed findings in a focused issue after showing and confirming the payload. Budget exhaustion followed by delegation is not an early merge and must not create a duplicate issue for findings already preserved in the PR and referenced by the query.
