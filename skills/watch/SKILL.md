@@ -4,7 +4,7 @@ description: Watches an open PR after each push, waits for the Codex cloud revie
 license: LICENSE.txt
 compatibility: Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; requires a POSIX-style shell environment but no specific OS.
 metadata:
-  selfos.version: "0.3.3"
+  selfos.version: "0.4.0"
 ---
 
 # Watch a Codex PR review
@@ -38,14 +38,14 @@ With a finite budget, continue the existing review/fix loop while budget remains
 
 Optionally treat the finite budget as exhausted early when two consecutive findings rounds fail to shrink the set of confirmed in-scope findings, then follow the same exhaustion steps.
 
-With explicit `round-budget=unlimited`, continue beyond a fifth findings round and stop only for a clean verdict (`APPROVED` review state or 👍 reaction), a closed or merged PR, exhausted timeout handling, or a required owner-level decision.
+With explicit `round-budget=unlimited`, continue beyond a fifth findings round and leave the review loop only for a clean verdict (`APPROVED` review state or 👍 reaction) — which proceeds into the post-verdict guardrail, not a stop — a closed or merged PR, exhausted timeout handling, or a required owner-level decision.
 
 ## Guardrails
 
 - Judge findings on the merits. Disagreement is allowed; ignoring is not.
 - Use one ordinary commit per round and no force-pushes.
 - Preserve fresh-verdict and expected-HEAD checks, heed stale-head warnings, and use `--trigger` for a same-HEAD re-review after rebutting every finding.
-- The loop ends at merge, not at the verdict: after a clean verdict, wait for CI with `gh pr checks <PR> --watch` (never a custom poll loop), then merge per the caller's or repository's merge policy, always passing `--match-head-commit <verdict-head>`; a mismatch means the verdict went stale — restart the watcher for the current head. Red checks: report them; remediation stays with the caller. No known merge policy: report the clean verdict and green checks, then stop.
+- The loop ends at merge, not at the verdict: after a clean verdict, wait for CI with `gh pr checks <PR> --watch` (never a custom poll loop), then merge — only when the caller has explicitly requested or pre-authorized merging (a standing policy counts), and by their merge method — always passing `--match-head-commit <verdict-head>`; a mismatch means the verdict went stale — restart the watcher for the current head. Carry the watched repository into both commands with `--repo`. A queued or auto merge completes only when the PR state reaches `MERGED`. Red checks: report them; remediation stays with the caller. Without merge authorization: report the clean verdict and green checks, then stop.
 - Poll politely; do not manually scrape the PR page.
 - A late start is fine because freshness is anchored to the push or explicit trigger, not watcher launch time.
 - If the owner explicitly chooses to merge early, preserve unaddressed findings in a focused issue after showing and confirming the payload. Budget exhaustion followed by delegation is not an early merge and must not create a duplicate issue for findings already preserved in the PR and referenced by the query.
