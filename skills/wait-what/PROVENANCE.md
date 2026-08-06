@@ -19,8 +19,10 @@ Named semantic deviations:
    and `metadata.selfos.version` fields are added.
 2. **Explicit-only invocation kept and made portable** — upstream's
    `disable-model-invocation: true` is retained and paired with
-   `metadata.selfos.explicit-only: "true"` per catalog conventions, so
-   non-Claude hosts also treat the skill as user-invoked only.
+   `metadata.selfos.explicit-only: "true"` per catalog conventions. The
+   top-level field is enforced by Claude Code only, and the metadata key
+   only by this repository's tooling; the portable guard for other hosts
+   is the body's explicit-request prose, added in this import.
 3. **Terms source generalized** — upstream's reference to a repository
    `CONTEXT.md` is replaced with the ubiquitous language from the
    repository's SDD or domain-model document when one exists, falling back

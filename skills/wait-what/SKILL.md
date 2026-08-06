@@ -11,6 +11,8 @@ metadata:
 
 # Re-pitch the last message
 
+Run this skill only on an explicit owner request; never activate it from a topical match.
+
 The owner did not understand where the work has got to. Re-pitch the previous assistant message: give a little context on where the work stands, then restate what that message was saying.
 
 Write the re-pitch in ASD-STE100 Simplified Technical English.

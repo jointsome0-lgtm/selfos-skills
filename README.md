@@ -77,6 +77,7 @@ The former domain packages (`sdd@selfos`, `design@selfos`, `decision@selfos`, `l
 | `research` | Background-subagent investigation captured as one cited Markdown file | automatic or explicit |
 | `sdd-conventions` | Portable SDD conventions plus sync and Decision Log lint scripts | automatic or explicit |
 | `slice` | Turn one implementation-ready SDD scope into vertical issues | automatic or explicit (confirm first) |
+| `wait-what` | Re-pitch the last message simply when it did not land | explicit only |
 | `watch` | Codex cloud PR push-review-fix loop | automatic or explicit |
 | `wayfinder` | Chart a foggy effort as a map of decision tickets until slice-ready | automatic or explicit (confirm first) |
 
