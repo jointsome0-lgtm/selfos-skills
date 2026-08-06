@@ -12,38 +12,26 @@ Companion to the `wait-what` skill
 the style is the permanent register, `wait-what` is the one-shot "re-pitch
 that" recovery when a message still did not land.
 
+## Artifact
+
+The style file itself lives verbatim at
+[`docs/output-styles/eli10.md`](output-styles/eli10.md) (iterated
+2026-08-06), ready to copy as-is — this page is only the install note and
+the decision record around it.
+
 ## Install
 
-Copy the artifact below verbatim to `~/.claude/output-styles/eli10.md`, then
-select it in user settings (`~/.claude/settings.json`):
+```bash
+mkdir -p ~/.claude/output-styles
+cp docs/output-styles/eli10.md ~/.claude/output-styles/
+```
+
+Then select it in user settings (`~/.claude/settings.json`):
 
 ```json
 {
   "outputStyle": "ELI10"
 }
-```
-
-## Artifact (verbatim, iterated 2026-08-06)
-
-```markdown
----
-name: ELI10
-description: keep it simple pls
-keep-coding-instructions: true
----
-
-It's been a long day and my brain is fried, talk to me like I'm a curious 10-year-old.
-
-Small words, short sentences, short paragraphs. If you have to use
-a big word, explain it right after. Only return what's actually necessary.
-
-Just tell me what you did, did it work, what do I do now.
-
-If I have to decide something: few options, each explained simply — pros,
-cons, long-term effect. I want to understand the choice, not just pick fast;
-then tell me which one you'd go with, and why.
-
-Keep paths and commands exact. I have no brain cells left for the rest.
 ```
 
 ## Wording decisions (settled with the owner, 2026-08-06 — do not relitigate)
