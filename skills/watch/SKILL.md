@@ -4,7 +4,7 @@ description: Watches an open PR after each push, waits for the Codex cloud revie
 license: LICENSE.txt
 compatibility: Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; requires a POSIX-style shell environment but no specific OS.
 metadata:
-  selfos.version: "0.4.0"
+  selfos.version: "0.5.0"
 ---
 
 # Watch a Codex PR review
@@ -40,12 +40,25 @@ Optionally treat the finite budget as exhausted early when two consecutive findi
 
 With explicit `round-budget=unlimited`, continue beyond a fifth findings round and leave the review loop only for a clean verdict (`APPROVED` review state or 👍 reaction) — which proceeds into the post-verdict guardrail, not a stop — a closed or merged PR, exhausted timeout handling, or a required owner-level decision.
 
+## Post-verdict dispatch gate
+
+Some repositories run their authoritative merge gate only on a manual `workflow_dispatch`, not on push: push-triggered checks are then a preflight, and their green result alone never authorizes a merge. Before the first round, determine whether such a gate applies to this PR — the caller's arguments or the watched repository's agent policy (its AGENTS.md) may name a required post-verdict dispatch, supplying the workflow file, its inputs, and the name of the check it reports. The skill hardcodes none of these; a repository or caller that names no dispatch requirement gets the ordinary post-verdict tail unchanged.
+
+When a dispatch requirement is named, run it between the clean verdict and the CI wait:
+
+1. Anchor to the exact verdict head. If the PR head has moved since the verdict, the verdict is stale — restart the watcher for the current head instead of dispatching.
+2. Dispatch the named workflow with `gh workflow run <workflow-file> --repo <repo>` and the supplied inputs, which carry the verdict head (typically the PR number and the full head SHA) so the gate runs against exactly what was reviewed.
+3. Enter the CI wait with the named check as a hard requirement: the wait is satisfied only when that check registers and is reported green for the verdict head. Green push-triggered checks alone, or a `no checks reported` result, never satisfy an active gate — if `gh pr checks <PR> --watch` completes before the dispatched check registers, re-run it rather than concluding early.
+4. Fail closed. If the dispatch cannot be issued, the named check fails, or it never registers within the CI-wait patience, report the state and stop; remediation stays with the caller. Never fall back to "push-triggered checks passed".
+
+The gate does not change the merge step: the merge still passes `--match-head-commit <verdict-head>`, which is the same head the dispatch ran on. When the caller states that the repository's standing low-risk lane applies — for example a docs-only change the policy exempts — no dispatch is required and the preflight plus clean verdict remains sufficient.
+
 ## Guardrails
 
 - Judge findings on the merits. Disagreement is allowed; ignoring is not.
 - Use one ordinary commit per round and no force-pushes.
 - Preserve fresh-verdict and expected-HEAD checks, heed stale-head warnings, and use `--trigger` for a same-HEAD re-review after rebutting every finding.
-- The loop ends at merge, not at the verdict: after a clean verdict, wait for CI with `gh pr checks <PR> --watch` (never a custom poll loop); a `no checks reported` failure counts as a passing CI phase once confirmed to mean the repository runs no checks for this PR, not checks that have not registered yet. Then merge — only when the caller has explicitly requested or pre-authorized merging (a standing policy counts), and by their merge method — as a direct merge passing `--match-head-commit <verdict-head>`, never `--auto`: checks are already green, and the atomic head guard does not extend to a delayed merge. A head mismatch means the verdict went stale — restart the watcher for the current head. Where a required merge queue makes a direct guarded merge impossible, report the clean verdict and green checks and leave merging to the caller. Carry the watched repository into both commands with `--repo`. Red checks: report them; remediation stays with the caller. Without merge authorization: report and stop.
+- The loop ends at merge, not at the verdict: after a clean verdict, satisfy the post-verdict dispatch gate above when one is named, then wait for CI with `gh pr checks <PR> --watch` (never a custom poll loop); a `no checks reported` failure counts as a passing CI phase once confirmed to mean the repository runs no checks for this PR, not checks that have not registered yet — and never while a dispatch gate is active. Then merge — only when the caller has explicitly requested or pre-authorized merging (a standing policy counts), and by their merge method — as a direct merge passing `--match-head-commit <verdict-head>`, never `--auto`: checks are already green, and the atomic head guard does not extend to a delayed merge. A head mismatch means the verdict went stale — restart the watcher for the current head. Where a required merge queue makes a direct guarded merge impossible, report the clean verdict and green checks and leave merging to the caller. Carry the watched repository into both commands with `--repo`. Red checks: report them; remediation stays with the caller. Without merge authorization: report and stop.
 - Poll politely; do not manually scrape the PR page.
 - A late start is fine because freshness is anchored to the push or explicit trigger, not watcher launch time.
 - If the owner explicitly chooses to merge early, preserve unaddressed findings in a focused issue after showing and confirming the payload. Budget exhaustion followed by delegation is not an early merge and must not create a duplicate issue for findings already preserved in the PR and referenced by the query.
