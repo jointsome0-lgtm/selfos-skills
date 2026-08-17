@@ -194,13 +194,14 @@ class BundleBuildTest(unittest.TestCase):
         self.assertEqual(problems, [])
         self.assertGreater(changed, 0)
         destination = self.composed.root / "references" / "leaf-invented"
-        self.assertTrue((destination / "SKILL.md").is_file())
+        self.assertTrue((destination / "CONTRACT.md").is_file())
+        self.assertFalse((destination / "SKILL.md").exists())
         self.assertTrue((destination / "EXTRA.md").is_file())
         marker = (destination / GENERATED_MARKER_NAME).read_text(encoding="utf-8")
         self.assertIn("do not edit", marker)
         self.assertIn("skills/leaf-invented/", marker)
         self.assertIn("version 0.1.0", marker)
-        self.assertIn("byte-for-byte", marker)  # no test files, so nothing omitted
+        self.assertIn("renamed `SKILL.md` -> `CONTRACT.md`", marker)
         attributes = self.gitattributes.read_text(encoding="utf-8")
         self.assertIn(
             "skills/composed-invented/references/leaf-invented/** linguist-generated=true",
@@ -226,7 +227,6 @@ class BundleBuildTest(unittest.TestCase):
         self.assertFalse((destination / "scripts" / "test_tool_invented.py").exists())
         marker = (destination / GENERATED_MARKER_NAME).read_text(encoding="utf-8")
         self.assertIn("Test files (`test_*.py`) are omitted", marker)
-        self.assertNotIn("byte-for-byte", marker)
         self.assertEqual(self.build(check=True), (0, []))
 
     def test_lingering_test_file_in_copy_is_reported_and_removed(self) -> None:
@@ -323,6 +323,37 @@ class BundleBuildTest(unittest.TestCase):
         _, problems = self.build(check=True)
 
         self.assertTrue(any("reserved for generated bundle metadata" in problem for problem in problems))
+
+    def test_reserved_entrypoint_in_canonical_source_is_rejected(self) -> None:
+        (self.leaf.root / "CONTRACT.md").write_text("Not a rename.\n", encoding="utf-8")
+
+        _, problems = self.build(check=True)
+
+        self.assertTrue(
+            any("reserved for the renamed bundle entrypoint" in problem for problem in problems),
+            problems,
+        )
+
+    def test_links_to_the_renamed_entrypoint_are_rewritten_in_the_copy(self) -> None:
+        (self.leaf.root / "EXTRA.md").write_text(
+            "See [SKILL.md](SKILL.md) and the [contract](SKILL.md#anchor); "
+            "canonical [path](skills/leaf-invented/SKILL.md) stays.\n",
+            encoding="utf-8",
+        )
+
+        changed, problems = self.build()
+
+        self.assertEqual(problems, [])
+        self.assertGreater(changed, 0)
+        copied = (
+            self.composed.root / "references" / "leaf-invented" / "EXTRA.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("[CONTRACT.md](CONTRACT.md)", copied)
+        self.assertIn("[contract](CONTRACT.md#anchor)", copied)
+        self.assertIn("[path](skills/leaf-invented/SKILL.md)", copied)
+        canonical = (self.leaf.root / "EXTRA.md").read_text(encoding="utf-8")
+        self.assertIn("[SKILL.md](SKILL.md)", canonical)  # source untouched
+        self.assertEqual(self.build(check=True), (0, []))
 
     def test_missing_dependency_fails_before_touching_the_tree(self) -> None:
         shutil.rmtree(self.leaf.root)

@@ -3,6 +3,9 @@
 This tree is a build artifact: a copy of the canonical
 skill `skills/sdd-conventions/` (version 1.0.0) bundled into
 `skills/improve-codebase-architecture/` as declared by `skills/improve-codebase-architecture/BUNDLE.json`.
+The skill entrypoint is renamed `SKILL.md` -> `CONTRACT.md`
+(links rewritten) so hosts that discover skills by recursive filename
+scan catalog only canonical skills.
 Test files (`test_*.py`) are omitted: CI runs them from the
 canonical tree only.
 

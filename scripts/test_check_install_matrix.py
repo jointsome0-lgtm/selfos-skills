@@ -42,7 +42,7 @@ class InstallSmokeMatrixTests(unittest.TestCase):
                 (base / "slice" / "references" / "grilling").mkdir(parents=True)
                 (base / "watch" / "scripts").mkdir(parents=True)
                 (base / "slice" / "SKILL.md").write_text("slice\n", encoding="utf-8")
-                (base / "slice" / "references" / "grilling" / "SKILL.md").write_text(
+                (base / "slice" / "references" / "grilling" / "CONTRACT.md").write_text(
                     "composed\n", encoding="utf-8"
                 )
                 (base / "watch" / "SKILL.md").write_text("watch\n", encoding="utf-8")

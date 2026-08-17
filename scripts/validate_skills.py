@@ -11,6 +11,7 @@ from urllib.parse import unquote
 
 from skill_catalog import (
     ALLOWED_FIELDS,
+    BUNDLE_ENTRYPOINT_NAME,
     BUNDLE_MANIFEST_NAME,
     GENERATED_MARKER_NAME,
     NAME_RE,
@@ -179,6 +180,17 @@ def validate_catalog() -> tuple[list[Skill], list[str]]:
             errors.append(
                 f"{relative}: canonical skills must not ship a top-level "
                 f"{GENERATED_MARKER_NAME}; the name is reserved for generated bundle copies"
+            )
+        # Hosts discover skills by recursively scanning for SKILL.md, so any
+        # nested file with that name leaks into their catalogs as a separate
+        # skill; bundled dependency entrypoints are renamed instead.
+        for nested in sorted(skill.root.rglob("SKILL.md")):
+            if nested == skill.path:
+                continue
+            errors.append(
+                f"{display_path(nested)}: only skills/<name>/SKILL.md may use the "
+                "name SKILL.md — nested copies leak into hosts' recursive skill "
+                f"discovery; bundle entrypoints are renamed to {BUNDLE_ENTRYPOINT_NAME}"
             )
         # Graph and byte-level bundle checks live in scripts/build_bundles.py
         # (--check in CI); here the manifest only feeds provenance delegation.
