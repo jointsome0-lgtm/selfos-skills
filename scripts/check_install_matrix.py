@@ -105,10 +105,21 @@ def assert_skill_tree(canonical_root: Path, installed_root: Path, checkout_root:
                     f"installed skill {skill_name}: absolute checkout path in companion file: {relative}"
                 )
 
-    composed = installed_root / "slice" / "references" / "grilling" / "SKILL.md"
+    nested_entrypoints = [
+        path.relative_to(installed_root).as_posix()
+        for path in sorted(installed_root.rglob("SKILL.md"))
+        if path.parent.parent != installed_root
+    ]
+    if nested_entrypoints:
+        raise SmokeFailure(
+            "installed tree leaks nested SKILL.md into hosts' recursive skill "
+            "discovery: " + ", ".join(nested_entrypoints)
+        )
+
+    composed = installed_root / "slice" / "references" / "grilling" / "CONTRACT.md"
     helper = installed_root / "watch" / "scripts" / "codex-pr-watch.sh"
     if not composed.is_file():
-        raise SmokeFailure("installed skill slice: missing composed grilling/SKILL.md")
+        raise SmokeFailure("installed skill slice: missing composed grilling/CONTRACT.md")
     if not helper.is_file() or not os.access(helper, os.X_OK):
         raise SmokeFailure("installed skill watch: missing executable helper codex-pr-watch.sh")
 

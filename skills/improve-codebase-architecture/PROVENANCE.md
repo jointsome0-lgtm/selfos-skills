@@ -93,7 +93,7 @@ style guidance, and tone rules are otherwise verbatim upstream text:
    cites the contradicted Decision Log entry instead of an ADR.
 2. **`/codebase-design` skill references become bundled-reference links** —
    the three mentions of the `/codebase-design` skill point at
-   `references/codebase-design/SKILL.md`.
+   `references/codebase-design/CONTRACT.md`.
 3. **Mermaid locked to strict security mode** — upstream's scaffold sets
    `securityLevel: "loose"`; the adaptation sets `strict` and adds a rule to
    escape repository-derived text before interpolating it into diagrams,

@@ -4,7 +4,7 @@ description: Charts a large, foggy effort as a shared map on GitHub — one map 
 license: LICENSE.txt
 compatibility: Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the repository holding the SDD Decision Log, and Python 3.9+ for the bundled Decision Log lint. Research and prototype tickets require the sibling research and prototype skills installed; grilling tickets run on the bundled grilling contract. No OS constraint.
 metadata:
-  selfos.version: "0.2.1"
+  selfos.version: "0.2.2"
 ---
 
 # Wayfinder
@@ -158,7 +158,7 @@ answers its own questions has broken this).
   `prototype` skill; link the prototype as an asset. Use when "how
   should it look" or "how should it behave" is the key question.
 - **Grilling** (HITL): Conversation. The default case. Always run the
-  bundled [grilling contract](references/grilling/SKILL.md), and invoke
+  bundled [grilling contract](references/grilling/CONTRACT.md), and invoke
   the host's domain-modeling skill when one is installed.
 - **Task** (HITL or AFK): Manual work that must happen before a
   _decision_ can be made — nothing to decide, prototype, or research,

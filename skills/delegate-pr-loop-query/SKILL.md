@@ -4,14 +4,14 @@ description: Creates one ready-to-run delegated query — targeting a model chos
 license: LICENSE.txt
 compatibility: Requires git, gh, network access, authenticated GitHub pull-request read access, and permission to create one file in the operating system's temporary directory. Repository write access is not used by the delegating run after artifact creation; the generated query may authorize it for the fresh run. The generated query directs the fresh run to the sibling `watch` skill, which must be installed in the delegated run's own environment.
 metadata:
-  selfos.version: "0.3.0"
+  selfos.version: "0.3.1"
 ---
 
 # Delegate a PR review loop
 
 Use this composite workflow when quota economics require the current orchestrator to stop but the pull request must keep moving on a different executor's quota. Accept an optional focus or constraint and make it prominent in the generated query. This skill creates the query; it never launches or relays the delegated run.
 
-Use the bundled [handoff primitive](references/handoff/SKILL.md) for context selection, durable references, redaction, and suggested-skill discipline. Consult the bundled [compose skill](references/compose/SKILL.md) — or a newer installed sibling copy when present — for current outcome-first structure and its per-model reference routing, and name the sibling `watch` skill as the delegated execution workflow. Do not copy compose's or watch's full instructions into the query.
+Use the bundled [handoff primitive](references/handoff/CONTRACT.md) for context selection, durable references, redaction, and suggested-skill discipline. Consult the bundled [compose skill](references/compose/CONTRACT.md) — or a newer installed sibling copy when present — for current outcome-first structure and its per-model reference routing, and name the sibling `watch` skill as the delegated execution workflow. Do not copy compose's or watch's full instructions into the query.
 
 ## 1. Resolve the exact PR state
 

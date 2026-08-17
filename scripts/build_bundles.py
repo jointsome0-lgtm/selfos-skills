@@ -9,9 +9,11 @@ manifest at skills/<name>/BUNDLE.json:
 For every declared dependency this tool copies the canonical
 skills/<dependency>/ tree to skills/<name>/references/<dependency>/ —
 omitting test files (test_*.py), which CI runs from the canonical tree
-only — stamps the copy with a GENERATED.md marker so it self-identifies
-as a build artifact, removes generated trees whose declaration is gone,
-and maintains a
+only, and renaming the dependency's SKILL.md to CONTRACT.md (rewriting
+same-directory links to it) so hosts that discover skills by recursive
+filename scan catalog only canonical skills — stamps the copy with a
+GENERATED.md marker so it self-identifies as a build artifact, removes
+generated trees whose declaration is gone, and maintains a
 managed linguist-generated block in .gitattributes so reviews fold
 regenerated trees away from authored changes.
 
@@ -30,10 +32,13 @@ import sys
 import tempfile
 
 from skill_catalog import (
+    BUNDLE_ENTRYPOINT_NAME,
     BUNDLE_MANIFEST_NAME,
     GENERATED_MARKER_NAME,
     ROOT,
     Skill,
+    bundled_bytes,
+    bundled_path,
     compare_trees,
     discover_skills,
     display_path,
@@ -51,7 +56,6 @@ REBUILD_HINT = "run python scripts/build_bundles.py to regenerate the bundles"
 
 def render_marker(composed: Skill, dependency: Skill, omits_tests: bool = False) -> str:
     """Deterministic self-identification stamped into every generated copy."""
-    fidelity = "a copy" if omits_tests else "a byte-for-byte copy"
     omission = (
         "Test files (`test_*.py`) are omitted: CI runs them from the\n"
         "canonical tree only.\n"
@@ -61,10 +65,13 @@ def render_marker(composed: Skill, dependency: Skill, omits_tests: bool = False)
     return (
         "# Generated bundle copy — do not edit\n"
         "\n"
-        f"This tree is a build artifact: {fidelity} of the canonical\n"
+        f"This tree is a build artifact: a copy of the canonical\n"
         f"skill `skills/{dependency.name}/` (version {dependency.version}) bundled into\n"
         f"`skills/{composed.name}/` as declared by "
         f"`skills/{composed.name}/{BUNDLE_MANIFEST_NAME}`.\n"
+        f"The skill entrypoint is renamed `SKILL.md` -> `{BUNDLE_ENTRYPOINT_NAME}`\n"
+        "(links rewritten) so hosts that discover skills by recursive filename\n"
+        "scan catalog only canonical skills.\n"
         f"{omission}"
         "\n"
         "Edit the canonical source instead, then refresh every bundle with\n"
@@ -164,6 +171,22 @@ def copy_tree_atomically(
         staged_unsafe = symlink_errors(staged)
         if staged_unsafe:
             raise ValueError("; ".join(staged_unsafe))
+        entrypoint = staged / BUNDLE_ENTRYPOINT_NAME
+        if entrypoint.exists():
+            raise ValueError(
+                f"{display_path(source / BUNDLE_ENTRYPOINT_NAME)}: canonical sources "
+                f"must not ship {BUNDLE_ENTRYPOINT_NAME}; the name is reserved for "
+                "the renamed bundle entrypoint"
+            )
+        staged_skill = staged / "SKILL.md"
+        if staged_skill.is_file():
+            staged_skill.replace(entrypoint)
+        for markdown in sorted(staged.rglob("*.md")):
+            relative = markdown.relative_to(staged)
+            original = markdown.read_bytes()
+            rewritten = bundled_bytes(relative, original)
+            if rewritten != original:
+                markdown.write_bytes(rewritten)
         for name, content in sorted((extra_files or {}).items()):
             target = staged / name
             if target.exists():

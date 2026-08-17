@@ -4,12 +4,12 @@ description: Slices one implementation-ready SDD section, phase, or approved par
 license: LICENSE.txt
 compatibility: Requires Python 3.9+ for bundled SDD helpers, read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint.
 metadata:
-  selfos.version: "0.2.1"
+  selfos.version: "0.2.2"
 ---
 
 # Slice an approved scope
 
-An explicit request to run this workflow counts as confirmation. Absent one, when a task matches, propose the workflow and start only after the owner confirms in the live session; in an unattended run with no explicit request, do not start — record the recommendation and continue the surrounding task. Turn exactly one implementation-ready SDD section, phase, or approved parent issue into a dependency-ordered graph of vertical GitHub issues. Resolve owner choices through the bundled [grilling contract](references/grilling/SKILL.md); publish only after fresh confirmation of every final payload.
+An explicit request to run this workflow counts as confirmation. Absent one, when a task matches, propose the workflow and start only after the owner confirms in the live session; in an unattended run with no explicit request, do not start — record the recommendation and continue the surrounding task. Turn exactly one implementation-ready SDD section, phase, or approved parent issue into a dependency-ordered graph of vertical GitHub issues. Resolve owner choices through the bundled [grilling contract](references/grilling/CONTRACT.md); publish only after fresh confirmation of every final payload.
 
 ## Resolve canon first
 

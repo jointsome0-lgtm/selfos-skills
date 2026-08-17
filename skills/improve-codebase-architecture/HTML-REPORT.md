@@ -41,7 +41,7 @@ Repo name, date, and a compact legend: solid box = module, dashed line = seam, r
 
 ## Candidate card
 
-The diagrams carry the weight. Prose is sparse, plain, and uses the glossary terms (from the bundled [design vocabulary](references/codebase-design/SKILL.md)) without ceremony.
+The diagrams carry the weight. Prose is sparse, plain, and uses the glossary terms (from the bundled [design vocabulary](references/codebase-design/CONTRACT.md)) without ceremony.
 
 Each candidate is one `<article>`:
 
@@ -107,7 +107,7 @@ One larger card. Candidate name, one sentence on why, anchor link to its card. T
 
 ## Tone
 
-Plain English, concise — but the architectural nouns and verbs come straight from the bundled [design vocabulary](references/codebase-design/SKILL.md). Concision is not an excuse to drift.
+Plain English, concise — but the architectural nouns and verbs come straight from the bundled [design vocabulary](references/codebase-design/CONTRACT.md). Concision is not an excuse to drift.
 
 **Use exactly:** module, interface, implementation, depth, deep, shallow, seam, adapter, leverage, locality.
 

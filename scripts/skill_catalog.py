@@ -46,11 +46,40 @@ GENERATED_MARKER_NAME = "GENERATED.md"
 # vendored tools work standalone, not so they self-test standalone, and CI
 # runs these tests from each canonical skill tree only.
 BUNDLE_OMITTED_TEST_RE = re.compile(r"test_.*\.py")
+# Hosts discover installable skills by recursively scanning for files named
+# SKILL.md, so a bundled dependency copy keeping that name would surface as a
+# separate catalog entry. Generated copies therefore rename their entrypoint
+# to this; the name is reserved at canonical skill roots.
+BUNDLE_ENTRYPOINT_NAME = "CONTRACT.md"
+# Same-directory Markdown links to the renamed entrypoint, with or without a
+# fragment; targets containing a path prefix (skills/x/SKILL.md) stay intact.
+_BUNDLE_LINK_PAIR_RE = re.compile(rb"\[SKILL\.md\]\(SKILL\.md([)#])")
+_BUNDLE_LINK_TARGET_RE = re.compile(rb"\]\(SKILL\.md([)#])")
 
 
 def omitted_from_bundle(relative: Path) -> bool:
     """True for source files the bundle builder omits from generated copies."""
     return BUNDLE_OMITTED_TEST_RE.fullmatch(relative.name) is not None
+
+
+def bundled_path(relative: Path) -> Path:
+    """Bundle-copy destination of one canonical source file (entrypoint rename)."""
+    if relative == Path("SKILL.md"):
+        return Path(BUNDLE_ENTRYPOINT_NAME)
+    return relative
+
+
+def bundled_bytes(relative: Path, content: bytes) -> bytes:
+    """Bundle-copy content of one canonical source file.
+
+    Markdown links targeting the dependency's own SKILL.md in the same
+    directory follow the entrypoint rename; only the root may legally carry
+    that name, so no other relative target can dangle.
+    """
+    if relative.suffix != ".md":
+        return content
+    content = _BUNDLE_LINK_PAIR_RE.sub(rb"[CONTRACT.md](CONTRACT.md\1", content)
+    return _BUNDLE_LINK_TARGET_RE.sub(rb"](CONTRACT.md\1", content)
 
 
 @dataclass(frozen=True)
@@ -394,22 +423,31 @@ def compare_trees(
     destination: Path,
     extra_files: dict[str, bytes] | None = None,
 ) -> list[str]:
-    """Compare destination against source plus rendered extra files.
+    """Compare destination against the bundled rendering of source plus extras.
 
+    Every kept source file is expected at bundled_path(...) with
+    bundled_bytes(...) content — the entrypoint rename with its link rewrite.
     extra_files maps destination-relative POSIX paths to the exact bytes the
     generator would write there (for example the generated-copy marker); a
-    canonical source shipping a file at a reserved extra path is an error.
-    Source files the bundle builder omits (see omitted_from_bundle) are not
-    expected in the destination and are unexpected when present there.
+    canonical source shipping a file at a reserved extra or entrypoint path is
+    an error. Source files the bundle builder omits (see omitted_from_bundle)
+    are not expected in the destination and are unexpected when present there.
     """
     errors = symlink_errors(source) + symlink_errors(destination)
     if errors:
         return errors
-    source_map = {
-        relative: path
-        for relative, path in source_files(source).items()
-        if not omitted_from_bundle(relative)
-    }
+    source_map: dict[Path, Path] = {}
+    for relative, path in source_files(source).items():
+        if omitted_from_bundle(relative):
+            continue
+        if relative == Path(BUNDLE_ENTRYPOINT_NAME):
+            errors.append(
+                f"{display_path(source / relative)}: canonical sources must not ship "
+                f"{BUNDLE_ENTRYPOINT_NAME}; the name is reserved for the renamed "
+                "bundle entrypoint"
+            )
+            continue
+        source_map[bundled_path(relative)] = path
     extra = {Path(name): content for name, content in (extra_files or {}).items()}
     for relative in sorted(extra):
         if relative in source_map:
@@ -429,7 +467,9 @@ def compare_trees(
     for relative in sorted(expected_names & destination_names):
         try:
             expected_bytes = (
-                extra[relative] if relative in extra else source_map[relative].read_bytes()
+                extra[relative]
+                if relative in extra
+                else bundled_bytes(relative, source_map[relative].read_bytes())
             )
             destination_bytes = destination_map[relative].read_bytes()
         except OSError as exc:
@@ -444,7 +484,7 @@ def compare_trees(
             else:
                 errors.append(
                     f"vendored file drift: {display_path(destination / relative)} != "
-                    f"{display_path(source / relative)}"
+                    f"{display_path(source_map[relative])}"
                 )
     return errors
 
