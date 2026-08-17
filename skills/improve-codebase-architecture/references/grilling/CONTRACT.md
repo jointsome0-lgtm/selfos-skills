@@ -1,9 +1,9 @@
 ---
 name: grilling
-description: Grills the owner relentlessly about a plan, decision, or idea until shared understanding — the subject mapped as a design tree, each round asking the whole frontier of decisions whose prerequisites are settled, a recommended answer per question, facts looked up from permitted surfaces, decisions left to the owner, no action before confirmation. Use when the owner wants to stress-test a plan, decision, or idea, or uses a 'grill' trigger phrase — unless a domain grill wrapper such as grill-sdd covers the subject; then the wrapper is the entry point — or when a domain workflow skill needs the shared decision-interview loop.
+description: Grills the owner relentlessly about a plan, decision, or idea until shared understanding — the subject mapped as a design tree, each round asking the whole frontier of decisions whose prerequisites are settled, a recommended answer per question, facts looked up from permitted surfaces, decisions left to the owner, no action before confirmation. Use when the owner wants to stress-test a plan, decision, or idea, or uses a 'grill' trigger phrase — unless a domain grill wrapper covers the subject; then the wrapper is the entry point — or when a domain workflow skill needs the shared decision-interview loop.
 compatibility: Requires read access to owner-scoped sources. No specific CLI or OS; network, write access, and external integrations are needed only when the chosen facts or an owner-confirmed outcome require them.
 metadata:
-  selfos.version: "0.2.0"
+  selfos.version: "0.2.1"
 ---
 
 Interview the owner relentlessly about every aspect of the subject until you reach a shared understanding. Map the subject as a **design tree**: every decision branches into the decisions that hang off it. For each question, provide your recommended answer.
@@ -49,6 +49,6 @@ An empty frontier ends the questioning, not the skill: the interview is finished
 
 This primitive owns the interview order, the round and frontier mechanics, the recommendation per question, fact lookup, owner authority over decisions, and the confirmation gate. A domain wrapper skill owns its own scope: which canon it reads, which subjects it frames, and where confirmed outcomes land. Wrappers follow this file rather than restating it, and invoking this primitive grants no write authority by itself.
 
-When a domain wrapper covers the subject — like grill-sdd for a repository's SDD — the wrapper is the entry point, and the contract above binds it: canon and landing rules are the wrapper's, the interview loop is this file's. A wrapper predating this primitive keeps its own rules until it is rewritten to that contract. Reach for this primitive directly only when no wrapper claims the domain.
+When a domain wrapper covers the subject, the wrapper is the entry point, and the contract above binds it: canon and landing rules are the wrapper's, the interview loop is this file's. A wrapper predating this primitive keeps its own rules until it is rewritten to that contract. Reach for this primitive directly only when no wrapper claims the domain.
 
 Worked examples: [EXAMPLES.md](EXAMPLES.md).

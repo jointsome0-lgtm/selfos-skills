@@ -4,7 +4,7 @@ description: Slices one implementation-ready SDD section, phase, or approved par
 license: LICENSE.txt
 compatibility: Requires Python 3.9+ for bundled SDD helpers, read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint.
 metadata:
-  selfos.version: "0.2.2"
+  selfos.version: "0.2.3"
 ---
 
 # Slice an approved scope
