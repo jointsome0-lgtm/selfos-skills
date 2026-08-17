@@ -1,6 +1,7 @@
 {
-  "version": "0.2.3",
+  "version": "0.4.5",
   "removals": [
-    "2026-08-04: removed unused skills teach 0.1.1 and deepen 0.1.2 (issue #81)"
+    "2026-08-04: removed unused skills teach 0.1.1 and deepen 0.1.2 (issue #81)",
+    "2026-08-18: removed grill-sdd 0.2.2 — thin wrapper; grilling + sdd-conventions cover it (issue #122)"
   ]
 }

@@ -1,7 +1,7 @@
 # Generated bundle copy — do not edit
 
 This tree is a build artifact: a copy of the canonical
-skill `skills/grilling/` (version 0.2.0) bundled into
+skill `skills/grilling/` (version 0.2.1) bundled into
 `skills/slice/` as declared by `skills/slice/BUNDLE.json`.
 The skill entrypoint is renamed `SKILL.md` -> `CONTRACT.md`
 (links rewritten) so hosts that discover skills by recursive filename
