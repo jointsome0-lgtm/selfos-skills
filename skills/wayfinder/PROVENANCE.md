@@ -21,7 +21,10 @@ modes are otherwise preserved):
    compatibility, and `metadata.selfos.version` fields are added.
    Upstream's `disable-model-invocation: true` is dropped (with the
    initially added explicit-only pairing) per issue #100 (2026-08-05): the
-   skill is open to model invocation behind a confirm-first prose gate.
+   skill is open to model invocation behind a prose start gate —
+   confirm-first originally, relaxed to announce-and-proceed per issue
+   #126 (2026-08-18), with publication and Decision Log writes still
+   owner-gated inside the workflow.
 2. **Tracker-doc dependency replaced with self-contained GitHub
    conventions** — upstream defers tracker operations to an external
    tracker doc provisioned by `/setup-matt-pocock-skills`, with a
@@ -61,7 +64,7 @@ modes are otherwise preserved):
    tracker. Upstream has no such constraint.
 7. **Host-specific upstream config not imported** — upstream's
    `agents/openai.yaml` host configuration file is omitted; invocation
-   posture is carried by the confirm-first prose gate instead.
+   posture is carried by the announce-and-proceed prose gate instead.
 
 ## Bundled reference provenance
 

@@ -4,12 +4,12 @@ description: Use when a codebase feels harder to change than it should and the f
 license: LICENSE.txt
 compatibility: Requires read access to the target repository and its git history, Python 3.9+ for the bundled SDD helpers, a writable OS temp directory, and a local opener plus a browser for the report. The report page loads and executes Tailwind and Mermaid from public CDNs, so it needs network access — weigh that for private repositories. Repository write access is needed only to land owner-confirmed domain-model or Decision Log updates during the grilling loop.
 metadata:
-  selfos.version: "0.2.4"
+  selfos.version: "0.3.0"
 ---
 
 # Improve Codebase Architecture
 
-An explicit request to run this workflow counts as confirmation. Absent one, when a task matches, propose the workflow and start only after the owner confirms in the live session; in an unattended run with no explicit request, do not start — record the recommendation and continue the surrounding task. Surface architectural friction and propose **deepening opportunities** — refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability.
+When a task matches, announce that this workflow is starting and proceed — the owner can interrupt at any point. Unattended runs may work through the read-only exploration and report stages but stop at every inner confirmation point: nothing lands in the repository without the owner. Surface architectural friction and propose **deepening opportunities** — refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability.
 
 This command is _informed_ by the project's domain model and built on a shared design vocabulary:
 
