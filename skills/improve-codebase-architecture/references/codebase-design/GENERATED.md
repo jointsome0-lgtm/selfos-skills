@@ -1,7 +1,7 @@
 # Generated bundle copy — do not edit
 
 This tree is a build artifact: a copy of the canonical
-skill `skills/codebase-design/` (version 0.1.2) bundled into
+skill `skills/codebase-design/` (version 0.1.3) bundled into
 `skills/improve-codebase-architecture/` as declared by `skills/improve-codebase-architecture/BUNDLE.json`.
 The skill entrypoint is renamed `SKILL.md` -> `CONTRACT.md`
 (links rewritten) so hosts that discover skills by recursive filename

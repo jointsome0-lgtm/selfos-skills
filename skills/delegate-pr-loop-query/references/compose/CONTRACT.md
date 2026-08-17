@@ -1,9 +1,9 @@
 ---
 name: compose
-description: Composes lean, outcome-first prompts for delegating work to another model or agent — goal, success criteria, constraints, tools, autonomy boundary, stop rules, and model/effort choice — with dated per-model references for the GPT-5.6 family (gpt-5.6-sol / -terra / -luna, Codex runs) and Claude models (Fable 5, Opus 5). Use when delegating coding, review, diagnosis, or research work to Codex, a Claude subagent, or another model-backed agent, or when writing or updating a prompt or agent instructions for one.
+description: Use when work is about to be delegated to another model or agent — Codex, a Claude subagent, or similar — and needs a prompt or agent instructions; produces a lean, outcome-first delegate prompt with a dated model and effort choice.
 compatibility: Host-neutral Markdown guidance; no required tools, OS constraints, write access, or external integrations. Network access is optional for refreshing linked provider guidance.
 metadata:
-  selfos.version: "0.2.1"
+  selfos.version: "0.2.2"
 ---
 
 # Composing delegated prompts

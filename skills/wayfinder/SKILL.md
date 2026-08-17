@@ -1,10 +1,10 @@
 ---
 name: wayfinder
-description: Charts a large, foggy effort as a shared map on GitHub — one map issue plus decision-ticket sub-issues worked one at a time, each ticket resolved only when its decision lands in the repository's SDD Decision Log — until the way to the destination, by default an implementation-ready SDD scope handed off to slice, is clear. Use when the user asks to chart or work a wayfinder map, or when an effort is too big and foggy for a single planning session.
+description: Use when a task is too big and foggy to even approach — charts it on GitHub as small, agent-sized decision tickets, worked one at a time into the SDD Decision Log until the way forward is clear.
 license: LICENSE.txt
 compatibility: Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the repository holding the SDD Decision Log, and Python 3.9+ for the bundled Decision Log lint. Research and prototype tickets require the sibling research and prototype skills installed; grilling tickets run on the bundled grilling contract. No OS constraint.
 metadata:
-  selfos.version: "0.2.3"
+  selfos.version: "0.2.4"
 ---
 
 # Wayfinder

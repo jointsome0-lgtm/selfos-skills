@@ -1,10 +1,10 @@
 ---
 name: research
-description: Delegates reading legwork to a background subagent that investigates a question against high-trust primary sources — official docs, source code, specs, first-party APIs — and captures the findings as a single Markdown file citing each claim's source. Use when the user wants a topic researched, docs or API facts gathered, or reading legwork delegated so the main session keeps working.
+description: Use when a question needs facts gathered from primary sources — official docs, source code, specs — without stalling the main session; a background subagent investigates and saves one Markdown file citing each claim's source.
 license: LICENSE.txt
 compatibility: Requires a background subagent mechanism (without one, run the investigation inline), network access for web sources, and write access to the repository checkout to save findings — in a read-only checkout, write to the host's temporary directory and say where. Ticket-driven capture also needs git worktree support, tracker write access, and push access to the remote; without a writable remote the branch stays local and the pointer says so. No OS constraint; no other external integration.
 metadata:
-  selfos.version: "0.1.0"
+  selfos.version: "0.1.1"
 ---
 
 # Research
