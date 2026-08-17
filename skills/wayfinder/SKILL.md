@@ -11,9 +11,10 @@ metadata:
 
 When a task matches, announce that this workflow is starting and
 proceed — the owner can interrupt at any point. Unattended runs may
-work through the read-only and draft stages but stop at every inner
-confirmation point: no decision lands in the Decision Log and nothing
-publishes to the tracker without the owner.
+work through the read-only and draft stages but stop before any
+tracker mutation and at every inner confirmation point: no ticket is
+claimed, no decision lands in the Decision Log, and nothing publishes
+to the tracker without the owner.
 
 A loose idea has arrived — too big for one agent session, and wrapped in
 fog: the way from here to the **destination** isn't visible yet.
@@ -275,7 +276,9 @@ without one, you pick the next decision, not the user.
    early lands a decision whose prerequisites haven't closed, so stop
    and say which blocker is still open instead. Otherwise take the
    first frontier ticket in order. **Claim it**: assign it to yourself
-   before any work.
+   before any work. Claiming is a tracker mutation — an unattended run
+   stops here (per the start gate) instead of claiming, so no ticket
+   stays locked with nobody working it.
 3. Resolve it — **zoom as needed**: fetch the full body of any related
    or closed ticket on demand; invoke the skills the `## Notes` block
    names. If in doubt, run the bundled grilling contract (and the
