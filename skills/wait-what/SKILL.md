@@ -1,6 +1,6 @@
 ---
 name: wait-what
-description: Use when the owner explicitly says they lost the thread, asks "wait, what?", or asks for the last message explained again simply — re-pitches the previous assistant message in Simplified Technical English using the repository's established domain terms.
+description: Use when the owner says they lost the thread — asks "wait, what?" or wants the last message explained again simply — re-pitches the previous assistant message in Simplified Technical English with the repository's established terms.
 license: LICENSE.txt
 compatibility: No specific CLI, OS, network access, repository write access, or external integration is required.
 disable-model-invocation: true

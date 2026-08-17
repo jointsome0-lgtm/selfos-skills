@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: Use when work must continue in a fresh session, directly or as a primitive inside a composite workflow — creates one compact, privacy-safe Markdown handoff in the operating system's temporary directory so the next agent resumes from durable artifacts.
+description: Use when work must continue in a fresh session and the next agent needs context it cannot recover from durable artifacts — creates one compact, privacy-safe Markdown handoff in the operating system's temporary directory.
 license: LICENSE.txt
 compatibility: Requires permission to create one file in the operating system's temporary directory. No specific CLI, OS, network access, repository write access, or external integration is required.
 metadata:

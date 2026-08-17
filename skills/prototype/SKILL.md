@@ -1,6 +1,6 @@
 ---
 name: prototype
-description: Use when the user wants to sanity-check whether a state model or logic feels right, or explore what a UI should look like before committing to a build — a throwaway prototype on a worktree branch answers one design question, and only the validated decision lands.
+description: Use when a design question — does this state model feel right, what should this UI look like — needs a real answer before committing to a build; a throwaway prototype on a worktree branch, and only the validated decision lands.
 license: LICENSE.txt
 compatibility: Requires the host project's own runtime and task runner to run the prototype, and git worktree support for the throwaway branch. Capturing the answer needs write access to the driving issue's tracker and push access to the repository remote; without a writable remote the prototype branch stays local and the pointer says so. No OS constraint; no other external integration.
 metadata:

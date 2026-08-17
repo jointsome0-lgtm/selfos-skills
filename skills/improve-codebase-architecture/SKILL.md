@@ -1,6 +1,6 @@
 ---
 name: improve-codebase-architecture
-description: Use when the user asks for an architecture review of a codebase, wants deepening or refactoring candidates surfaced visually in an HTML report, or wants to decide which architectural friction to tackle first — then grills through whichever candidate the owner picks.
+description: Use when a codebase feels harder to change than it should and the friction needs locating — scans git-history hot spots and deletion-test candidates into a visual HTML report, then grills through whichever candidate the owner picks.
 license: LICENSE.txt
 compatibility: Requires read access to the target repository and its git history, Python 3.9+ for the bundled SDD helpers, a writable OS temp directory, and a local opener plus a browser for the report. The report page loads and executes Tailwind and Mermaid from public CDNs, so it needs network access — weigh that for private repositories. Repository write access is needed only to land owner-confirmed domain-model or Decision Log updates during the grilling loop.
 metadata:

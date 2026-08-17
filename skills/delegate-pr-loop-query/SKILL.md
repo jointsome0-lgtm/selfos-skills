@@ -1,6 +1,6 @@
 ---
 name: delegate-pr-loop-query
-description: Use when the current agent must stop operating an open pull request that still needs Codex review rounds, fixes, and an exact-HEAD clean verdict — produces one ready-to-run query so a fresh agent can continue the PR to merge.
+description: Use when the current agent must stop mid-PR while review rounds remain — produces one ready-to-run query so a fresh agent can pick up the pull request and drive it to an exact-HEAD clean verdict and merge.
 license: LICENSE.txt
 compatibility: Requires git, gh, network access, authenticated GitHub pull-request read access, and permission to create one file in the operating system's temporary directory. Repository write access is not used by the delegating run after artifact creation; the generated query may authorize it for the fresh run. The generated query directs the fresh run to the sibling `watch` skill, which must be installed in the delegated run's own environment.
 metadata:

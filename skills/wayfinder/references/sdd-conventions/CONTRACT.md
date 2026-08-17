@@ -1,6 +1,6 @@
 ---
 name: sdd-conventions
-description: Use when adopting, updating, or validating selfos-style SDD section conventions or Decision Log entries in any agent or CI environment — packages the shared grammar plus standalone sync and lint scripts for vendoring.
+description: Use when a repository adopts, updates, or lint-checks selfos-style SDD sections or Decision Log entries — packages the shared grammar plus standalone sync and lint scripts for vendoring.
 license: LICENSE.txt
 compatibility: Requires Python 3.9+ for the standard-library helpers and write access to the target file when syncing. OS-independent and offline, with no external integration.
 metadata:

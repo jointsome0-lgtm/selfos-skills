@@ -1,6 +1,6 @@
 ---
 name: slice
-description: Use when the user asks to slice an implementation-ready SDD section, phase, or approved parent issue into tickets, or to turn an approved SDD scope into implementation issues — dependency-ordered vertical GitHub issues, published only after owner confirmation.
+description: Use when an approved scope needs cutting into small, agent-ready GitHub issues — the ticket-cutting stage of wayfinder, also usable standalone on an implementation-ready SDD section or parent issue.
 license: LICENSE.txt
 compatibility: Requires Python 3.9+ for bundled SDD helpers, read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint.
 metadata:

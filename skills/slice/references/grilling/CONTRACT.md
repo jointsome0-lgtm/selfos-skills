@@ -1,6 +1,6 @@
 ---
 name: grilling
-description: Use when the owner wants to stress-test a plan, decision, or idea, uses a 'grill' trigger phrase, or when a domain workflow skill needs the shared decision-interview loop — relentless question rounds with a recommended answer each, and no action before owner confirmation.
+description: Use when an idea, plan, or decision needs deep working-through before anything gets built, or on a 'grill' trigger phrase — relentless question rounds until shared understanding, and no action before owner confirmation.
 compatibility: Requires read access to owner-scoped sources. No specific CLI or OS; network, write access, and external integrations are needed only when the chosen facts or an owner-confirmed outcome require them.
 metadata:
   selfos.version: "0.2.2"
