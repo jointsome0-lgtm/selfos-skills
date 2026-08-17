@@ -1,10 +1,10 @@
 ---
 name: prototype
-description: Builds a throwaway prototype on a worktree branch to answer one design question — a tiny interactive terminal app for logic or state-model questions, or several radically different UI variants on a single route for look-and-feel questions — landing only the validated decision on the default branch. Use when the user wants to sanity-check whether a state model or logic feels right, or explore what a UI should look like before committing to a build.
+description: Use when the user wants to sanity-check whether a state model or logic feels right, or explore what a UI should look like before committing to a build — a throwaway prototype on a worktree branch answers one design question, and only the validated decision lands.
 license: LICENSE.txt
 compatibility: Requires the host project's own runtime and task runner to run the prototype, and git worktree support for the throwaway branch. Capturing the answer needs write access to the driving issue's tracker and push access to the repository remote; without a writable remote the prototype branch stays local and the pointer says so. No OS constraint; no other external integration.
 metadata:
-  selfos.version: "0.1.0"
+  selfos.version: "0.1.1"
 ---
 
 # Prototype

@@ -17,7 +17,6 @@ from skill_catalog import (
     NAME_RE,
     ROOT,
     Skill,
-    THIRD_PERSON_RE,
     compatibility_errors,
     derive_adapter_version,
     discover_skills,
@@ -126,15 +125,16 @@ def validate_catalog() -> tuple[list[Skill], list[str]]:
             errors.append(
                 f"{relative}: name {skill.name!r} must match folder {skill.root.name!r}"
             )
-        if not skill.description or len(skill.description) > 1024:
-            errors.append(f"{relative}: description must be 1-1024 characters")
-        summary, separator, trigger = skill.description.partition(". Use when ")
-        if not separator or not summary or not trigger.strip():
+        if not skill.description or len(skill.description) > 500:
             errors.append(
-                f"{relative}: description must be a third-person summary followed by '. Use when …'"
+                f"{relative}: description must be 1-500 characters; hosts truncate"
+                " long catalog entries tail-first"
             )
-        elif not THIRD_PERSON_RE.match(summary):
-            errors.append(f"{relative}: description must begin in third-person form")
+        if not skill.description.startswith("Use when ") or not skill.description[len("Use when "):].strip():
+            errors.append(
+                f"{relative}: description must start with 'Use when …' — it is the"
+                " invocation trigger; the SKILL.md body carries the rest"
+            )
         compatibility = skill.fields.get("compatibility")
         if compatibility is not None and not (1 <= len(compatibility) <= 500):
             errors.append(f"{relative}: compatibility must be 1-500 characters")

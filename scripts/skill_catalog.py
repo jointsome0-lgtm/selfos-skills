@@ -19,7 +19,6 @@ SEMVER_RE = re.compile(
 FIELD_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
 METADATA_KEY_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
-THIRD_PERSON_RE = re.compile(r"^(?:Does|Has|Is|[A-Z][A-Za-z'-]*s)\b")
 ALLOWED_FIELDS = {
     "name",
     "description",

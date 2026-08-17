@@ -1,11 +1,11 @@
 ---
 name: wait-what
-description: Re-pitches the previous assistant message when it did not land — restating where the work stands and what that message meant in ASD-STE100 Simplified Technical English, using the repository's established domain terms when they exist. Use when the owner explicitly says they lost the thread, asks "wait, what?", or asks for the last message explained again simply.
+description: Use when the owner explicitly says they lost the thread, asks "wait, what?", or asks for the last message explained again simply — re-pitches the previous assistant message in Simplified Technical English using the repository's established domain terms.
 license: LICENSE.txt
 compatibility: No specific CLI, OS, network access, repository write access, or external integration is required.
 disable-model-invocation: true
 metadata:
-  selfos.version: "0.1.0"
+  selfos.version: "0.1.1"
   selfos.explicit-only: "true"
 ---
 

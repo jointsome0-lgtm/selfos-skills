@@ -1,10 +1,10 @@
 ---
 name: handoff
-description: Creates one compact, privacy-safe Markdown handoff in the operating system's temporary directory so a fresh agent can resume from durable artifacts and only the context it cannot recover. Use when work must continue in a fresh session, either directly or as a primitive invoked by a composite workflow.
+description: Use when work must continue in a fresh session, directly or as a primitive inside a composite workflow — creates one compact, privacy-safe Markdown handoff in the operating system's temporary directory so the next agent resumes from durable artifacts.
 license: LICENSE.txt
 compatibility: Requires permission to create one file in the operating system's temporary directory. No specific CLI, OS, network access, repository write access, or external integration is required.
 metadata:
-  selfos.version: "0.1.1"
+  selfos.version: "0.1.2"
 ---
 
 # Create a compact handoff
