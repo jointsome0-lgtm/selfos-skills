@@ -64,7 +64,10 @@ otherwise preserved:
    facility, an unguessable `<timestamp>-<random>` name with exclusive
    creation and owner-only permissions where supported, and an
    outside-the-repository check before opening (same rules as the `handoff`
-   skill's temporary-file contract).
+   skill's temporary-file contract). Opening the report is additionally an
+   owner-confirmed step (issue #126): the page loads CDN scripts into a
+   document full of repository detail, so upstream's automatic open is
+   dropped.
 9. **Windows opener corrected** — upstream advertises `start <path>`, which
    treats a quoted space-containing path as the window title; the adaptation
    uses `start "" "<path>"`.
