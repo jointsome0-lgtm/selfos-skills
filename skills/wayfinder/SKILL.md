@@ -276,9 +276,11 @@ without one, you pick the next decision, not the user.
    early lands a decision whose prerequisites haven't closed, so stop
    and say which blocker is still open instead. Otherwise take the
    first frontier ticket in order. **Claim it**: assign it to yourself
-   before any work. Claiming is a tracker mutation — an unattended run
-   stops here (per the start gate) instead of claiming, so no ticket
-   stays locked with nobody working it.
+   before any work. Claiming is a tracker mutation: when this run was
+   announced rather than explicitly requested, name the chosen ticket
+   and claim only after the owner confirms it, and an unattended run
+   stops here instead of claiming — so no ticket stays locked with
+   nobody working it.
 3. Resolve it — **zoom as needed**: fetch the full body of any related
    or closed ticket on demand; invoke the skills the `## Notes` block
    names. If in doubt, run the bundled grilling contract (and the
