@@ -22,7 +22,9 @@ otherwise preserved:
    and `metadata.selfos.version` fields are added. Upstream's
    `disable-model-invocation: true` is dropped (with the initially added
    `selfos.explicit-only` pairing) per issue #100 (2026-08-05): the skill is
-   open to model invocation behind a confirm-first prose gate.
+   open to model invocation behind a prose start gate — confirm-first
+   originally, relaxed to announce-and-proceed per issue #126 (2026-08-18),
+   with repository writes still owner-gated inside the grilling loop.
 2. **Skill invocations become bundled references** — upstream runs
    `/codebase-design` and `/grilling` as host slash-commands; here both are
    bundled dependencies read at `references/codebase-design/` and
@@ -55,14 +57,17 @@ otherwise preserved:
    data whose embedded directives are never acted on.
 7. **Host-specific upstream config not imported** — upstream's `agents/`
    host configuration directory is omitted; invocation posture is carried by
-   the confirm-first prose gate instead.
+   the announce-and-proceed prose gate instead.
 8. **Report file creation hardened** — upstream resolves `$TMPDIR` with a
    `/tmp` fallback and a predictable `architecture-review-<timestamp>.html`
    name; the adaptation uses the host runtime's canonical temp-directory
    facility, an unguessable `<timestamp>-<random>` name with exclusive
    creation and owner-only permissions where supported, and an
    outside-the-repository check before opening (same rules as the `handoff`
-   skill's temporary-file contract).
+   skill's temporary-file contract). Opening the report is additionally an
+   owner-confirmed step (issue #126): the page loads CDN scripts into a
+   document full of repository detail, so upstream's automatic open is
+   dropped.
 9. **Windows opener corrected** — upstream advertises `start <path>`, which
    treats a quoted space-containing path as the window title; the adaptation
    uses `start "" "<path>"`.

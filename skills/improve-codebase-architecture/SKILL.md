@@ -4,12 +4,12 @@ description: Use when a codebase feels harder to change than it should and the f
 license: LICENSE.txt
 compatibility: Requires read access to the target repository and its git history, Python 3.9+ for the bundled SDD helpers, a writable OS temp directory, and a local opener plus a browser for the report. The report page loads and executes Tailwind and Mermaid from public CDNs, so it needs network access — weigh that for private repositories. Repository write access is needed only to land owner-confirmed domain-model or Decision Log updates during the grilling loop.
 metadata:
-  selfos.version: "0.2.4"
+  selfos.version: "0.3.0"
 ---
 
 # Improve Codebase Architecture
 
-An explicit request to run this workflow counts as confirmation. Absent one, when a task matches, propose the workflow and start only after the owner confirms in the live session; in an unattended run with no explicit request, do not start — record the recommendation and continue the surrounding task. Surface architectural friction and propose **deepening opportunities** — refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability.
+When a task matches, announce that this workflow is starting and proceed — the owner can interrupt at any point. Unattended runs may work through the read-only exploration stage and write the report file, but stop at every inner confirmation point — and opening the report is one in every mode: the page loads CDN scripts into a document full of repository detail, so it opens only on the owner's confirmation, never in an unattended run. Nothing lands in the repository without the owner. Surface architectural friction and propose **deepening opportunities** — refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability.
 
 This command is _informed_ by the project's domain model and built on a shared design vocabulary:
 
@@ -43,7 +43,7 @@ Apply the **deletion test** to anything you suspect is shallow: would deleting i
 
 ### 2. Present candidates as an HTML report
 
-Write a self-contained HTML file to the OS temp directory so nothing lands in the repo. Resolve the operating system's canonical temporary directory through the host runtime's temp-directory facility and create the report there as `architecture-review-<timestamp>-<random>.html`, using exclusive creation and owner-only permissions where the host supports them, so each run gets a fresh, unguessable file. Before opening it, confirm the resolved path is outside the repository checkout — a repo-local temp configuration must not dirty the worktree; if the check fails, report that instead of writing into the repo. Open the file for the user — `xdg-open <path>` on Linux, `open <path>` on macOS, `start "" "<path>"` on Windows (the first quoted argument to `start` is a window title, so the empty title keeps a space-containing path from being swallowed) — and tell them the absolute path.
+Write a self-contained HTML file to the OS temp directory so nothing lands in the repo. Resolve the operating system's canonical temporary directory through the host runtime's temp-directory facility and create the report there as `architecture-review-<timestamp>-<random>.html`, using exclusive creation and owner-only permissions where the host supports them, so each run gets a fresh, unguessable file. Before opening it, confirm the resolved path is outside the repository checkout — a repo-local temp configuration must not dirty the worktree; if the check fails, report that instead of writing into the repo. Opening the report is an inner confirmation point in every mode, because the page loads Tailwind and Mermaid from public CDNs into a document full of repository names, problems, and diagrams that those scripts can read. Tell the owner the absolute path and that the page loads CDN scripts — worth weighing for a private repository — and only after they confirm, open it: `xdg-open <path>` on Linux, `open <path>` on macOS, `start "" "<path>"` on Windows (the first quoted argument to `start` is a window title, so the empty title keeps a space-containing path from being swallowed). In an unattended run, do not open the report: report the absolute path and stop.
 
 The report uses **Tailwind via CDN** for layout and styling, and **Mermaid via CDN** for diagrams where a graph/flow/sequence reliably communicates the structure. Mix Mermaid with hand-crafted CSS/SVG visuals — use Mermaid when relationships are graph-shaped (call graphs, dependencies, sequences), and hand-built divs/SVG when you want something more editorial (mass diagrams, cross-sections, collapse animations). Each candidate gets a **before/after visualisation**. Be visual.
 

@@ -4,16 +4,17 @@ description: Use when a task is too big and foggy to even approach — charts it
 license: LICENSE.txt
 compatibility: Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the repository holding the SDD Decision Log, and Python 3.9+ for the bundled Decision Log lint. Research and prototype tickets require the sibling research and prototype skills installed; grilling tickets run on the bundled grilling contract. No OS constraint.
 metadata:
-  selfos.version: "0.2.4"
+  selfos.version: "0.3.0"
 ---
 
 # Wayfinder
 
-An explicit request to run this workflow counts as confirmation. Absent
-one, when a task matches, propose the workflow and start only after the
-owner confirms in the live session; in an unattended run with no
-explicit request, do not start — record the recommendation and continue
-the surrounding task.
+When a task matches, announce that this workflow is starting and
+proceed — the owner can interrupt at any point. Unattended runs may
+work through the read-only and draft stages but stop before any
+tracker mutation and at every inner confirmation point: no ticket is
+claimed, no decision lands in the Decision Log, and nothing publishes
+to the tracker without the owner.
 
 A loose idea has arrived — too big for one agent session, and wrapped in
 fog: the way from here to the **destination** isn't visible yet.
@@ -275,7 +276,11 @@ without one, you pick the next decision, not the user.
    early lands a decision whose prerequisites haven't closed, so stop
    and say which blocker is still open instead. Otherwise take the
    first frontier ticket in order. **Claim it**: assign it to yourself
-   before any work.
+   before any work. Claiming is a tracker mutation: when this run was
+   announced rather than explicitly requested, name the chosen ticket
+   and claim only after the owner confirms it, and an unattended run
+   stops here instead of claiming — so no ticket stays locked with
+   nobody working it.
 3. Resolve it — **zoom as needed**: fetch the full body of any related
    or closed ticket on demand; invoke the skills the `## Notes` block
    names. If in doubt, run the bundled grilling contract (and the
