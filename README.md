@@ -76,6 +76,7 @@ The former domain packages (`sdd@selfos`, `design@selfos`, `decision@selfos`, `l
 | `research` | Background-subagent investigation captured as one cited Markdown file | automatic or explicit |
 | `sdd-conventions` | Portable SDD conventions plus sync and Decision Log lint scripts | automatic or explicit |
 | `slice` | Turn one implementation-ready SDD scope into vertical issues | automatic or explicit (announce first) |
+| `unslop` | Strip AI tells from prose and add a human voice, meaning preserved | automatic or explicit |
 | `wait-what` | Re-pitch the last message simply when it did not land | explicit only |
 | `watch` | Codex cloud PR push-review-fix loop | automatic or explicit |
 | `wayfinder` | Chart a foggy effort as a map of decision tickets until slice-ready | automatic or explicit (announce first) |
@@ -97,6 +98,7 @@ Compatibility describes hard runtime needs and conditional capabilities; descrip
 | `research` | `0.1.1` | Requires a background subagent mechanism (without one, run the investigation inline), network access for web sources, and write access to the repository checkout to save findings — in a read-only checkout, write to the host's temporary directory and say where. Ticket-driven capture also needs git worktree support, tracker write access, and push access to the remote; without a writable remote the branch stays local and the pointer says so. No OS constraint; no other external integration. |
 | `sdd-conventions` | `1.0.1` | Requires Python 3.9+ for the standard-library helpers and write access to the target file when syncing. OS-independent and offline, with no external integration. |
 | `slice` | `0.3.0` | Requires Python 3.9+ for bundled SDD helpers, read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
+| `unslop` | `0.1.0` | No specific CLI, OS, network access, repository write access, or external integration is required. |
 | `wait-what` | `0.1.1` | No specific CLI, OS, network access, repository write access, or external integration is required. |
 | `watch` | `0.5.1` | Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; repositories that require a post-verdict manual dispatch additionally need authenticated GitHub Actions write (workflow-dispatch) access; requires a POSIX-style shell environment but no specific OS. |
 | `wayfinder` | `0.3.0` | Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the repository holding the SDD Decision Log, and Python 3.9+ for the bundled Decision Log lint. Research and prototype tickets require the sibling research and prototype skills installed; grilling tickets run on the bundled grilling contract. No OS constraint. |
