@@ -16,7 +16,8 @@ is private, so the pins below are auditable by the owner, not by the public.
 | License | Apache-2.0 upstream (notice below) |
 | Status | **adapted** |
 
-Named deviations; everything else is the upstream script line for line:
+Named deviations; everything else is the upstream script statement for
+statement, reformatted per deviation 12:
 
 1. The repository root comes from `git rev-parse --show-toplevel` instead
    of the script's own location, so the copy runs from wherever it is
@@ -41,7 +42,11 @@ Named deviations; everything else is the upstream script line for line:
 10. A plain `import <package>.testing` without an alias counts as importing
     `<package>`, because that is the name it binds; only the aliased form
     passes the gate.
-11. Fenced code blocks in `GOALS.md` are ignored when discovering goals.
+11. Fenced code blocks (backtick or tilde, indented up to three spaces)
+    are ignored when discovering goals in `GOALS.md` and when locating the
+    `## Map` heading in `README.md`.
+12. The copy is formatted with `ruff format`, so the ruff limiter the
+    workflow template documents passes on the shipped file.
 
 ## skills/limits/templates/
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Run the limits checker against fixture repositories and check each limiter fires."""
 
 import pathlib
@@ -17,6 +16,10 @@ README = """# fixture
 A decoy section whose heading and this literal ## Map mention must not
 anchor the parser.
 
+```text
+## Map
+```
+
 ## Map
 
 - `src/`: source layout root.
@@ -34,6 +37,10 @@ Rules of this file: each numbered line names exactly one test, naïvely.
 ```
 1. A fenced example that is not a goal.
 ```
+
+  ~~~markdown
+2. A tilde-fenced example that is not a goal either.
+  ~~~
 """
 
 
@@ -45,7 +52,9 @@ class LimitsFixtureTest(unittest.TestCase):
         (self.root / "tests").mkdir()
         (self.root / "README.md").write_text(README, encoding="utf-8")
         (self.root / "GOALS.md").write_text(GOALS, encoding="utf-8")
-        (self.root / "src" / "pkg" / "__init__.py").write_text("VALUE = 1\n", encoding="utf-8")
+        (self.root / "src" / "pkg" / "__init__.py").write_text(
+            "VALUE = 1\n", encoding="utf-8"
+        )
         (self.root / "tests" / "test_works.py").write_text(
             "class TestWorks:\n    def test_works(self):\n        assert True\n",
             encoding="utf-8",
@@ -62,6 +71,7 @@ class LimitsFixtureTest(unittest.TestCase):
             cwd=self.root,
             capture_output=True,
             text=True,
+            check=False,
         )
 
     def test_clean_fixture_passes(self):
@@ -111,7 +121,9 @@ class LimitsFixtureTest(unittest.TestCase):
         (self.root / "tests" / "test_extra.py").write_text(
             "def test_extra():\n    assert True\n", encoding="utf-8"
         )
-        (self.root / "tests" / "test_link.py").write_text("../missing.py", encoding="utf-8")
+        (self.root / "tests" / "test_link.py").write_text(
+            "../missing.py", encoding="utf-8"
+        )
         self.stage()
         blob = subprocess.run(
             ["git", "hash-object", "-w", "--stdin"],
@@ -129,7 +141,9 @@ class LimitsFixtureTest(unittest.TestCase):
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 1)
         self.assertIn("map: no line for docs/", result.stdout)
-        self.assertIn("goals: tests/test_extra.py exists but no goal names it", result.stdout)
+        self.assertIn(
+            "goals: tests/test_extra.py exists but no goal names it", result.stdout
+        )
         self.assertIn("symlink: tests/test_link.py", result.stdout)
         self.assertNotIn("test_link.py exists but no goal names it", result.stdout)
 
