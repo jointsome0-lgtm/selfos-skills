@@ -33,6 +33,15 @@ Named deviations; everything else is the upstream script line for line:
    top-level functions.
 6. A tracked symlink is an error, and the checker never reads through one,
    so its reads stay inside the repository.
+7. `npm-shrinkwrap.json` joins the lock-file exclusions.
+8. Git paths decode with `errors="surrogateescape"`, so a tracked filename
+   with non-UTF-8 bytes does not abort the checker.
+9. A missing `## Map` heading in `README.md` is an error of its own, even
+   when the repository has no visible directories.
+10. A plain `import <package>.testing` without an alias counts as importing
+    `<package>`, because that is the name it binds; only the aliased form
+    passes the gate.
+11. Fenced code blocks in `GOALS.md` are ignored when discovering goals.
 
 ## skills/limits/templates/
 

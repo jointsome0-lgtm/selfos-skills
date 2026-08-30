@@ -12,7 +12,7 @@ TESTING = f"{PACKAGE}.testing"
 BUDGET_TOKENS = int(sys.argv[2]) if len(sys.argv) > 2 else 70_000
 MAP_LINE_CHARS = 250
 ALLOWED_MARKDOWN = {"GOALS.md", "AGENTS.md", "README.md", "CLAUDE.md"}
-LOCKS = {"package-lock.json", "pnpm-lock.yaml", "yarn.lock", "bun.lockb", "poetry.lock", "uv.lock"}
+LOCKS = {"package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock", "bun.lockb", "poetry.lock", "uv.lock"}
 TEST = r"tests/(?:[^/.][^/]*/)*(?:test_[^/]*|[^/]*_test)\.py"
 RE = {
     "marker": re.compile(r"^(noqa(:\s*[A-Z]+\d+(,\s*[A-Z]+\d+)*)?|type:\s*ignore(\[[a-z-]+(,\s*[a-z-]+)*\])?)$"),
@@ -24,12 +24,13 @@ RE = {
     "heading": re.compile(r"^#{1,6} ", re.MULTILINE),
     "map_heading": re.compile(r"^## Map$", re.MULTILINE),
     "map_line": re.compile(r"^- `([^`]+)/`: .+$", re.MULTILINE),
+    "fence": re.compile(r"^```.*?(?:^```$|\Z)", re.MULTILINE | re.DOTALL),
     "package": re.compile(rf"^{re.escape(PACKAGE)}(\.\w+)*$"),
 }
 
 
 def git(*args: str) -> list[str]:
-    return subprocess.run(["git", *args, "-z"], cwd=ROOT, capture_output=True, check=True).stdout.decode().split("\0")
+    return subprocess.run(["git", *args, "-z"], cwd=ROOT, capture_output=True, check=True).stdout.decode(errors="surrogateescape").split("\0")
 
 
 def compare(named: list[str], actual: set[str], twice: str, missing: str, extra: str) -> list[str]:
@@ -40,7 +41,7 @@ def compare(named: list[str], actual: set[str], twice: str, missing: str, extra:
 
 def imported(node: ast.AST) -> list[str]:
     if isinstance(node, ast.Import):
-        return [a.name for a in node.names]
+        return [a.name if a.asname else a.name.partition(".")[0] for a in node.names]
     if isinstance(node, ast.ImportFrom):
         return [node.module or ""]
     func = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", "")
@@ -71,14 +72,15 @@ def check_map(dirs: set[str]) -> list[str]:
     lines = [(m[1], m[0]) for m in RE["map_line"].finditer(section)]
     raws = section.splitlines()
     start = next((i for i, raw in enumerate(raws, 1) if raw.startswith("- ")), len(raws))
-    errors = [f"map: wrapped line {i}" for i, raw in enumerate(raws, 1) if raw.strip() and (raw.startswith(" ") or (i > start and not RE["map_line"].match(raw)))]
+    errors = [] if match else ["map: no ## Map heading in README.md"]
+    errors += [f"map: wrapped line {i}" for i, raw in enumerate(raws, 1) if raw.strip() and (raw.startswith(" ") or (i > start and not RE["map_line"].match(raw)))]
     errors += compare([d for d, _ in lines], dirs, "map: duplicate line for %s/", "map: no directory %s/", "map: no line for %s/")
     return errors + [f"map: line for {d}/ exceeds {MAP_LINE_CHARS} chars" for d, line in lines if len(line) > MAP_LINE_CHARS]
 
 
 def check_goals(tests: set[str]) -> list[str]:
     named, errors = [], []
-    for entry in RE["goal"].findall((ROOT / "GOALS.md").read_text(encoding="utf-8")):
+    for entry in RE["goal"].findall(RE["fence"].sub("", (ROOT / "GOALS.md").read_text(encoding="utf-8"))):
         paths = RE["test_path"].findall(entry)
         if len(paths) != 1:
             errors.append(f"goals: entry {entry.split('.')[0]} names {len(paths)} tests")

@@ -18,7 +18,7 @@ Run `python scripts/limits.py <package> [budget-tokens]` from the repository roo
 - Budget: every tracked file except `LICENSE` and lock files, at bytes ÷ 4, fits the budget. The default is 70,000 tokens, sized so a repository plus the task, diff, and tool output fit a 100k working window. The default changes only through a refresh of this skill, never in the PR that needs the room.
 - Map: `README.md` has a `## Map` section with exactly one unwrapped line per directory, in the form ``- `dir/`: what it holds``, at most 250 characters. Hidden directories stay outside the map. A src layout needs a line for `src/` and one for `src/<package>/`.
 - Goals bind to tests: every numbered entry in `GOALS.md` names exactly one test file in backticks, every named test exists and defines a test, and every test file is named by exactly one goal.
-- Import gate: the only `<package>` import in `tests/` and `conftest.py` is `<package>.testing`, including the dynamic forms `import_module`, `__import__`, and `importorskip`.
+- Import gate: the only `<package>` import in `tests/` and `conftest.py` is `<package>.testing`, via `from` or an aliased `import`, since a bare `import <package>.testing` binds `<package>`. The dynamic forms `import_module`, `__import__`, and `importorskip` count as imports.
 - Zero comments and zero docstrings in Python. Machine markers survive: `# noqa`, `# type: ignore`, a shebang.
 - Markdown allowlist: the only `.md` files are `GOALS.md`, `AGENTS.md`, `README.md`, `CLAUDE.md`.
 - No symlinks: every tracked path is a regular file or a submodule.

@@ -30,6 +30,10 @@ Rules of this file: each numbered line names exactly one test, naïvely.
 
 1. The package holds a value.
    `tests/test_works.py`
+
+```
+1. A fenced example that is not a goal.
+```
 """
 
 
@@ -82,7 +86,7 @@ class LimitsFixtureTest(unittest.TestCase):
         )
         (self.root / "NOTES.md").write_text("scratch\n", encoding="utf-8")
         (self.root / "tests" / "test_works.py").write_text(
-            "import pkg\nfrom pkg.testing import fake\n\ndef test_works():\n    assert fake\n",
+            "import pkg\nimport pkg.testing\nimport pkg.testing as ok\nfrom pkg.testing import fake\n\ndef test_works():\n    assert fake\n",
             encoding="utf-8",
         )
         self.stage()
@@ -90,8 +94,16 @@ class LimitsFixtureTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         for needle in ("comment:", "docstring:", "artifact: NOTES.md", "test import:"):
             self.assertIn(needle, result.stdout)
+        self.assertEqual(result.stdout.count("test import:"), 2)
         self.assertNotIn("pkg.testing", result.stdout)
         self.assertNotIn("goals:", result.stdout)
+
+    def test_missing_map_heading_fires(self):
+        (self.root / "README.md").write_text("# fixture\n", encoding="utf-8")
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("map: no ## Map heading in README.md", result.stdout)
 
     def test_map_goal_and_symlink_drift_fire(self):
         (self.root / "docs").mkdir()
@@ -99,8 +111,21 @@ class LimitsFixtureTest(unittest.TestCase):
         (self.root / "tests" / "test_extra.py").write_text(
             "def test_extra():\n    assert True\n", encoding="utf-8"
         )
-        (self.root / "tests" / "test_link.py").symlink_to("../missing.py")
+        (self.root / "tests" / "test_link.py").write_text("../missing.py", encoding="utf-8")
         self.stage()
+        blob = subprocess.run(
+            ["git", "hash-object", "-w", "--stdin"],
+            cwd=self.root,
+            input="../missing.py",
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        subprocess.run(
+            ["git", "update-index", "--cacheinfo", f"120000,{blob},tests/test_link.py"],
+            cwd=self.root,
+            check=True,
+        )
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 1)
         self.assertIn("map: no line for docs/", result.stdout)
