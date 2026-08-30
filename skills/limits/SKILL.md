@@ -1,6 +1,6 @@
 ---
 name: limits
-description: Use when a repository adopts or enforces the three-sources-of-truth model — git holds the past, code holds the present, GOALS.md holds the future — with every limit a number checked in CI. Ships the checker and templates for GOALS.md, AGENTS.md, and the CI workflow.
+description: Use when a repository adopts or enforces the three-sources-of-truth model, where git holds the past, code holds the present, and GOALS.md holds the future, with every limit a number checked in CI. Ships the checker and templates for GOALS.md, AGENTS.md, and the CI workflow.
 license: LICENSE.txt
 compatibility: Requires Python 3.10+ and git for the bundled python scripts, and the checked repository's Python files must parse. OS-independent and offline, with no external integration.
 metadata:
