@@ -1,5 +1,6 @@
 import ast
 import io
+import os
 import pathlib
 import re
 import subprocess
@@ -7,11 +8,11 @@ import sys
 import tokenize
 
 ROOT = pathlib.Path(
-    subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"], capture_output=True, check=True
-    )
-    .stdout.decode()
-    .rstrip("\r\n")
+    os.fsdecode(
+        subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"], capture_output=True, check=True
+        ).stdout
+    ).rstrip("\r\n")
 )
 PACKAGE = sys.argv[1] if len(sys.argv) > 1 else ""
 TESTING = f"{PACKAGE}.testing"
@@ -28,6 +29,10 @@ LOCKS = {
     "uv.lock",
 }
 TEST = r"tests/(?:[^/.][^/]*/)*(?:test_[^/]*|[^/]*_test)\.py"
+GOAL_MARKER = r" {0,3}\d{1,9}[.)][ \t]+"
+ATX_HEADING = r" {0,3}#{1,6}(?:[ \t]+|$)"
+SETEXT_HEADING = r".+\n {0,3}(?:=+|-+)[ \t]*$"
+HEADING = rf"(?:{ATX_HEADING}|{SETEXT_HEADING})"
 RE = {
     "marker": re.compile(
         r"^(noqa(:\s*[A-Z]+\d+(,\s*[A-Z]+\d+)*)?|type:\s*ignore(\[[a-z-]+(,\s*[a-z-]+)*\])?)$"
@@ -39,10 +44,10 @@ RE = {
     "test_path": re.compile(f"`({TEST})`"),
     "test_def": re.compile(r"^\s*(?:async )?def test\w*\(", re.MULTILINE),
     "goal": re.compile(
-        r"^ {0,3}\d{1,9}[.)][ \t]+.+(?:\n(?:(?! {0,3}\d{1,9}[.)][ \t]).+|(?=\n[ \t]+)))*",
+        rf"^{GOAL_MARKER}.+(?:\n(?:(?!(?:{GOAL_MARKER}|{HEADING})).+|(?=\n[ \t]+)))*",
         re.MULTILINE,
     ),
-    "heading": re.compile(r"^#{1,6} ", re.MULTILINE),
+    "heading": re.compile(rf"^{HEADING}", re.MULTILINE),
     "map_heading": re.compile(r"^## Map$", re.MULTILINE),
     "map_line": re.compile(r"^- `([^`]+)/`: .+$", re.MULTILINE),
     "fence": re.compile(
@@ -87,9 +92,33 @@ def compare(
     return errors + [extra % t for t in sorted(actual - set(named))]
 
 
+def call_argument(node: ast.Call, position: int, keyword: str) -> ast.AST | None:
+    if len(node.args) > position:
+        return node.args[position]
+    return next((item.value for item in node.keywords if item.arg == keyword), None)
+
+
+def bare_import(name: str) -> str:
+    if name == PACKAGE or name.startswith(f"{PACKAGE}."):
+        return PACKAGE
+    return name.partition(".")[0]
+
+
+def resolve_import(name: str, package: str) -> str:
+    level = len(name) - len(name.lstrip("."))
+    if not level:
+        return name
+    parents = package.split(".")
+    if level > len(parents):
+        return name
+    base = ".".join(parents[: len(parents) - level + 1])
+    tail = name[level:]
+    return f"{base}.{tail}" if tail else base
+
+
 def imported(node: ast.AST) -> list[str]:
     if isinstance(node, ast.Import):
-        return [a.name if a.asname else a.name.partition(".")[0] for a in node.names]
+        return [a.name if a.asname else bare_import(a.name) for a in node.names]
     if isinstance(node, ast.ImportFrom):
         return [node.module or ""]
     func = (
@@ -98,16 +127,8 @@ def imported(node: ast.AST) -> list[str]:
         else getattr(node.func, "id", "")
     )
     if func == "__import__":
-        name = (
-            node.args[0]
-            if node.args
-            else next((k.value for k in node.keywords if k.arg == "name"), None)
-        )
-        fromlist = (
-            node.args[3]
-            if len(node.args) > 3
-            else next((k.value for k in node.keywords if k.arg == "fromlist"), None)
-        )
+        name = call_argument(node, 0, "name")
+        fromlist = call_argument(node, 3, "fromlist")
         if isinstance(name, ast.Constant) and isinstance(name.value, str):
             empty = (
                 fromlist is None
@@ -117,18 +138,25 @@ def imported(node: ast.AST) -> list[str]:
                     and not fromlist.elts
                 )
             )
-            return [name.value.partition(".")[0] if empty else name.value]
+            return [bare_import(name.value) if empty else name.value]
         return []
-    args = (
-        [*node.args, *(k.value for k in node.keywords)]
-        if func in ("import_module", "importorskip")
-        else []
-    )
-    return [
-        a.value
-        for a in args
-        if isinstance(a, ast.Constant) and isinstance(a.value, str)
-    ]
+    if func == "import_module":
+        name = call_argument(node, 0, "name")
+        package = call_argument(node, 1, "package")
+        if isinstance(name, ast.Constant) and isinstance(name.value, str):
+            if (
+                name.value.startswith(".")
+                and isinstance(package, ast.Constant)
+                and isinstance(package.value, str)
+            ):
+                return [resolve_import(name.value, package.value)]
+            return [name.value]
+        return []
+    if func == "importorskip":
+        name = call_argument(node, 0, "modname")
+        if isinstance(name, ast.Constant) and isinstance(name.value, str):
+            return [name.value]
+    return []
 
 
 def check_python(f: pathlib.Path, text: str, is_test: bool) -> list[str]:

@@ -65,6 +65,14 @@ statement, reformatted per deviation 12:
     repository root ending in a space remains intact.
 20. Goal discovery accepts both Markdown ordered-list delimiters and up to
     three leading spaces before the marker.
+21. The repository root uses filesystem decoding, preserving non-UTF-8
+    bytes on POSIX.
+22. Bare static and dynamic imports within a dotted package argument count
+    as exposing that package root.
+23. Dynamic import checks read the callable's module-name argument, and a
+    literal relative `import_module` call is resolved against its package.
+24. An ATX or Setext heading ends a numbered goal entry.
+25. An ATX or Setext heading ends the `## Map` section.
 
 ## skills/limits/templates/
 

@@ -1,5 +1,6 @@
 """Run the limits checker against fixture repositories and check each limiter fires."""
 
+import os
 import pathlib
 import re
 import shutil
@@ -81,11 +82,23 @@ class LimitsFixtureTest(unittest.TestCase):
         self.assertIn("limits: 0 problems", result.stdout)
         self.assertIn(f"of {70_000} tokens", result.stdout)
 
+    @unittest.skipIf(os.name == "nt", "Win32 does not preserve trailing spaces")
     def test_repository_root_preserves_trailing_space(self):
         spaced = self.root.with_name(f"{self.root.name} ")
         self.root.rename(spaced)
         self.root = spaced
         self.addCleanup(shutil.rmtree, spaced, ignore_errors=True)
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_repository_root_preserves_non_utf8_bytes(self):
+        encoded = os.fsencode(self.root) + b"-\xff"
+        try:
+            os.rename(os.fsencode(self.root), encoded)
+        except OSError:
+            self.skipTest("filesystem rejects non-UTF-8 names")
+        self.root = pathlib.Path(os.fsdecode(encoded))
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
@@ -143,6 +156,34 @@ class LimitsFixtureTest(unittest.TestCase):
         self.assertEqual(result.stdout.count("test import:"), 1)
         self.assertIn("test import: tests/test_works.py:1 pkg", result.stdout)
 
+    def test_bare_imports_reject_dotted_package_root(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            "import pkg.sub.testing\n"
+            "import pkg.sub.testing as allowed\n"
+            'dynamic = __import__("pkg.sub.testing")\n'
+            'allowed_dynamic = __import__("pkg.sub.testing", fromlist=["testing"])\n\n'
+            "def test_works():\n"
+            "    assert allowed and dynamic and allowed_dynamic\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg.sub")
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.count("test import:"), 2)
+        self.assertIn(" pkg.sub", result.stdout)
+
+    def test_relative_import_module_resolves_allowed_api(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            "import importlib\n\n"
+            'testing = importlib.import_module(".testing", "pkg")\n\n'
+            "def test_works():\n"
+            "    assert testing\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_missing_map_heading_fires(self):
         (self.root / "README.md").write_text("# fixture\n", encoding="utf-8")
         self.stage()
@@ -166,6 +207,14 @@ class LimitsFixtureTest(unittest.TestCase):
     def test_html_commented_map_heading_is_ignored(self):
         (self.root / "README.md").write_text(
             "<!--\n## Map\n- malformed\n-->\n\n" + README, encoding="utf-8"
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_setext_heading_ends_map_section(self):
+        (self.root / "README.md").write_text(
+            README + "\nOther section\n-------------\n\nProse.\n", encoding="utf-8"
         )
         self.stage()
         result = self.run_limits("pkg")
@@ -198,6 +247,19 @@ class LimitsFixtureTest(unittest.TestCase):
         )
         (self.root / "GOALS.md").write_text(
             "# fixture\n\n   1) A goal without a test path.\n", encoding="utf-8"
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("goals: entry 1 names 0 tests", result.stdout)
+
+    def test_heading_ends_goal_entry(self):
+        (self.root / "GOALS.md").write_text(
+            "# fixture\n\n"
+            "1. A goal without a test path.\n"
+            "## Separate section\n"
+            "`tests/test_works.py`\n",
+            encoding="utf-8",
         )
         self.stage()
         result = self.run_limits("pkg")
