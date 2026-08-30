@@ -47,6 +47,13 @@ statement, reformatted per deviation 12:
     `## Map` heading in `README.md`.
 12. The copy is formatted with `ruff format`, so the ruff limiter the
     workflow template documents passes on the shipped file.
+13. Every list item in the `## Map` section is format-checked, including
+    the first item when the repository has no visible directories.
+14. HTML comments are ignored when locating and reading the `## Map`
+    section, so a commented heading cannot shadow the live section.
+15. The token budget sums the index's Git blob sizes in one
+    `git cat-file --batch-check` call, so checkout transformations do not
+    change the result.
 
 ## skills/limits/templates/
 

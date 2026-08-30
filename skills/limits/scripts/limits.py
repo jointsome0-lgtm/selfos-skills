@@ -45,6 +45,7 @@ RE = {
     "fence": re.compile(
         r"^ {0,3}(`{3,}|~{3,}).*?(?:^ {0,3}\1[`~ \t]*$|\Z)", re.MULTILINE | re.DOTALL
     ),
+    "html_comment": re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL),
     "package": re.compile(rf"^{re.escape(PACKAGE)}(\.\w+)*$"),
 }
 
@@ -55,6 +56,24 @@ def git(*args: str) -> list[str]:
         .stdout.decode(errors="surrogateescape")
         .split("\0")
     )
+
+
+def blob_sizes(objects: list[str]) -> list[int]:
+    if not objects:
+        return []
+    return [
+        int(size)
+        for size in subprocess.run(
+            ["git", "cat-file", "--batch-check=%(objectsize)"],
+            cwd=ROOT,
+            input="".join(f"{object_id}\n" for object_id in objects),
+            capture_output=True,
+            check=True,
+            text=True,
+        )
+        .stdout.strip()
+        .splitlines()
+    ]
 
 
 def compare(
@@ -118,19 +137,21 @@ def check_python(f: pathlib.Path, text: str, is_test: bool) -> list[str]:
 
 def check_map(dirs: set[str]) -> list[str]:
     text = RE["fence"].sub("", (ROOT / "README.md").read_text(encoding="utf-8"))
+    text = RE["html_comment"].sub("", text)
     match = RE["map_heading"].search(text)
     section = RE["heading"].split(text[match.end() :], 1)[0] if match else ""
     lines = [(m[1], m[0]) for m in RE["map_line"].finditer(section)]
     raws = section.splitlines()
-    start = next(
-        (i for i, raw in enumerate(raws, 1) if raw.startswith("- ")), len(raws)
-    )
+    start = next((i for i, raw in enumerate(raws, 1) if raw.startswith("- ")), None)
     errors = [] if match else ["map: no ## Map heading in README.md"]
     errors += [
         f"map: wrapped line {i}"
         for i, raw in enumerate(raws, 1)
         if raw.strip()
-        and (raw.startswith(" ") or (i > start and not RE["map_line"].match(raw)))
+        and (
+            raw.startswith(" ")
+            or (start is not None and i >= start and not RE["map_line"].match(raw))
+        )
     ]
     errors += compare(
         [d for d, _ in lines],
@@ -172,8 +193,14 @@ def main() -> int:
         return 2
     files = [pathlib.PurePosixPath(p) for p in git("ls-files") if p]
     entries = git("ls-files", "-s")
-    links = {e.split("\t", 1)[1] for e in entries if e.startswith("160000 ")}
-    symlinks = {e.split("\t", 1)[1] for e in entries if e.startswith("120000 ")}
+    index = {}
+    for entry in entries:
+        if entry:
+            meta, path = entry.split("\t", 1)
+            mode, object_id, _ = meta.split()
+            index[pathlib.PurePosixPath(path)] = (mode, object_id)
+    links = {str(path) for path, item in index.items() if item[0] == "160000"}
+    symlinks = {str(path) for path, item in index.items() if item[0] == "120000"}
     dirs = {
         str(p) for f in files for p in f.parents if p != pathlib.PurePosixPath(".")
     } | links
@@ -184,7 +211,7 @@ def main() -> int:
         and f.name not in LOCKS
         and f.suffix != ".lock"
     ]
-    tokens = (sum((ROOT / f).lstat().st_size for f in counted) + 3) // 4
+    tokens = (sum(blob_sizes([index[f][1] for f in counted])) + 3) // 4
     errors = (
         []
         if tokens <= BUDGET_TOKENS

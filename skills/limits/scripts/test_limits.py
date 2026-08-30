@@ -1,6 +1,7 @@
 """Run the limits checker against fixture repositories and check each limiter fires."""
 
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -90,6 +91,18 @@ class LimitsFixtureTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("limit 1", result.stdout)
 
+    def test_budget_uses_staged_blob_sizes(self):
+        payload = self.root / "payload.txt"
+        payload.write_text("small\n", encoding="utf-8")
+        self.stage()
+        baseline = self.run_limits("pkg")
+        match = re.search(r"budget: (\d+) of", baseline.stdout)
+        self.assertIsNotNone(match)
+        budget = match.group(1)
+        payload.write_text("large\n" * 100_000, encoding="utf-8")
+        result = self.run_limits("pkg", budget)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_python_markdown_and_import_limiters_fire(self):
         (self.root / "src" / "pkg" / "extra.py").write_text(
             '"""module doc"""\nX = 1  # explains itself\n', encoding="utf-8"
@@ -114,6 +127,27 @@ class LimitsFixtureTest(unittest.TestCase):
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 1)
         self.assertIn("map: no ## Map heading in README.md", result.stdout)
+
+    def test_malformed_first_map_item_fires_without_visible_directories(self):
+        shutil.rmtree(self.root / "src")
+        shutil.rmtree(self.root / "tests")
+        (self.root / "README.md").write_text(
+            "# fixture\n\n## Map\n\n- malformed\n", encoding="utf-8"
+        )
+        (self.root / "GOALS.md").write_text("# fixture\n", encoding="utf-8")
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("map: wrapped line", result.stdout)
+        self.assertNotIn("map: no line for", result.stdout)
+
+    def test_html_commented_map_heading_is_ignored(self):
+        (self.root / "README.md").write_text(
+            "<!--\n## Map\n- malformed\n-->\n\n" + README, encoding="utf-8"
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_map_goal_and_symlink_drift_fire(self):
         (self.root / "docs").mkdir()
