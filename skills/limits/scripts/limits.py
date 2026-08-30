@@ -38,7 +38,7 @@ RE = {
     "test_file": re.compile(f"^{TEST}$"),
     "test_path": re.compile(f"`({TEST})`"),
     "test_def": re.compile(r"^\s*(?:async )?def test\w*\(", re.MULTILINE),
-    "goal": re.compile(r"^\d+\. (?:.+(?:\n|\Z))+?(?=\n|^\d+\. |\Z)", re.MULTILINE),
+    "goal": re.compile(r"^\d+\. .+(?:\n(?:(?!\d+\. ).+|(?=\n[ \t]+)))*", re.MULTILINE),
     "heading": re.compile(r"^#{1,6} ", re.MULTILINE),
     "map_heading": re.compile(r"^## Map$", re.MULTILINE),
     "map_line": re.compile(r"^- `([^`]+)/`: .+$", re.MULTILINE),
@@ -94,9 +94,31 @@ def imported(node: ast.AST) -> list[str]:
         if isinstance(node.func, ast.Attribute)
         else getattr(node.func, "id", "")
     )
+    if func == "__import__":
+        name = (
+            node.args[0]
+            if node.args
+            else next((k.value for k in node.keywords if k.arg == "name"), None)
+        )
+        fromlist = (
+            node.args[3]
+            if len(node.args) > 3
+            else next((k.value for k in node.keywords if k.arg == "fromlist"), None)
+        )
+        if isinstance(name, ast.Constant) and isinstance(name.value, str):
+            empty = (
+                fromlist is None
+                or (isinstance(fromlist, ast.Constant) and not fromlist.value)
+                or (
+                    isinstance(fromlist, (ast.List, ast.Tuple, ast.Set))
+                    and not fromlist.elts
+                )
+            )
+            return [name.value.partition(".")[0] if empty else name.value]
+        return []
     args = (
         [*node.args, *(k.value for k in node.keywords)]
-        if func in ("import_module", "__import__", "importorskip")
+        if func in ("import_module", "importorskip")
         else []
     )
     return [
@@ -170,7 +192,10 @@ def check_map(dirs: set[str]) -> list[str]:
 def check_goals(tests: set[str]) -> list[str]:
     named, errors = [], []
     for entry in RE["goal"].findall(
-        RE["fence"].sub("", (ROOT / "GOALS.md").read_text(encoding="utf-8"))
+        RE["html_comment"].sub(
+            "",
+            RE["fence"].sub("", (ROOT / "GOALS.md").read_text(encoding="utf-8")),
+        )
     ):
         paths = RE["test_path"].findall(entry)
         if len(paths) != 1:

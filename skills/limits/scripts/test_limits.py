@@ -121,6 +121,20 @@ class LimitsFixtureTest(unittest.TestCase):
         self.assertNotIn("pkg.testing", result.stdout)
         self.assertNotIn("goals:", result.stdout)
 
+    def test_import_without_fromlist_exposes_package_root(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            'pkg = __import__("pkg.testing")\n'
+            'allowed = __import__("pkg.testing", fromlist=["testing"])\n\n'
+            "def test_works():\n"
+            "    assert pkg and allowed\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.count("test import:"), 1)
+        self.assertIn("test import: tests/test_works.py:1 pkg", result.stdout)
+
     def test_missing_map_heading_fires(self):
         (self.root / "README.md").write_text("# fixture\n", encoding="utf-8")
         self.stage()
@@ -144,6 +158,27 @@ class LimitsFixtureTest(unittest.TestCase):
     def test_html_commented_map_heading_is_ignored(self):
         (self.root / "README.md").write_text(
             "<!--\n## Map\n- malformed\n-->\n\n" + README, encoding="utf-8"
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_html_commented_goal_is_ignored(self):
+        (self.root / "GOALS.md").write_text(
+            GOALS + "\n<!--\n2. Hidden example.\n   `tests/test_hidden.py`\n-->\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_goal_allows_blank_line_before_test_path(self):
+        (self.root / "GOALS.md").write_text(
+            GOALS.replace(
+                "1. The package holds a value.\n   `tests/test_works.py`",
+                "1. The package holds a value.\n\n   `tests/test_works.py`",
+            ),
+            encoding="utf-8",
         )
         self.stage()
         result = self.run_limits("pkg")

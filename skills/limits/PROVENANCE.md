@@ -54,6 +54,13 @@ statement, reformatted per deviation 12:
 15. The token budget sums the index's Git blob sizes in one
     `git cat-file --batch-check` call, so checkout transformations do not
     change the result.
+16. HTML comments are ignored when discovering numbered goals, so hidden
+    examples do not bind tests.
+17. A blank line followed by an indented continuation stays inside its
+    numbered goal entry, allowing ordinary multi-paragraph list formatting.
+18. A literal `__import__("<package>.testing")` without a nonempty
+    `fromlist` counts as exposing `<package>`, matching Python's return
+    value.
 
 ## skills/limits/templates/
 
