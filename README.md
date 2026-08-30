@@ -72,7 +72,7 @@ The former domain packages (`sdd@selfos`, `design@selfos`, `decision@selfos`, `l
 | `grilling` | Shared one-question-at-a-time owner decision primitive | automatic or explicit |
 | `handoff` | Compact privacy-safe context for a fresh agent in one temporary Markdown file | automatic or explicit |
 | `improve-codebase-architecture` | Surface deepening candidates as an HTML report, then grill the pick | automatic or explicit (announce first) |
-| `limits` | Three-sources-of-truth model fenced by CI numbers: budget, map, goals bound to tests | automatic or explicit |
+| `limits` | Three-sources-of-truth model enforced as CI numbers: budget, map, goals bound to tests | automatic or explicit |
 | `prototype` | Answer one design question with a throwaway worktree prototype | automatic or explicit |
 | `research` | Background-subagent investigation captured as one cited Markdown file | automatic or explicit |
 | `sdd-conventions` | Portable SDD conventions plus sync and Decision Log lint scripts | automatic or explicit |

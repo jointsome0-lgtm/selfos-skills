@@ -1,9 +1,8 @@
-# Provenance — skills/limits
+# Provenance for skills/limits
 
 The checker and the templates are adapted from the owner's storyworm
-repository, where they survived their first real adoption cycle. That
-repository is private, so the pins below are auditable by the owner, not by
-the public.
+repository, where they survived their first adoption cycle. That repository
+is private, so the pins below are auditable by the owner, not by the public.
 
 ## skills/limits/scripts/limits.py
 
@@ -17,24 +16,23 @@ the public.
 | License | Apache-2.0 upstream (notice below) |
 | Status | **adapted** |
 
-Named deviations, everything else is the upstream script line for line:
+Named deviations; everything else is the upstream script line for line:
 
-1. **Repository root from git** — `ROOT` comes from
-   `git rev-parse --show-toplevel` instead of the script's own location, so
-   the copy runs from wherever it is installed.
-2. **Package and budget as arguments** — the hardcoded package name and its
-   `.testing` allowance become `sys.argv[1]`, and the budget accepts an
-   optional `sys.argv[2]` override; a missing package prints usage and
-   exits 2.
-3. **POSIX-normalized identifiers** — repository-relative paths use
-   `PurePosixPath` and file reads pass `encoding="utf-8"`, so regexes, map
-   comparison, and decoding behave the same on Windows.
-4. **Anchored map heading** — the `## Map` section is located by a complete
-   heading line, not a substring.
-5. **Indented test definitions count** — the test detector accepts
-   pytest-style class methods.
-6. **Symlinks are rejected** — a tracked symlink is an error, and the
-   checker does not read through one, keeping reads inside the repository.
+1. The repository root comes from `git rev-parse --show-toplevel` instead
+   of the script's own location, so the copy runs from wherever it is
+   installed.
+2. The hardcoded package name and its `.testing` allowance become
+   `sys.argv[1]`, and the budget accepts an optional `sys.argv[2]`
+   override; a missing package prints usage and exits 2.
+3. Repository-relative paths use `PurePosixPath` and file reads pass
+   `encoding="utf-8"`, so regexes, map comparison, and decoding behave the
+   same on Windows.
+4. The `## Map` section is located by a complete heading line, not a
+   substring.
+5. The test detector accepts pytest-style class methods, not only
+   top-level functions.
+6. A tracked symlink is an error, and the checker never reads through one,
+   so its reads stay inside the repository.
 
 ## skills/limits/templates/
 
@@ -49,16 +47,17 @@ Named deviations, everything else is the upstream script line for line:
 | Status | **adapted** |
 
 The "Three sources of truth" and "Limiters" sections, the rules of
-`GOALS.md`, and the workflow shape are upstream text with the project name
-and package generalized to placeholders, project-specific goals replaced by
-placeholders, and one added limiter bullet for the ruff and named-test steps
-that live outside the script.
+`GOALS.md`, and the workflow shape are upstream text with the project name,
+package, and project-specific goals generalized to placeholders, plus one
+added limiter bullet for the ruff and named-test steps that live outside
+the script.
 
 ## Upstream license notice
 
 The upstream repository is licensed Apache-2.0 (its `LICENSE` at the pinned
 commit) with the same copyright holder as this catalog, who relicenses the
-adapted copies here under this skill's MIT `LICENSE.txt`:
+adapted copies here under this skill's MIT `LICENSE.txt`. The catalog
+validator requires the notice in full:
 
 ```
 MIT License
