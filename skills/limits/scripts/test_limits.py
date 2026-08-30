@@ -81,6 +81,14 @@ class LimitsFixtureTest(unittest.TestCase):
         self.assertIn("limits: 0 problems", result.stdout)
         self.assertIn(f"of {70_000} tokens", result.stdout)
 
+    def test_repository_root_preserves_trailing_space(self):
+        spaced = self.root.with_name(f"{self.root.name} ")
+        self.root.rename(spaced)
+        self.root = spaced
+        self.addCleanup(shutil.rmtree, spaced, ignore_errors=True)
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_missing_package_argument_prints_usage(self):
         result = self.run_limits()
         self.assertEqual(result.returncode, 2)
@@ -183,6 +191,18 @@ class LimitsFixtureTest(unittest.TestCase):
         self.stage()
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_goal_recognizes_indented_parenthesis_marker(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            "VALUE = True\n", encoding="utf-8"
+        )
+        (self.root / "GOALS.md").write_text(
+            "# fixture\n\n   1) A goal without a test path.\n", encoding="utf-8"
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("goals: entry 1 names 0 tests", result.stdout)
 
     def test_map_goal_and_symlink_drift_fire(self):
         (self.root / "docs").mkdir()

@@ -11,7 +11,7 @@ ROOT = pathlib.Path(
         ["git", "rev-parse", "--show-toplevel"], capture_output=True, check=True
     )
     .stdout.decode()
-    .strip()
+    .rstrip("\r\n")
 )
 PACKAGE = sys.argv[1] if len(sys.argv) > 1 else ""
 TESTING = f"{PACKAGE}.testing"
@@ -38,7 +38,10 @@ RE = {
     "test_file": re.compile(f"^{TEST}$"),
     "test_path": re.compile(f"`({TEST})`"),
     "test_def": re.compile(r"^\s*(?:async )?def test\w*\(", re.MULTILINE),
-    "goal": re.compile(r"^\d+\. .+(?:\n(?:(?!\d+\. ).+|(?=\n[ \t]+)))*", re.MULTILINE),
+    "goal": re.compile(
+        r"^ {0,3}\d{1,9}[.)][ \t]+.+(?:\n(?:(?! {0,3}\d{1,9}[.)][ \t]).+|(?=\n[ \t]+)))*",
+        re.MULTILINE,
+    ),
     "heading": re.compile(r"^#{1,6} ", re.MULTILINE),
     "map_heading": re.compile(r"^## Map$", re.MULTILINE),
     "map_line": re.compile(r"^- `([^`]+)/`: .+$", re.MULTILINE),
@@ -199,9 +202,8 @@ def check_goals(tests: set[str]) -> list[str]:
     ):
         paths = RE["test_path"].findall(entry)
         if len(paths) != 1:
-            errors.append(
-                f"goals: entry {entry.split('.')[0]} names {len(paths)} tests"
-            )
+            number = entry.lstrip().split(maxsplit=1)[0].rstrip(".)")
+            errors.append(f"goals: entry {number} names {len(paths)} tests")
         named += paths
     return errors + compare(
         named,

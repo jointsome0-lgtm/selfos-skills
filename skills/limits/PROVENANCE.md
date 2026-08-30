@@ -61,6 +61,10 @@ statement, reformatted per deviation 12:
 18. A literal `__import__("<package>.testing")` without a nonempty
     `fromlist` counts as exposing `<package>`, matching Python's return
     value.
+19. Only line terminators are removed from `git rev-parse` output, so a
+    repository root ending in a space remains intact.
+20. Goal discovery accepts both Markdown ordered-list delimiters and up to
+    three leading spaces before the marker.
 
 ## skills/limits/templates/
 
@@ -78,7 +82,8 @@ The "Three sources of truth" and "Limiters" sections, the rules of
 `GOALS.md`, and the workflow shape are upstream text with the project name,
 package, and project-specific goals generalized to placeholders, plus one
 added limiter bullet for the ruff and named-test steps that live outside
-the script.
+the script. Workflow action references are pinned to immutable commits at
+the named releases.
 
 ## Upstream license notice
 
