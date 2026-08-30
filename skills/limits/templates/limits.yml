@@ -1,0 +1,23 @@
+name: limits
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  limits:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/limits.py <package>
+      # The other two limiters live outside limits.py. pytest names the test
+      # files that must be green, so a goal test can stay red while the code
+      # it claims is still being built.
+      # - uses: astral-sh/setup-uv@v6
+      # - run: uv sync --frozen
+      # - run: uv run ruff check . && uv run ruff format --check .
+      # - run: uv run pytest tests/test_<one>.py tests/test_<two>.py

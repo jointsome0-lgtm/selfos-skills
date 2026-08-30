@@ -43,6 +43,8 @@ jobs:
         run: |
           python skills/sdd-conventions/scripts/test_sync_conventions.py
           python skills/sdd-conventions/scripts/test_check_decision_log.py
+      - name: Test the portable limits checker
+        run: python skills/limits/scripts/test_limits.py
       - name: ShellCheck portable helpers
         run: find scripts skills -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
       - name: Test the Codex PR watcher
