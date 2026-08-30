@@ -73,6 +73,13 @@ statement, reformatted per deviation 12:
     literal relative `import_module` call is resolved against its package.
 24. An ATX or Setext heading ends a numbered goal entry.
 25. An ATX or Setext heading ends the `## Map` section.
+26. Gitlinks are excluded from Python, Markdown artifact, and test
+    inspection; a required Markdown file cannot be a gitlink.
+27. A sibling unordered-list item ends a numbered goal entry.
+28. Test definitions are discovered from the Python syntax tree, not raw
+    source text.
+29. A Map line's description must contain a non-whitespace character.
+30. Required Markdown symlinks are rejected without reading their targets.
 
 ## skills/limits/templates/
 

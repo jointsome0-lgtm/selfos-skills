@@ -298,6 +298,91 @@ class LimitsFixtureTest(unittest.TestCase):
         self.assertIn("symlink: tests/test_link.py", result.stdout)
         self.assertNotIn("test_link.py exists but no goal names it", result.stdout)
 
+    def test_python_named_gitlink_is_not_read_as_source(self):
+        (self.root / "README.md").write_text(
+            README.rstrip() + "\n- `vendor.py/`: a pinned dependency.\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=Fixture",
+                "-c",
+                "user.email=fixture@example.invalid",
+                "commit",
+                "-qm",
+                "fixture",
+            ],
+            cwd=self.root,
+            check=True,
+        )
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        subprocess.run(
+            [
+                "git",
+                "update-index",
+                "--add",
+                "--cacheinfo",
+                f"160000,{commit},vendor.py",
+            ],
+            cwd=self.root,
+            check=True,
+        )
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_unordered_sibling_ends_goal_entry(self):
+        (self.root / "GOALS.md").write_text(
+            "# fixture\n\n"
+            "1. A goal without a test path.\n"
+            "- Separate item: `tests/test_works.py`\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("goals: entry 1 names 0 tests", result.stdout)
+
+    def test_test_definition_inside_string_does_not_count(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            'SOURCE = """\ndef test_works():\n    pass\n"""\n', encoding="utf-8"
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "goals: tests/test_works.py named in GOALS.md but missing", result.stdout
+        )
+
+    def test_map_description_must_not_be_blank(self):
+        (self.root / "README.md").write_text(
+            README.replace("- `src/`: source layout root.", "- `src/`:    "),
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("map: wrapped line", result.stdout)
+
+    @unittest.skipIf(os.name == "nt", "creating symlinks needs extra Windows rights")
+    def test_required_symlink_is_not_read(self):
+        readme = self.root / "README.md"
+        readme.unlink()
+        readme.symlink_to("missing-readme")
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("symlink: README.md", result.stdout)
+        self.assertNotIn("Traceback", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

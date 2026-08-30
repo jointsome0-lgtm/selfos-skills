@@ -30,6 +30,7 @@ LOCKS = {
 }
 TEST = r"tests/(?:[^/.][^/]*/)*(?:test_[^/]*|[^/]*_test)\.py"
 GOAL_MARKER = r" {0,3}\d{1,9}[.)][ \t]+"
+UNORDERED_MARKER = r" {0,3}[-+*][ \t]+"
 ATX_HEADING = r" {0,3}#{1,6}(?:[ \t]+|$)"
 SETEXT_HEADING = r".+\n {0,3}(?:=+|-+)[ \t]*$"
 HEADING = rf"(?:{ATX_HEADING}|{SETEXT_HEADING})"
@@ -42,14 +43,13 @@ RE = {
     ),
     "test_file": re.compile(f"^{TEST}$"),
     "test_path": re.compile(f"`({TEST})`"),
-    "test_def": re.compile(r"^\s*(?:async )?def test\w*\(", re.MULTILINE),
     "goal": re.compile(
-        rf"^{GOAL_MARKER}.+(?:\n(?:(?!(?:{GOAL_MARKER}|{HEADING})).+|(?=\n[ \t]+)))*",
+        rf"^{GOAL_MARKER}.+(?:\n(?:(?!(?:{GOAL_MARKER}|{UNORDERED_MARKER}|{HEADING})).+|(?=\n[ \t]+)))*",
         re.MULTILINE,
     ),
     "heading": re.compile(rf"^{HEADING}", re.MULTILINE),
     "map_heading": re.compile(r"^## Map$", re.MULTILINE),
-    "map_line": re.compile(r"^- `([^`]+)/`: .+$", re.MULTILINE),
+    "map_line": re.compile(r"^- `([^`]+)/`: (?=.*\S).+$", re.MULTILINE),
     "fence": re.compile(
         r"^ {0,3}(`{3,}|~{3,}).*?(?:^ {0,3}\1[`~ \t]*$|\Z)", re.MULTILINE | re.DOTALL
     ),
@@ -188,8 +188,16 @@ def check_python(f: pathlib.Path, text: str, is_test: bool) -> list[str]:
     return errors
 
 
-def check_map(dirs: set[str]) -> list[str]:
-    text = RE["fence"].sub("", (ROOT / "README.md").read_text(encoding="utf-8"))
+def has_test(text: str) -> bool:
+    return any(
+        isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name.startswith("test")
+        for node in ast.walk(ast.parse(text))
+    )
+
+
+def check_map(dirs: set[str], text: str) -> list[str]:
+    text = RE["fence"].sub("", text)
     text = RE["html_comment"].sub("", text)
     match = RE["map_heading"].search(text)
     section = RE["heading"].split(text[match.end() :], 1)[0] if match else ""
@@ -220,13 +228,10 @@ def check_map(dirs: set[str]) -> list[str]:
     ]
 
 
-def check_goals(tests: set[str]) -> list[str]:
+def check_goals(tests: set[str], text: str) -> list[str]:
     named, errors = [], []
     for entry in RE["goal"].findall(
-        RE["html_comment"].sub(
-            "",
-            RE["fence"].sub("", (ROOT / "GOALS.md").read_text(encoding="utf-8")),
-        )
+        RE["html_comment"].sub("", RE["fence"].sub("", text))
     ):
         paths = RE["test_path"].findall(entry)
         if len(paths) != 1:
@@ -274,33 +279,48 @@ def main() -> int:
     )
     errors += [f"symlink: {f}" for f in sorted(symlinks)]
     errors += [
+        f"required file: {f} is a submodule"
+        for f in sorted({"README.md", "GOALS.md"} & links)
+    ]
+    errors += [
         f"artifact: {f}"
         for f in files
-        if RE["markdown"].search(str(f)) and str(f) not in ALLOWED_MARKDOWN
+        if str(f) not in links
+        and RE["markdown"].search(str(f))
+        and str(f) not in ALLOWED_MARKDOWN
     ]
-    for f in files:
-        if str(f) not in symlinks and f.suffix.lower() in (".py", ".pyi", ".pyw"):
-            errors += check_python(
-                f,
-                (ROOT / f).read_text(encoding="utf-8"),
-                f.parts[0] == "tests" or f.name == "conftest.py",
-            )
-    errors += check_map(
-        {
-            d
-            for d in dirs
-            if not any(part.startswith(".") for part in pathlib.PurePosixPath(d).parts)
-        }
-    )
-    errors += check_goals(
-        {
-            str(f)
-            for f in files
-            if str(f) not in symlinks
-            and RE["test_file"].match(str(f))
-            and RE["test_def"].search((ROOT / f).read_text(encoding="utf-8"))
-        }
-    )
+    blocked = links | symlinks
+    python = {
+        f: (ROOT / f).read_text(encoding="utf-8")
+        for f in files
+        if str(f) not in blocked and f.suffix.lower() in (".py", ".pyi", ".pyw")
+    }
+    for f, text in python.items():
+        errors += check_python(
+            f,
+            text,
+            f.parts[0] == "tests" or f.name == "conftest.py",
+        )
+    if "README.md" not in blocked:
+        errors += check_map(
+            {
+                d
+                for d in dirs
+                if not any(
+                    part.startswith(".") for part in pathlib.PurePosixPath(d).parts
+                )
+            },
+            (ROOT / "README.md").read_text(encoding="utf-8"),
+        )
+    if "GOALS.md" not in blocked:
+        errors += check_goals(
+            {
+                str(f)
+                for f, text in python.items()
+                if RE["test_file"].match(str(f)) and has_test(text)
+            },
+            (ROOT / "GOALS.md").read_text(encoding="utf-8"),
+        )
     print(
         *errors,
         f"budget: {tokens} of {BUDGET_TOKENS} tokens",
