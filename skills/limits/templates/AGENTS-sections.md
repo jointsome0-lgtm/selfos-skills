@@ -43,6 +43,7 @@ All of them live in one script, `scripts/limits.py`, run by
   `# type: ignore`, shebang) are exempt. A function that needs a paragraph
   needs a better name, a split, or a test. What it does is the code; why is
   the commit.
+- No symlinks: every tracked path is a regular file or a submodule.
 - No process artifacts in the repository: the only Markdown files are
   `GOALS.md`, `AGENTS.md`, `README.md`, `CLAUDE.md`; any other `.md` fails.
   Scope lives in the issue, findings in the PR, reasons in the commit.

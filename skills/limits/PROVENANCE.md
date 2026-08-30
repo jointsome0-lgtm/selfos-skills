@@ -1,3 +1,85 @@
 # Provenance — skills/limits
 
-No vendored content. Everything under this skill is local to selfos-skills.
+The checker and the templates are adapted from the owner's storyworm
+repository, where they survived their first real adoption cycle. That
+repository is private, so the pins below are auditable by the owner, not by
+the public.
+
+## skills/limits/scripts/limits.py
+
+| Field | Value |
+| --- | --- |
+| Upstream repository | `jointsome0-lgtm/storyworm` (private, same owner) |
+| Upstream path | `scripts/limits.py` |
+| Blob | `241bce37cebe4baa496508e983c7d02d32e967a0` |
+| Commit | `d3a385021d17243eec257e7c712cd953393ced4c` |
+| Imported | 2026-08-30 |
+| License | Apache-2.0 upstream (notice below) |
+| Status | **adapted** |
+
+Named deviations, everything else is the upstream script line for line:
+
+1. **Repository root from git** — `ROOT` comes from
+   `git rev-parse --show-toplevel` instead of the script's own location, so
+   the copy runs from wherever it is installed.
+2. **Package and budget as arguments** — the hardcoded package name and its
+   `.testing` allowance become `sys.argv[1]`, and the budget accepts an
+   optional `sys.argv[2]` override; a missing package prints usage and
+   exits 2.
+3. **POSIX-normalized identifiers** — repository-relative paths use
+   `PurePosixPath` and file reads pass `encoding="utf-8"`, so regexes, map
+   comparison, and decoding behave the same on Windows.
+4. **Anchored map heading** — the `## Map` section is located by a complete
+   heading line, not a substring.
+5. **Indented test definitions count** — the test detector accepts
+   pytest-style class methods.
+6. **Symlinks are rejected** — a tracked symlink is an error, and the
+   checker does not read through one, keeping reads inside the repository.
+
+## skills/limits/templates/
+
+| Field | Value |
+| --- | --- |
+| Upstream repository | `jointsome0-lgtm/storyworm` (private, same owner) |
+| Upstream paths | `AGENTS.md`, `GOALS.md`, `.github/workflows/limits.yml` |
+| Commit | `d3a385021d17243eec257e7c712cd953393ced4c` |
+| Commit (GOALS test rule) | `c75c71b41f56033d623b0087b55ddf5eef6dbe10` |
+| Imported | 2026-08-30 |
+| License | Apache-2.0 upstream (notice below) |
+| Status | **adapted** |
+
+The "Three sources of truth" and "Limiters" sections, the rules of
+`GOALS.md`, and the workflow shape are upstream text with the project name
+and package generalized to placeholders, project-specific goals replaced by
+placeholders, and one added limiter bullet for the ruff and named-test steps
+that live outside the script.
+
+## Upstream license notice
+
+The upstream repository is licensed Apache-2.0 (its `LICENSE` at the pinned
+commit) with the same copyright holder as this catalog, who relicenses the
+adapted copies here under this skill's MIT `LICENSE.txt`:
+
+```
+MIT License
+
+Copyright (c) 2026 jointsome0-lgtm
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

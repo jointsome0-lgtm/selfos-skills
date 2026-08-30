@@ -65,7 +65,7 @@ def check_python(f: pathlib.Path, text: str, is_test: bool) -> list[str]:
 
 
 def check_map(dirs: set[str]) -> list[str]:
-    text = (ROOT / "README.md").read_text()
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
     match = RE["map_heading"].search(text)
     section = RE["heading"].split(text[match.end():], 1)[0] if match else ""
     lines = [(m[1], m[0]) for m in RE["map_line"].finditer(section)]
@@ -78,7 +78,7 @@ def check_map(dirs: set[str]) -> list[str]:
 
 def check_goals(tests: set[str]) -> list[str]:
     named, errors = [], []
-    for entry in RE["goal"].findall((ROOT / "GOALS.md").read_text()):
+    for entry in RE["goal"].findall((ROOT / "GOALS.md").read_text(encoding="utf-8")):
         paths = RE["test_path"].findall(entry)
         if len(paths) != 1:
             errors.append(f"goals: entry {entry.split('.')[0]} names {len(paths)} tests")
@@ -91,17 +91,20 @@ def main() -> int:
         print("usage: python limits.py <package> [budget-tokens]")
         return 2
     files = [pathlib.PurePosixPath(p) for p in git("ls-files") if p]
-    links = {e.split("\t", 1)[1] for e in git("ls-files", "-s") if e.startswith("160000 ")}
+    entries = git("ls-files", "-s")
+    links = {e.split("\t", 1)[1] for e in entries if e.startswith("160000 ")}
+    symlinks = {e.split("\t", 1)[1] for e in entries if e.startswith("120000 ")}
     dirs = {str(p) for f in files for p in f.parents if p != pathlib.PurePosixPath(".")} | links
     counted = [f for f in files if str(f) not in links | {"LICENSE"} and f.name not in LOCKS and f.suffix != ".lock"]
     tokens = (sum((ROOT / f).lstat().st_size for f in counted) + 3) // 4
     errors = [] if tokens <= BUDGET_TOKENS else [f"budget: {tokens} tokens, limit {BUDGET_TOKENS}"]
+    errors += [f"symlink: {f}" for f in sorted(symlinks)]
     errors += [f"artifact: {f}" for f in files if RE["markdown"].search(str(f)) and str(f) not in ALLOWED_MARKDOWN]
     for f in files:
-        if f.suffix.lower() in (".py", ".pyi", ".pyw"):
-            errors += check_python(f, (ROOT / f).read_text(), f.parts[0] == "tests" or f.name == "conftest.py")
+        if str(f) not in symlinks and f.suffix.lower() in (".py", ".pyi", ".pyw"):
+            errors += check_python(f, (ROOT / f).read_text(encoding="utf-8"), f.parts[0] == "tests" or f.name == "conftest.py")
     errors += check_map({d for d in dirs if not any(part.startswith(".") for part in pathlib.PurePosixPath(d).parts)})
-    errors += check_goals({str(f) for f in files if RE["test_file"].match(str(f)) and RE["test_def"].search((ROOT / f).read_text())})
+    errors += check_goals({str(f) for f in files if str(f) not in symlinks and RE["test_file"].match(str(f)) and RE["test_def"].search((ROOT / f).read_text(encoding="utf-8"))})
     print(*errors, f"budget: {tokens} of {BUDGET_TOKENS} tokens", f"limits: {len(errors)} problems", sep="\n")
     return 1 if errors else 0
 

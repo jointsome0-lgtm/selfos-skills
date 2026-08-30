@@ -26,7 +26,7 @@ anchor the parser.
 
 GOALS = """# fixture
 
-Rules of this file: each numbered line names exactly one test.
+Rules of this file: each numbered line names exactly one test, naïvely.
 
 1. The package holds a value.
    `tests/test_works.py`
@@ -93,17 +93,20 @@ class LimitsFixtureTest(unittest.TestCase):
         self.assertNotIn("pkg.testing", result.stdout)
         self.assertNotIn("goals:", result.stdout)
 
-    def test_map_and_goal_drift_fire(self):
+    def test_map_goal_and_symlink_drift_fire(self):
         (self.root / "docs").mkdir()
         (self.root / "docs" / "notes.txt").write_text("x\n", encoding="utf-8")
         (self.root / "tests" / "test_extra.py").write_text(
             "def test_extra():\n    assert True\n", encoding="utf-8"
         )
+        (self.root / "tests" / "test_link.py").symlink_to("../missing.py")
         self.stage()
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 1)
         self.assertIn("map: no line for docs/", result.stdout)
         self.assertIn("goals: tests/test_extra.py exists but no goal names it", result.stdout)
+        self.assertIn("symlink: tests/test_link.py", result.stdout)
+        self.assertNotIn("test_link.py exists but no goal names it", result.stdout)
 
 
 if __name__ == "__main__":

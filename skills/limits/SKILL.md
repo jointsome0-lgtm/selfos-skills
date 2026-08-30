@@ -21,6 +21,7 @@ Run `python scripts/limits.py <package> [budget-tokens]` from the repository roo
 - Import gate: the only `<package>` import in `tests/` and `conftest.py` is `<package>.testing`, including the dynamic forms `import_module`, `__import__`, and `importorskip`.
 - Zero comments and zero docstrings in Python. Machine markers survive: `# noqa`, `# type: ignore`, a shebang.
 - Markdown allowlist: the only `.md` files are `GOALS.md`, `AGENTS.md`, `README.md`, `CLAUDE.md`.
+- No symlinks: every tracked path is a regular file or a submodule, and the checker never reads through a link, so its reads stay inside the repository.
 
 Two limiters deliberately live outside the script. Format and lint belong to `ruff`, and "these tests must be green" belongs to the workflow, which names the passing test files so a goal test can stay red while the code it claims is still being built. The workflow template shows both.
 
