@@ -383,6 +383,49 @@ class LimitsFixtureTest(unittest.TestCase):
         self.assertIn("symlink: README.md", result.stdout)
         self.assertNotIn("Traceback", result.stderr)
 
+    def test_missing_required_files_are_reported(self):
+        (self.root / "README.md").unlink()
+        (self.root / "GOALS.md").unlink()
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("required file: README.md is missing", result.stdout)
+        self.assertIn("required file: GOALS.md is missing", result.stdout)
+        self.assertIn("limits: 2 problems", result.stdout)
+
+    def test_nested_list_stays_inside_goal_entry(self):
+        (self.root / "GOALS.md").write_text(
+            "# fixture\n\n"
+            "1. The package holds a value.\n"
+            "   - Verified by `tests/test_works.py`\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_thematic_break_does_not_hide_final_map_item(self):
+        (self.root / "README.md").write_text(
+            README.rstrip() + "\n---\n\nAfter the Map.\n", encoding="utf-8"
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_root_test_is_bound_and_import_checked(self):
+        (self.root / "test_root.py").write_text(
+            "import pkg\n\ndef test_root():\n    assert pkg\n", encoding="utf-8"
+        )
+        (self.root / "GOALS.md").write_text(
+            GOALS + "\n2. The root test stays bound.\n   `test_root.py`\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("test import: test_root.py:1 pkg", result.stdout)
+        self.assertNotIn("goals:", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

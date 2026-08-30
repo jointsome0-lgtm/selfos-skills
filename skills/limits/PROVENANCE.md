@@ -1,17 +1,17 @@
 # Provenance for skills/limits
 
-The checker and the templates are adapted from the owner's storyworm
-repository, where they survived their first adoption cycle. That repository
-is private, so the pins below are auditable by the owner, not by the public.
+The checker and templates are adapted from a private repository owned by the
+same copyright holder, where they survived their first adoption cycle. The
+private locator and paths are omitted; the opaque Git pins remain auditable
+by the owner.
 
 ## skills/limits/scripts/limits.py
 
 | Field | Value |
 | --- | --- |
-| Upstream repository | `jointsome0-lgtm/storyworm` (private, same owner) |
-| Upstream path | `scripts/limits.py` |
-| Blob | `241bce37cebe4baa496508e983c7d02d32e967a0` |
-| Commit | `d3a385021d17243eec257e7c712cd953393ced4c` |
+| Source repository | Private, owner-controlled; locator omitted |
+| Source blob | `241bce37cebe4baa496508e983c7d02d32e967a0` |
+| Source commit | `d3a385021d17243eec257e7c712cd953393ced4c` |
 | Imported | 2026-08-30 |
 | License | Apache-2.0 upstream (notice below) |
 | Status | **adapted** |
@@ -80,15 +80,21 @@ statement, reformatted per deviation 12:
     source text.
 29. A Map line's description must contain a non-whitespace character.
 30. Required Markdown symlinks are rejected without reading their targets.
+31. Missing `README.md` and `GOALS.md` files are reported as problems
+    instead of being read.
+32. Goal entries use their marker's content indentation, so nested lists
+    stay inside the goal while sibling blocks end it.
+33. A thematic break ends the Map without being mistaken for a Setext
+    heading or hiding the preceding Map line.
+34. Root-level pytest module names join the goal and import checks.
 
 ## skills/limits/templates/
 
 | Field | Value |
 | --- | --- |
-| Upstream repository | `jointsome0-lgtm/storyworm` (private, same owner) |
-| Upstream paths | `AGENTS.md`, `GOALS.md`, `.github/workflows/limits.yml` |
-| Commit | `d3a385021d17243eec257e7c712cd953393ced4c` |
-| Commit (GOALS test rule) | `c75c71b41f56033d623b0087b55ddf5eef6dbe10` |
+| Source repository | Private, owner-controlled; locator omitted |
+| Source commit | `d3a385021d17243eec257e7c712cd953393ced4c` |
+| Goal-rule commit | `c75c71b41f56033d623b0087b55ddf5eef6dbe10` |
 | Imported | 2026-08-30 |
 | License | Apache-2.0 upstream (notice below) |
 | Status | **adapted** |

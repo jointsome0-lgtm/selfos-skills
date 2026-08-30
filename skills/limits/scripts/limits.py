@@ -28,12 +28,16 @@ LOCKS = {
     "poetry.lock",
     "uv.lock",
 }
-TEST = r"tests/(?:[^/.][^/]*/)*(?:test_[^/]*|[^/]*_test)\.py"
-GOAL_MARKER = r" {0,3}\d{1,9}[.)][ \t]+"
-UNORDERED_MARKER = r" {0,3}[-+*][ \t]+"
-ATX_HEADING = r" {0,3}#{1,6}(?:[ \t]+|$)"
-SETEXT_HEADING = r".+\n {0,3}(?:=+|-+)[ \t]*$"
+TEST_NAME = r"(?:test_[^/]*|[^/]*_test)\.py"
+TEST = rf"(?:tests/(?:[^/.][^/]*/)*{TEST_NAME}|{TEST_NAME})"
+MARKDOWN_INDENT = r" {0,3}"
+LIST_MARKER = rf"{MARKDOWN_INDENT}(?:\d{{1,9}}[.)]|[-+*])[ \t]+"
+ATX_HEADING = rf"{MARKDOWN_INDENT}#{{1,6}}(?:[ \t]+|$)"
+SETEXT_HEADING = rf"(?!{LIST_MARKER}|{ATX_HEADING}|{MARKDOWN_INDENT}>).+\n{MARKDOWN_INDENT}(?:=+|-+)[ \t]*$"
 HEADING = rf"(?:{ATX_HEADING}|{SETEXT_HEADING})"
+THEMATIC_BREAK = (
+    rf"{MARKDOWN_INDENT}(?:(?:\*[ \t]*){{3,}}|(?:-[ \t]*){{3,}}|(?:_[ \t]*){{3,}})$"
+)
 RE = {
     "marker": re.compile(
         r"^(noqa(:\s*[A-Z]+\d+(,\s*[A-Z]+\d+)*)?|type:\s*ignore(\[[a-z-]+(,\s*[a-z-]+)*\])?)$"
@@ -43,11 +47,12 @@ RE = {
     ),
     "test_file": re.compile(f"^{TEST}$"),
     "test_path": re.compile(f"`({TEST})`"),
-    "goal": re.compile(
-        rf"^{GOAL_MARKER}.+(?:\n(?:(?!(?:{GOAL_MARKER}|{UNORDERED_MARKER}|{HEADING})).+|(?=\n[ \t]+)))*",
-        re.MULTILINE,
-    ),
-    "heading": re.compile(rf"^{HEADING}", re.MULTILINE),
+    "goal_start": re.compile(r"^( {0,3})(\d{1,9}[.)])([ \t]+).+"),
+    "list_start": re.compile(r"^( *)(?:\d{1,9}[.)]|[-+*])[ \t]+"),
+    "atx_heading": re.compile(r"^( *)#{1,6}(?:[ \t]+|$)"),
+    "setext_underline": re.compile(r"^ {0,3}(?:=+|-+)[ \t]*$"),
+    "thematic_break": re.compile(rf"^{THEMATIC_BREAK}"),
+    "section_break": re.compile(rf"^(?:{HEADING}|{THEMATIC_BREAK})", re.MULTILINE),
     "map_heading": re.compile(r"^## Map$", re.MULTILINE),
     "map_line": re.compile(r"^- `([^`]+)/`: (?=.*\S).+$", re.MULTILINE),
     "fence": re.compile(
@@ -196,11 +201,54 @@ def has_test(text: str) -> bool:
     )
 
 
+def goal_entries(text: str) -> list[str]:
+    lines = text.splitlines()
+    entries = []
+    i = 0
+    while i < len(lines):
+        match = RE["goal_start"].match(lines[i])
+        if not match:
+            i += 1
+            continue
+        content_indent = len(match[1]) + len(match[2]) + len(match[3].expandtabs(4))
+        entry = [lines[i]]
+        i += 1
+        while i < len(lines):
+            raw = lines[i]
+            if not raw.strip():
+                following = i
+                while following < len(lines) and not lines[following].strip():
+                    following += 1
+                if following < len(lines):
+                    indent = len(lines[following]) - len(lines[following].lstrip(" "))
+                    if indent >= content_indent:
+                        entry.extend(lines[i:following])
+                        i = following
+                        continue
+                break
+            indent = len(raw) - len(raw.lstrip(" "))
+            marker = RE["list_start"].match(raw)
+            heading = RE["atx_heading"].match(raw)
+            setext = i + 1 < len(lines) and RE["setext_underline"].match(lines[i + 1])
+            if (
+                (marker and len(marker[1]) < content_indent)
+                or (heading and len(heading[1]) < content_indent)
+                or (setext and indent < content_indent and not marker)
+                or (RE["thematic_break"].match(raw) and indent < content_indent)
+                or (raw.lstrip().startswith(">") and indent < content_indent)
+            ):
+                break
+            entry.append(raw)
+            i += 1
+        entries.append("\n".join(entry))
+    return entries
+
+
 def check_map(dirs: set[str], text: str) -> list[str]:
     text = RE["fence"].sub("", text)
     text = RE["html_comment"].sub("", text)
     match = RE["map_heading"].search(text)
-    section = RE["heading"].split(text[match.end() :], 1)[0] if match else ""
+    section = RE["section_break"].split(text[match.end() :], 1)[0] if match else ""
     lines = [(m[1], m[0]) for m in RE["map_line"].finditer(section)]
     raws = section.splitlines()
     start = next((i for i, raw in enumerate(raws, 1) if raw.startswith("- ")), None)
@@ -230,9 +278,7 @@ def check_map(dirs: set[str], text: str) -> list[str]:
 
 def check_goals(tests: set[str], text: str) -> list[str]:
     named, errors = [], []
-    for entry in RE["goal"].findall(
-        RE["html_comment"].sub("", RE["fence"].sub("", text))
-    ):
+    for entry in goal_entries(RE["html_comment"].sub("", RE["fence"].sub("", text))):
         paths = RE["test_path"].findall(entry)
         if len(paths) != 1:
             number = entry.lstrip().split(maxsplit=1)[0].rstrip(".)")
@@ -278,10 +324,10 @@ def main() -> int:
         else [f"budget: {tokens} tokens, limit {BUDGET_TOKENS}"]
     )
     errors += [f"symlink: {f}" for f in sorted(symlinks)]
-    errors += [
-        f"required file: {f} is a submodule"
-        for f in sorted({"README.md", "GOALS.md"} & links)
-    ]
+    tracked = {str(f) for f in files}
+    required = {"README.md", "GOALS.md"}
+    errors += [f"required file: {f} is missing" for f in sorted(required - tracked)]
+    errors += [f"required file: {f} is a submodule" for f in sorted(required & links)]
     errors += [
         f"artifact: {f}"
         for f in files
@@ -290,6 +336,7 @@ def main() -> int:
         and str(f) not in ALLOWED_MARKDOWN
     ]
     blocked = links | symlinks
+    regular = tracked - blocked
     python = {
         f: (ROOT / f).read_text(encoding="utf-8")
         for f in files
@@ -299,9 +346,9 @@ def main() -> int:
         errors += check_python(
             f,
             text,
-            f.parts[0] == "tests" or f.name == "conftest.py",
+            bool(RE["test_file"].match(str(f))) or f.name == "conftest.py",
         )
-    if "README.md" not in blocked:
+    if "README.md" in regular:
         errors += check_map(
             {
                 d
@@ -312,7 +359,7 @@ def main() -> int:
             },
             (ROOT / "README.md").read_text(encoding="utf-8"),
         )
-    if "GOALS.md" not in blocked:
+    if "GOALS.md" in regular:
         errors += check_goals(
             {
                 str(f)
