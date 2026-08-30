@@ -19,9 +19,10 @@ RE = {
     "markdown": re.compile(r"\.(md|markdown|mdown|mkd|mdwn|mkdn|mdtext|mdx)$", re.IGNORECASE),
     "test_file": re.compile(f"^{TEST}$"),
     "test_path": re.compile(f"`({TEST})`"),
-    "test_def": re.compile(r"^(?:async )?def test\w*\(", re.MULTILINE),
+    "test_def": re.compile(r"^\s*(?:async )?def test\w*\(", re.MULTILINE),
     "goal": re.compile(r"^\d+\. (?:.+(?:\n|\Z))+?(?=\n|^\d+\. |\Z)", re.MULTILINE),
     "heading": re.compile(r"^#{1,6} ", re.MULTILINE),
+    "map_heading": re.compile(r"^## Map$", re.MULTILINE),
     "map_line": re.compile(r"^- `([^`]+)/`: .+$", re.MULTILINE),
     "package": re.compile(rf"^{re.escape(PACKAGE)}(\.\w+)*$"),
 }
@@ -64,7 +65,9 @@ def check_python(f: pathlib.Path, text: str, is_test: bool) -> list[str]:
 
 
 def check_map(dirs: set[str]) -> list[str]:
-    section = RE["heading"].split((ROOT / "README.md").read_text().partition("## Map")[2], 1)[0]
+    text = (ROOT / "README.md").read_text()
+    match = RE["map_heading"].search(text)
+    section = RE["heading"].split(text[match.end():], 1)[0] if match else ""
     lines = [(m[1], m[0]) for m in RE["map_line"].finditer(section)]
     raws = section.splitlines()
     start = next((i for i, raw in enumerate(raws, 1) if raw.startswith("- ")), len(raws))
@@ -87,9 +90,9 @@ def main() -> int:
     if not PACKAGE:
         print("usage: python limits.py <package> [budget-tokens]")
         return 2
-    files = [pathlib.Path(p) for p in git("ls-files") if p]
+    files = [pathlib.PurePosixPath(p) for p in git("ls-files") if p]
     links = {e.split("\t", 1)[1] for e in git("ls-files", "-s") if e.startswith("160000 ")}
-    dirs = {str(p) for f in files for p in f.parents if p != pathlib.Path(".")} | links
+    dirs = {str(p) for f in files for p in f.parents if p != pathlib.PurePosixPath(".")} | links
     counted = [f for f in files if str(f) not in links | {"LICENSE"} and f.name not in LOCKS and f.suffix != ".lock"]
     tokens = (sum((ROOT / f).lstat().st_size for f in counted) + 3) // 4
     errors = [] if tokens <= BUDGET_TOKENS else [f"budget: {tokens} tokens, limit {BUDGET_TOKENS}"]
@@ -97,7 +100,7 @@ def main() -> int:
     for f in files:
         if f.suffix.lower() in (".py", ".pyi", ".pyw"):
             errors += check_python(f, (ROOT / f).read_text(), f.parts[0] == "tests" or f.name == "conftest.py")
-    errors += check_map({d for d in dirs if not any(part.startswith(".") for part in pathlib.Path(d).parts)})
+    errors += check_map({d for d in dirs if not any(part.startswith(".") for part in pathlib.PurePosixPath(d).parts)})
     errors += check_goals({str(f) for f in files if RE["test_file"].match(str(f)) and RE["test_def"].search((ROOT / f).read_text())})
     print(*errors, f"budget: {tokens} of {BUDGET_TOKENS} tokens", f"limits: {len(errors)} problems", sep="\n")
     return 1 if errors else 0

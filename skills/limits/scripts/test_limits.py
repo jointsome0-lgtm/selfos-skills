@@ -12,6 +12,11 @@ SCRIPT = pathlib.Path(__file__).resolve().parent / "limits.py"
 
 README = """# fixture
 
+## Mapping notes
+
+A decoy section whose heading and this literal ## Map mention must not
+anchor the parser.
+
 ## Map
 
 - `src/`: source layout root.
@@ -38,7 +43,8 @@ class LimitsFixtureTest(unittest.TestCase):
         (self.root / "GOALS.md").write_text(GOALS, encoding="utf-8")
         (self.root / "src" / "pkg" / "__init__.py").write_text("VALUE = 1\n", encoding="utf-8")
         (self.root / "tests" / "test_works.py").write_text(
-            "def test_works():\n    assert True\n", encoding="utf-8"
+            "class TestWorks:\n    def test_works(self):\n        assert True\n",
+            encoding="utf-8",
         )
         subprocess.run(["git", "init", "-q"], cwd=self.root, check=True)
         self.stage()
@@ -85,6 +91,7 @@ class LimitsFixtureTest(unittest.TestCase):
         for needle in ("comment:", "docstring:", "artifact: NOTES.md", "test import:"):
             self.assertIn(needle, result.stdout)
         self.assertNotIn("pkg.testing", result.stdout)
+        self.assertNotIn("goals:", result.stdout)
 
     def test_map_and_goal_drift_fire(self):
         (self.root / "docs").mkdir()
