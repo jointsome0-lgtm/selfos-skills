@@ -1,7 +1,7 @@
 # Generated bundle copy — do not edit
 
 This tree is a build artifact: a copy of the canonical
-skill `skills/compose/` (version 0.2.2) bundled into
+skill `skills/compose/` (version 0.4.0) bundled into
 `skills/delegate-pr-loop-query/` as declared by `skills/delegate-pr-loop-query/BUNDLE.json`.
 The skill entrypoint is renamed `SKILL.md` -> `CONTRACT.md`
 (links rewritten) so hosts that discover skills by recursive filename

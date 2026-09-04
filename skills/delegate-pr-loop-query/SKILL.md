@@ -4,7 +4,7 @@ description: Use when the current agent must stop mid-PR while review rounds rem
 license: LICENSE.txt
 compatibility: Requires git, gh, network access, authenticated GitHub pull-request read access, and permission to create one file in the operating system's temporary directory. Repository write access is not used by the delegating run after artifact creation; the generated query may authorize it for the fresh run. The generated query directs the fresh run to the sibling `watch` skill, which must be installed in the delegated run's own environment.
 metadata:
-  selfos.version: "0.3.2"
+  selfos.version: "0.3.4"
 ---
 
 # Delegate a PR review loop

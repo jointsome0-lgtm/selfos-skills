@@ -3,7 +3,7 @@ name: compose
 description: Use when work is about to be delegated to another model or agent — Codex, a Claude subagent, or similar — and needs a prompt or agent instructions; produces a lean, outcome-first delegate prompt with a dated model and effort choice.
 compatibility: Host-neutral Markdown guidance; no required tools, OS constraints, write access, or external integrations. Network access is optional for refreshing linked provider guidance.
 metadata:
-  selfos.version: "0.2.2"
+  selfos.version: "0.4.0"
 ---
 
 # Composing delegated prompts
@@ -13,7 +13,9 @@ How to write prompts that delegate work to another model or agent. This file hol
 | Target | Reference |
 | --- | --- |
 | GPT-5.6 family (`gpt-5.6-sol` / `-terra` / `-luna`), Codex CLI/cloud runs | [references/gpt-5.6.md](references/gpt-5.6.md) |
-| Claude Fable 5 (`fable-5`; API `claude-fable-5`) | [references/claude-fable-5.md](references/claude-fable-5.md) |
+| GPT-6 Astra (`gpt-6-astra`), Codex CLI/cloud runs | [references/gpt-6-astra.md](references/gpt-6-astra.md), which builds on the GPT-5.6 reference |
+| Claude Fable 5 and Claude Mythos 5 (`fable-5`; API `claude-fable-5`, `claude-mythos-5`) | [references/claude-fable-5.md](references/claude-fable-5.md) |
+| Claude Fable 5.1 and Claude Mythos 5.1 (`fable-5-1`; API `claude-fable-5-1`, `claude-mythos-5-1`) | [references/claude-fable-5-1.md](references/claude-fable-5-1.md), which builds on the Fable 5 reference |
 | Claude Opus 5 (`opus-5`; API `claude-opus-5`) | [references/claude-opus-5.md](references/claude-opus-5.md) |
 
 Read the matching reference before composing; choosing the model is part of composing, so when the model is not fixed yet, skim the model-choice section of each candidate reference first. **On any conflict, the per-model reference wins over this file.** The core is a default, not a dogma: models change between versions, and a model that breaks these defaults is handled by editing its reference, not by relitigating the core.
