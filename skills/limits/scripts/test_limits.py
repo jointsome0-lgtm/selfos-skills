@@ -128,6 +128,9 @@ class LimitsFixtureTest(unittest.TestCase):
             ('__import__("pkg.testing")', 1),
             ('__import__("pkg.testing", fromlist=["fake"])', 0),
             ('__import__("pkg.testing", fromlist=parts)', 1),
+            ('__import__("internal", globals(), locals(), ["x"], 2)', 1),
+            ('__import__("internal", level=level)', 1),
+            ('__import__("pkg.testing", fromlist=["fake"], level=0)', 0),
             ('import importlib\nimportlib.import_module("pkg.internal")', 1),
             ('import importlib as loader\nloader.import_module(name="pkg.testing")', 0),
             ('from importlib import import_module as load\nload("pkg.internal")', 1),
@@ -187,6 +190,8 @@ class LimitsFixtureTest(unittest.TestCase):
                 self.write("conftest.py", f"pytest_plugins = {value}\n")
                 output = self.check(code=int(bad))
                 self.assertEqual(output.count("test import:"), int(bad), output)
+        self.write("conftest.py", "pytest_plugins, unused = ['pkg.internal'], None\n")
+        self.check("test import:")
 
     def test_test_file_scope(self):
         for path in (
@@ -211,6 +216,10 @@ class LimitsFixtureTest(unittest.TestCase):
         self.write("GOALS.md", GOALS + f"\n2. Internal tests use the seam. `{path}`\n")
         output = self.check(f"test import: {path!a}:1 'pkg'")
         self.assertNotIn("goals:", output)
+        (self.root / "src").rename(self.root / "lib")
+        for name in ("README.md", "GOALS.md"):
+            self.write(name, (self.root / name).read_text().replace("`src/", "`lib/"))
+        self.check("test import: 'lib/pkg/tests/test_inside.py':1 'pkg'")
 
     def test_map_grammar(self):
         cases = (
@@ -258,6 +267,10 @@ class LimitsFixtureTest(unittest.TestCase):
     def test_goals_bind_exactly_one_existing_test(self):
         cases = (
             ("1. Missing path.\n", "goals: entry 1 names 0 tests"),
+            (
+                "1.    \n   `tests/test_works.py`\n",
+                "goals: 'tests/test_works.py' exists but no goal names it",
+            ),
             (
                 "1. Two paths `tests/test_works.py` and `tests/test_other.py`.\n",
                 "goals: entry 1 names 2 tests",

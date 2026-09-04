@@ -33,8 +33,9 @@ Named deviations in the shipped copy. Earlier forms are in git history:
 5. Find Map by its complete `## Map` heading, ending at the next top-level
    ATX heading. Check every nonblank row, including the first; descriptions
    must contain text. Strip ordinary fenced examples and HTML comments.
-6. Read goals as unindented `N. text` paragraphs with optional indented
-   continuation lines. Blank lines end paragraphs. Strip fenced examples
+6. Read goals as unindented `N. text` paragraphs. Require nonblank text on
+   the first line, with optional indented continuation lines. Blank lines
+   end paragraphs. Strip fenced examples
    and HTML comments, and match separate backtick spans to test paths.
    The template defines the accepted format; this is not a Markdown renderer.
 7. Match `test_*.py` and `*_test.py` files under all visible directories,
@@ -46,6 +47,7 @@ Named deviations in the shipped copy. Earlier forms are in git history:
    test files elsewhere, and `conftest.py`. Reject bare imports that expose
    the protected package root, including dotted package arguments. Reject
    relative static imports within that package conservatively.
+   Match the package's path segments beneath any source root.
 9. Recognize the three dynamic loaders through aliases declared in imports.
    Star imports bind the known loader names conservatively.
    Treat those aliases conservatively across the file, without resolving
@@ -53,9 +55,10 @@ Named deviations in the shipped copy. Earlier forms are in git history:
    loader references instead of following their later use.
 10. Read each loader's module argument and require a string literal. Resolve
     relative `import_module` calls with literal packages. Treat `__import__`
-    as exposing the root unless its `fromlist` is statically nonempty.
-    Check literal `pytest_plugins` declarations; computed and augmented
-    declarations fail. Match protected module names by their package prefix,
+    as exposing the root unless its `fromlist` is statically nonempty, and
+    require its `level` to be omitted or literal zero.
+    Check literal `pytest_plugins` declarations; computed, augmented, and
+    destructured declarations fail. Match modules by their package prefix,
     including dynamically importable names that are not Python identifiers.
 11. Escape paths and import names in diagnostics and count duplicate names
     with a counter. Format the copy with Ruff.

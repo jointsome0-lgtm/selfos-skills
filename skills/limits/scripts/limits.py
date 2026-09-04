@@ -45,7 +45,7 @@ RE = {
     ),
     "test_file": re.compile(f"^{TEST}$"),
     "test_path": re.compile(r"`([^`\n]+)`"),
-    "goal": re.compile(r"^\d+\. [^\n]+(?:\n[ \t]+\S[^\n]*)*", re.MULTILINE),
+    "goal": re.compile(r"^\d+\. [ \t]*\S[^\n]*(?:\n[ \t]+\S[^\n]*)*", re.MULTILINE),
     "section_break": re.compile(r"^#{1,6}(?:[ \t]+|$)", re.MULTILINE),
     "map_heading": re.compile(r"^## Map$", re.MULTILINE),
     "map_line": re.compile(r"^- `([^`]+)/`: (?=.*\S).+$", re.MULTILINE),
@@ -177,6 +177,11 @@ def imported(
 
 def dynamic_import(node: ast.Call, func: str) -> list[str]:
     if func == "__import__":
+        level = call_argument(node, 4, "level")
+        if level is not None and not (
+            isinstance(level, ast.Constant) and level.value == 0
+        ):
+            return [PACKAGE]
         name = call_argument(node, 0, "name")
         fromlist = call_argument(node, 3, "fromlist")
         if isinstance(name, ast.Constant) and isinstance(name.value, str):
@@ -222,11 +227,16 @@ def pytest_plugin_imports(node: ast.AST) -> list[str]:
     else:
         return []
     if not any(
-        isinstance(target, ast.Name) and target.id == "pytest_plugins"
+        isinstance(name, ast.Name)
+        and isinstance(name.ctx, ast.Store)
+        and name.id == "pytest_plugins"
         for target in targets
+        for name in ast.walk(target)
     ):
         return []
-    if isinstance(node, ast.AugAssign):
+    if isinstance(node, ast.AugAssign) or any(
+        not isinstance(target, ast.Name) for target in targets
+    ):
         return [PACKAGE]
     if isinstance(value, ast.Constant) and isinstance(value.value, str):
         return [value.value]
@@ -239,10 +249,8 @@ def pytest_plugin_imports(node: ast.AST) -> list[str]:
 
 
 def package_file(f: pathlib.PurePosixPath) -> bool:
-    package = pathlib.PurePosixPath(*PACKAGE.split("."))
-    return f.is_relative_to(package) or f.is_relative_to(
-        pathlib.PurePosixPath("src") / package
-    )
+    package = tuple(PACKAGE.split("."))
+    return any(parent.parts[-len(package) :] == package for parent in f.parents)
 
 
 def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str]:
