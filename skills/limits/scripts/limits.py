@@ -251,12 +251,15 @@ def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str
 def has_test(text: str) -> bool:
     tree = ast.parse(text)
     functions = (ast.FunctionDef, ast.AsyncFunctionDef)
+    if pytest_disabled(tree.body):
+        return False
     return any(
         isinstance(node, functions) and node.name.startswith("test")
         for node in tree.body
     ) or any(
         isinstance(node, ast.ClassDef)
         and node.name.startswith("Test")
+        and not pytest_disabled(node.body)
         and not any(
             isinstance(item, functions) and item.name == "__init__"
             for item in node.body
@@ -266,6 +269,25 @@ def has_test(text: str) -> bool:
             for item in node.body
         )
         for node in tree.body
+    )
+
+
+def pytest_disabled(body: list[ast.stmt]) -> bool:
+    return any(
+        isinstance(node, (ast.Assign, ast.AnnAssign))
+        and isinstance(node.value, ast.Constant)
+        and not bool(node.value.value)
+        and (
+            isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "__test__"
+                for target in node.targets
+            )
+            or isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "__test__"
+        )
+        for node in body
     )
 
 
@@ -285,6 +307,19 @@ def markdown(text: str) -> str:
     ):
         text = RE[name].sub("", text)
     return text
+
+
+def goal_markdown(entry: str) -> str:
+    lines = entry.splitlines()
+    match = RE["goal_start"].match(lines[0])
+    indent = len((match[1] + match[2] + (match[3] or " ")).expandtabs(4))
+    prefix = " " * indent
+    return markdown(
+        "\n".join(
+            [lines[0]]
+            + [line[indent:] if line.startswith(prefix) else line for line in lines[1:]]
+        )
+    )
 
 
 def goal_entries(text: str) -> list[str]:
@@ -359,7 +394,7 @@ def check_map(dirs: set[str], text: str) -> list[str]:
 def check_goals(tests: set[str], text: str) -> list[str]:
     named, errors = [], []
     for entry in goal_entries(markdown(text)):
-        paths = RE["test_path"].findall(entry)
+        paths = RE["test_path"].findall(goal_markdown(entry))
         if len(paths) != 1:
             number = entry.lstrip().split(maxsplit=1)[0].rstrip(".)")
             errors.append(f"goals: entry {number} names {len(paths)} tests")

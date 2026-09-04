@@ -124,6 +124,11 @@ statement, reformatted per deviation 12:
 52. Diagnostics render paths and imported names with escaped ASCII
     representations, so control characters cannot forge output lines.
 53. Duplicate goal names are counted once in linear time.
+54. Goal entries are de-indented by their outer list marker before nested
+    Markdown is stripped, so fenced examples inside list items cannot name a
+    test.
+55. Test discovery honors a module or test class that sets pytest's `__test__`
+    marker to a false constant.
 
 ## skills/limits/templates/
 

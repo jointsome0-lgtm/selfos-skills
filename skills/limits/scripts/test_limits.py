@@ -372,6 +372,21 @@ class LimitsFixtureTest(unittest.TestCase):
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_nested_list_fence_does_not_name_goal_test(self):
+        (self.root / "GOALS.md").write_text(
+            "# fixture\n\n"
+            "1. The goal has a fenced example.\n"
+            "   - Example:\n"
+            "     ~~~text\n"
+            "     `tests/test_works.py`\n"
+            "     ~~~\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("goals: entry 1 names 0 tests", result.stdout)
+
     def test_goal_recognizes_indented_parenthesis_marker(self):
         (self.root / "tests" / "test_works.py").write_text(
             "VALUE = True\n", encoding="utf-8"
@@ -497,6 +512,19 @@ class LimitsFixtureTest(unittest.TestCase):
             "    def test_hidden():\n"
             "        assert True\n"
             "    return test_hidden\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("test: 'tests/test_works.py' defines no test", result.stdout)
+
+    def test_pytest_class_opt_out_does_not_count(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            "class TestWorks:\n"
+            "    __test__ = False\n\n"
+            "    def test_works(self):\n"
+            "        assert True\n",
             encoding="utf-8",
         )
         self.stage()

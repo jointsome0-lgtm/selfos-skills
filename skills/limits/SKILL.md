@@ -4,7 +4,7 @@ description: Use when a repository adopts or enforces the three-sources-of-truth
 license: LICENSE.txt
 compatibility: Requires Python 3.10+ and git for the bundled python scripts, and the checked repository's Python files must parse. OS-independent and offline, with no external integration.
 metadata:
-  selfos.version: "0.1.2"
+  selfos.version: "0.1.3"
 ---
 
 # Limits
