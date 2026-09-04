@@ -78,6 +78,7 @@ RE = {
         r"^ {0,3}</?[A-Za-z][A-Za-z0-9-]*(?:[ \t]+[^>\n]*)?/?>[ \t]*$.*?(?=\n[ \t]*\n|\Z)",
         re.MULTILINE | re.DOTALL,
     ),
+    "indented_code": re.compile(r"^(?: {4}|\t).*$", re.MULTILINE),
     "package": re.compile(rf"^{re.escape(PACKAGE)}(\.\w+)*$"),
 }
 
@@ -146,7 +147,10 @@ def resolve_import(name: str, package: str) -> str:
 
 
 def imported(
-    node: ast.AST, aliases: dict[str, str], package_relative: bool
+    node: ast.AST,
+    call_aliases: dict[str, str],
+    module_aliases: dict[str, str],
+    package_relative: bool,
 ) -> list[str]:
     if isinstance(node, ast.Import):
         return [a.name if a.asname else bare_import(a.name) for a in node.names]
@@ -154,12 +158,18 @@ def imported(
         if node.level and package_relative:
             return [PACKAGE]
         return [node.module or ""]
-    func = (
-        node.func.attr
-        if isinstance(node.func, ast.Attribute)
-        else getattr(node.func, "id", "")
-    )
-    func = aliases.get(func, func)
+    loaders = {
+        "builtins": {"__import__"},
+        "importlib": {"import_module"},
+        "pytest": {"importorskip"},
+    }
+    if isinstance(node.func, ast.Name):
+        func = call_aliases.get(node.func.id, "")
+    elif isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
+        module = module_aliases.get(node.func.value.id, "")
+        func = node.func.attr if node.func.attr in loaders.get(module, set()) else ""
+    else:
+        func = ""
     if func == "__import__":
         name = call_argument(node, 0, "name")
         fromlist = call_argument(node, 3, "fromlist")
@@ -193,13 +203,13 @@ def imported(
     return []
 
 
-def loader_aliases(tree: ast.AST) -> dict[str, str]:
+def loader_bindings(tree: ast.AST) -> tuple[dict[str, str], dict[str, str]]:
     modules = {
         "builtins": {"__import__"},
         "importlib": {"import_module"},
         "pytest": {"importorskip"},
     }
-    return {
+    calls = {
         alias.asname or alias.name: alias.name
         for node in ast.walk(tree)
         if isinstance(node, ast.ImportFrom)
@@ -208,6 +218,15 @@ def loader_aliases(tree: ast.AST) -> dict[str, str]:
         for alias in node.names
         if alias.name in modules[node.module]
     }
+    calls["__import__"] = "__import__"
+    receivers = {
+        alias.asname or alias.name: alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+        if alias.name in modules
+    }
+    return calls, receivers
 
 
 def package_file(f: pathlib.PurePosixPath) -> bool:
@@ -228,7 +247,7 @@ def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str
         ):
             errors.append(f"comment: {shown(f)}:{tok.start[0]}")
     tree = ast.parse(text)
-    aliases = loader_aliases(tree)
+    call_aliases, module_aliases = loader_bindings(tree)
     for node in ast.walk(tree):
         if (
             isinstance(node, ast.Expr)
@@ -237,7 +256,7 @@ def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str
         ):
             errors.append(f"docstring: {shown(f)}:{node.lineno}")
         if is_test and isinstance(node, (ast.Import, ast.ImportFrom, ast.Call)):
-            names = imported(node, aliases, package_file(f))
+            names = imported(node, call_aliases, module_aliases, package_file(f))
             bad = [
                 n
                 for n in names
@@ -251,21 +270,33 @@ def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str
 def has_test(text: str) -> bool:
     tree = ast.parse(text)
     functions = (ast.FunctionDef, ast.AsyncFunctionDef)
+    function_optouts = pytest_optouts(tree.body)
+    testcase_calls, testcase_modules = unittest_bindings(tree)
     if pytest_disabled(tree.body):
         return False
     return any(
-        isinstance(node, functions) and node.name.startswith("test")
+        isinstance(node, functions)
+        and node.name.startswith("test")
+        and node.name not in function_optouts
         for node in tree.body
     ) or any(
         isinstance(node, ast.ClassDef)
-        and node.name.startswith("Test")
+        and (
+            node.name.startswith("Test")
+            or unittest_case(node, testcase_calls, testcase_modules)
+        )
         and not pytest_disabled(node.body)
-        and not any(
-            isinstance(item, functions) and item.name == "__init__"
-            for item in node.body
+        and (
+            unittest_case(node, testcase_calls, testcase_modules)
+            or not any(
+                isinstance(item, functions) and item.name == "__init__"
+                for item in node.body
+            )
         )
         and any(
-            isinstance(item, functions) and item.name.startswith("test")
+            isinstance(item, functions)
+            and item.name.startswith("test")
+            and item.name not in pytest_optouts(node.body)
             for item in node.body
         )
         for node in tree.body
@@ -288,6 +319,52 @@ def pytest_disabled(body: list[ast.stmt]) -> bool:
             and node.target.id == "__test__"
         )
         for node in body
+    )
+
+
+def pytest_optouts(body: list[ast.stmt]) -> set[str]:
+    return {
+        target.value.id
+        for node in body
+        if isinstance(node, (ast.Assign, ast.AnnAssign))
+        and isinstance(node.value, ast.Constant)
+        and not bool(node.value.value)
+        for target in (node.targets if isinstance(node, ast.Assign) else [node.target])
+        if isinstance(target, ast.Attribute)
+        and target.attr == "__test__"
+        and isinstance(target.value, ast.Name)
+    }
+
+
+def unittest_bindings(tree: ast.AST) -> tuple[set[str], set[str]]:
+    calls = {
+        alias.asname or alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        and not node.level
+        and node.module == "unittest"
+        for alias in node.names
+        if alias.name == "TestCase"
+    }
+    modules = {
+        alias.asname or alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+        if alias.name == "unittest"
+    }
+    return calls, modules
+
+
+def unittest_case(node: ast.ClassDef, calls: set[str], modules: set[str]) -> bool:
+    return any(
+        isinstance(base, ast.Name)
+        and base.id in calls
+        or isinstance(base, ast.Attribute)
+        and base.attr == "TestCase"
+        and isinstance(base.value, ast.Name)
+        and base.value.id in modules
+        for base in node.bases
     )
 
 
@@ -315,9 +392,15 @@ def goal_markdown(entry: str) -> str:
     indent = len((match[1] + match[2] + (match[3] or " ")).expandtabs(4))
     prefix = " " * indent
     return markdown(
-        "\n".join(
-            [lines[0]]
-            + [line[indent:] if line.startswith(prefix) else line for line in lines[1:]]
+        RE["indented_code"].sub(
+            "",
+            "\n".join(
+                [lines[0]]
+                + [
+                    line[indent:] if line.startswith(prefix) else line
+                    for line in lines[1:]
+                ]
+            ),
         )
     )
 

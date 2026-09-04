@@ -209,6 +209,21 @@ class LimitsFixtureTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertEqual(result.stdout.count("test import:"), 2)
 
+    def test_unrelated_dynamic_loader_method_is_ignored(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            "class Loader:\n"
+            "    def import_module(self, name):\n"
+            "        return name\n\n"
+            "loader = Loader()\n"
+            'value = loader.import_module("pkg.internal")\n\n'
+            "def test_works():\n"
+            "    assert value\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_helper_under_tests_is_import_checked(self):
         (self.root / "tests" / "helper.py").write_text(
             "import pkg.internal\n", encoding="utf-8"
@@ -387,6 +402,18 @@ class LimitsFixtureTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("goals: entry 1 names 0 tests", result.stdout)
 
+    def test_indented_code_block_does_not_name_goal_test(self):
+        (self.root / "GOALS.md").write_text(
+            "# fixture\n\n"
+            "1. The goal has an indented example.\n"
+            "       `tests/test_works.py`\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("goals: entry 1 names 0 tests", result.stdout)
+
     def test_goal_recognizes_indented_parenthesis_marker(self):
         (self.root / "tests" / "test_works.py").write_text(
             "VALUE = True\n", encoding="utf-8"
@@ -531,6 +558,28 @@ class LimitsFixtureTest(unittest.TestCase):
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 1)
         self.assertIn("test: 'tests/test_works.py' defines no test", result.stdout)
+
+    def test_pytest_function_opt_out_does_not_count(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            "def test_works():\n    assert True\n\ntest_works.__test__ = False\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("test: 'tests/test_works.py' defines no test", result.stdout)
+
+    def test_unittest_case_name_need_not_start_with_test(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            "import unittest\n\n"
+            "class Works(unittest.TestCase):\n"
+            "    def test_works(self):\n"
+            "        assert True\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_map_description_must_not_be_blank(self):
         (self.root / "README.md").write_text(

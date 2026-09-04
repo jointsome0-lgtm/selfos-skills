@@ -1,6 +1,6 @@
 {
   "name": "selfos-skills",
-  "version": "1.34.24",
+  "version": "1.34.25",
   "description": "Portable engineering workflow skills for any Agent Skills-compatible coding agent.",
   "author": { "name": "jointsome0-lgtm" },
   "homepage": "https://github.com/jointsome0-lgtm/selfos-skills",

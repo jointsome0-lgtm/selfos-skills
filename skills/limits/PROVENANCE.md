@@ -129,6 +129,14 @@ statement, reformatted per deviation 12:
     test.
 55. Test discovery honors a module or test class that sets pytest's `__test__`
     marker to a false constant.
+56. Four-space indented code blocks are removed after a goal's outer list
+    indentation, so example paths do not bind tests.
+57. Test discovery honors false `__test__` assignments on candidate functions
+    and methods.
+58. `unittest.TestCase` subclasses with test methods count even when their
+    class names do not start with `Test`.
+59. Dynamic loader calls are recognized through imports and their aliases,
+    not by an unrelated object's method name.
 
 ## skills/limits/templates/
 
