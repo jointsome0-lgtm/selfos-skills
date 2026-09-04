@@ -1,4 +1,5 @@
 import ast
+import bisect
 import collections
 import io
 import os
@@ -154,6 +155,8 @@ def resolve_import(name: str, package: str) -> str:
 def imported(
     node: ast.AST,
     parents: dict[ast.AST, ast.AST],
+    binding_index: dict[ast.AST, dict[str, list[tuple[int, int, str]]]],
+    declarations: dict[ast.AST, set[str]],
     package_relative: bool,
 ) -> list[str]:
     if isinstance(node, ast.Import):
@@ -162,7 +165,7 @@ def imported(
         if node.level and package_relative:
             return [PACKAGE]
         return [node.module or ""]
-    func = loader_call(node, parents)
+    func = loader_call(node, parents, binding_index, declarations)
     if func == "__import__":
         name = call_argument(node, 0, "name")
         fromlist = call_argument(node, 3, "fromlist")
@@ -176,7 +179,7 @@ def imported(
                 and bool(fromlist.keys)
             )
             return [name.value if nonempty else bare_import(name.value)]
-        return []
+        return [PACKAGE]
     if func == "import_module":
         name = call_argument(node, 0, "name")
         package = call_argument(node, 1, "package")
@@ -187,12 +190,15 @@ def imported(
                 and isinstance(package.value, str)
             ):
                 return [resolve_import(name.value, package.value)]
+            if name.value.startswith("."):
+                return [PACKAGE]
             return [name.value]
-        return []
+        return [PACKAGE]
     if func == "importorskip":
         name = call_argument(node, 0, "modname")
         if isinstance(name, ast.Constant) and isinstance(name.value, str):
             return [name.value]
+        return [PACKAGE]
     return []
 
 
@@ -204,13 +210,29 @@ def scoped_nodes(node: ast.AST):
             yield from scoped_nodes(child)
 
 
-def bindings(scope: ast.AST, name: str) -> list[tuple[tuple[int, int], str]]:
-    found = []
-    for node in scoped_nodes(scope):
-        position = (getattr(node, "lineno", 0), getattr(node, "col_offset", 0))
-        if isinstance(node, ast.ImportFrom):
-            for alias in node.names:
-                if (alias.asname or alias.name) == name:
+def indexed_bindings(
+    tree: ast.AST,
+) -> tuple[
+    dict[ast.AST, dict[str, list[tuple[int, int, str]]]],
+    dict[ast.AST, set[str]],
+]:
+    scopes = (
+        ast.Module,
+        ast.FunctionDef,
+        ast.AsyncFunctionDef,
+        ast.Lambda,
+        ast.ClassDef,
+    )
+    index = {}
+    declarations = {}
+    for scope in (node for node in ast.walk(tree) if isinstance(node, scopes)):
+        found = collections.defaultdict(list)
+        declared = set()
+        for node in scoped_nodes(scope):
+            line = getattr(node, "lineno", 0)
+            column = getattr(node, "col_offset", 0)
+            if isinstance(node, ast.ImportFrom):
+                for alias in node.names:
                     value = (
                         alias.name
                         if not node.level
@@ -218,34 +240,40 @@ def bindings(scope: ast.AST, name: str) -> list[tuple[tuple[int, int], str]]:
                         and alias.name in LOADER_MODULES[node.module]
                         else ""
                     )
-                    found.append((position, value))
-        elif isinstance(node, ast.Import):
-            for alias in node.names:
-                bound = alias.asname or alias.name.partition(".")[0]
-                if bound == name:
+                    found[alias.asname or alias.name].append((line, column, value))
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    name = alias.asname or alias.name.partition(".")[0]
                     module = (
                         alias.name if alias.asname else alias.name.partition(".")[0]
                     )
-                    found.append((position, module if module in LOADER_MODULES else ""))
-        elif isinstance(node, ast.arg) and node.arg == name:
-            found.append((position, ""))
-        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            if node.name == name:
-                found.append((position, ""))
-        elif (
-            (
-                isinstance(node, ast.Name)
-                and isinstance(node.ctx, ast.Store)
-                and node.id == name
-            )
-            or isinstance(node, ast.ExceptHandler)
-            and node.name == name
-        ):
-            found.append((position, ""))
-    return found
+                    found[name].append(
+                        (line, column, module if module in LOADER_MODULES else "")
+                    )
+            elif isinstance(node, ast.arg):
+                found[node.arg].append((line, column, ""))
+            elif isinstance(
+                node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+            ):
+                found[node.name].append((line, column, ""))
+            elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+                found[node.id].append((line, column, ""))
+            elif isinstance(node, ast.ExceptHandler) and node.name:
+                found[node.name].append((line, column, ""))
+            elif isinstance(node, (ast.Global, ast.Nonlocal)):
+                declared.update(node.names)
+        index[scope] = {name: sorted(items) for name, items in found.items()}
+        declarations[scope] = declared
+    return index, declarations
 
 
-def resolved_name(node: ast.AST, name: str, parents: dict[ast.AST, ast.AST]) -> str:
+def resolved_name(
+    node: ast.AST,
+    name: str,
+    parents: dict[ast.AST, ast.AST],
+    binding_index: dict[ast.AST, dict[str, list[tuple[int, int, str]]]],
+    declarations: dict[ast.AST, set[str]],
+) -> str:
     position = (getattr(node, "lineno", 0), getattr(node, "col_offset", 0))
     scopes = (
         ast.Module,
@@ -259,16 +287,14 @@ def resolved_name(node: ast.AST, name: str, parents: dict[ast.AST, ast.AST]) -> 
         current = parents[current]
         if not isinstance(current, scopes):
             continue
-        declarations = list(scoped_nodes(current))
-        if any(
-            isinstance(item, (ast.Global, ast.Nonlocal)) and name in item.names
-            for item in declarations
-        ):
+        if name in declarations[current]:
             continue
-        candidates = bindings(current, name)
-        prior = [item for item in candidates if item[0] <= position]
-        if prior:
-            return max(prior)[1]
+        candidates = binding_index[current].get(name, [])
+        place = bisect.bisect_right(
+            candidates, (position[0], position[1], chr(0x10FFFF))
+        )
+        if place:
+            return candidates[place - 1][2]
         if candidates and isinstance(
             current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
         ):
@@ -276,11 +302,24 @@ def resolved_name(node: ast.AST, name: str, parents: dict[ast.AST, ast.AST]) -> 
     return "__import__" if name == "__import__" else ""
 
 
-def loader_call(node: ast.Call, parents: dict[ast.AST, ast.AST]) -> str:
+def loader_call(
+    node: ast.Call,
+    parents: dict[ast.AST, ast.AST],
+    binding_index: dict[ast.AST, dict[str, list[tuple[int, int, str]]]],
+    declarations: dict[ast.AST, set[str]],
+) -> str:
     if isinstance(node.func, ast.Name):
-        return resolved_name(node.func, node.func.id, parents)
+        return resolved_name(
+            node.func, node.func.id, parents, binding_index, declarations
+        )
     if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
-        module = resolved_name(node.func.value, node.func.value.id, parents)
+        module = resolved_name(
+            node.func.value,
+            node.func.value.id,
+            parents,
+            binding_index,
+            declarations,
+        )
         if node.func.attr in LOADER_MODULES.get(module, set()):
             return node.func.attr
     return ""
@@ -309,6 +348,7 @@ def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str
         for parent in ast.walk(tree)
         for child in ast.iter_child_nodes(parent)
     }
+    binding_index, declarations = indexed_bindings(tree)
     for node in ast.walk(tree):
         if (
             isinstance(node, ast.Expr)
@@ -317,7 +357,9 @@ def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str
         ):
             errors.append(f"docstring: {shown(f)}:{node.lineno}")
         if is_test and isinstance(node, (ast.Import, ast.ImportFrom, ast.Call)):
-            names = imported(node, parents, package_file(f))
+            names = imported(
+                node, parents, binding_index, declarations, package_file(f)
+            )
             bad = [
                 n
                 for n in names
@@ -331,6 +373,7 @@ def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str
 def has_test(text: str) -> bool:
     tree = ast.parse(text)
     functions = (ast.FunctionDef, ast.AsyncFunctionDef)
+    classes = {node.name: node for node in tree.body if isinstance(node, ast.ClassDef)}
     function_optouts = pytest_optouts(tree.body)
     testcase_calls, testcase_modules = unittest_bindings(tree)
     if pytest_disabled(tree.body):
@@ -349,10 +392,7 @@ def has_test(text: str) -> bool:
         and not pytest_disabled(node.body)
         and (
             unittest_case(node, testcase_calls, testcase_modules)
-            or not any(
-                isinstance(item, functions) and item.name in {"__init__", "__new__"}
-                for item in node.body
-            )
+            or not inherited_constructor(node, classes, set())
         )
         and any(
             isinstance(item, functions)
@@ -361,6 +401,26 @@ def has_test(text: str) -> bool:
             for item in node.body
         )
         for node in tree.body
+    )
+
+
+def inherited_constructor(
+    node: ast.ClassDef, classes: dict[str, ast.ClassDef], seen: set[str]
+) -> bool:
+    if node.name in seen:
+        return False
+    seen = seen | {node.name}
+    if any(
+        isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and item.name in {"__init__", "__new__"}
+        for item in node.body
+    ):
+        return True
+    return any(
+        isinstance(base, ast.Name)
+        and base.id in classes
+        and inherited_constructor(classes[base.id], classes, seen)
+        for base in node.bases
     )
 
 

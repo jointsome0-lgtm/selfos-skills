@@ -146,6 +146,12 @@ statement, reformatted per deviation 12:
     binding at each call site.
 64. A backtick fence opener is ignored when its info string contains a
     backtick, as required by CommonMark.
+65. A recognized dynamic loader with a nonliteral module argument fails closed
+    because the checker cannot prove that it stays outside package internals.
+66. Pytest-style classes inherit the `__init__` and `__new__` collection checks
+    through local base classes.
+67. Lexical name bindings are indexed once per syntax tree and searched by
+    position, avoiding a full scope traversal for every call.
 
 ## skills/limits/templates/
 

@@ -68,13 +68,14 @@ class LimitsFixtureTest(unittest.TestCase):
     def stage(self):
         subprocess.run(["git", "add", "-A"], cwd=self.root, check=True)
 
-    def run_limits(self, *args):
+    def run_limits(self, *args, timeout=None):
         return subprocess.run(
             [sys.executable, str(SCRIPT), *args],
             cwd=self.root,
             capture_output=True,
             text=True,
             check=False,
+            timeout=timeout,
         )
 
     def test_clean_fixture_passes(self):
@@ -296,6 +297,29 @@ class LimitsFixtureTest(unittest.TestCase):
         )
         self.stage()
         result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_dynamic_loader_with_unknown_name_fails_closed(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            "import importlib\n\n"
+            'target = "pkg.internal"\n'
+            "loaded = importlib.import_module(target)\n\n"
+            "def test_works():\n"
+            "    assert loaded\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("test import: 'tests/test_works.py':4 'pkg'", result.stdout)
+
+    def test_many_calls_do_not_rescan_all_bindings(self):
+        calls = "\n".join(f"str({number})" for number in range(1_000))
+        (self.root / "tests" / "test_works.py").write_text(
+            calls + "\n\ndef test_works():\n    assert True\n", encoding="utf-8"
+        )
+        self.stage()
+        result = self.run_limits("pkg", timeout=5)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_missing_map_heading_fires(self):
@@ -610,6 +634,21 @@ class LimitsFixtureTest(unittest.TestCase):
             "        return super().__new__(cls)\n\n"
             "    def test_works(self):\n"
             "        assert True\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("test: 'tests/test_works.py' defines no test", result.stdout)
+
+    def test_pytest_class_with_inherited_constructor_is_not_collectable(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            "class Base:\n"
+            "    def __init__(self):\n"
+            "        self.ready = True\n\n"
+            "class TestWorks(Base):\n"
+            "    def test_works(self):\n"
+            "        assert self.ready\n",
             encoding="utf-8",
         )
         self.stage()
