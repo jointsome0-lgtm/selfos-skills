@@ -47,13 +47,16 @@ Named deviations in the shipped copy. Earlier forms are in git history:
    the protected package root, including dotted package arguments. Reject
    relative static imports within that package conservatively.
 9. Recognize the three dynamic loaders through aliases declared in imports.
+   Star imports bind the known loader names conservatively.
    Treat those aliases conservatively across the file, without resolving
    shadowing or reassignment. Require direct calls; report stored or passed
    loader references instead of following their later use.
 10. Read each loader's module argument and require a string literal. Resolve
     relative `import_module` calls with literal packages. Treat `__import__`
     as exposing the root unless its `fromlist` is statically nonempty.
-    Check literal `pytest_plugins` declarations; computed declarations fail.
+    Check literal `pytest_plugins` declarations; computed and augmented
+    declarations fail. Match protected module names by their package prefix,
+    including dynamically importable names that are not Python identifiers.
 11. Escape paths and import names in diagnostics and count duplicate names
     with a counter. Format the copy with Ruff.
 

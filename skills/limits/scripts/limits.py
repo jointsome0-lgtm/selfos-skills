@@ -54,7 +54,6 @@ RE = {
         re.MULTILINE | re.DOTALL,
     ),
     "html_comment": re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL),
-    "package": re.compile(rf"^{re.escape(PACKAGE)}(\.\w+)*$"),
 }
 
 
@@ -136,7 +135,10 @@ def loader_bindings(tree: ast.AST) -> dict[str, set[str]]:
             and node.module in LOADER_MODULES
         ):
             for alias in node.names:
-                if alias.name in LOADER_MODULES[node.module]:
+                if alias.name == "*":
+                    for name in LOADER_MODULES[node.module]:
+                        bindings[name].add(name)
+                elif alias.name in LOADER_MODULES[node.module]:
                     bindings[alias.asname or alias.name].add(alias.name)
     return bindings
 
@@ -214,7 +216,7 @@ def pytest_plugin_imports(node: ast.AST) -> list[str]:
     if isinstance(node, ast.Assign):
         targets = node.targets
         value = node.value
-    elif isinstance(node, ast.AnnAssign):
+    elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
         targets = [node.target]
         value = node.value
     else:
@@ -224,6 +226,8 @@ def pytest_plugin_imports(node: ast.AST) -> list[str]:
         for target in targets
     ):
         return []
+    if isinstance(node, ast.AugAssign):
+        return [PACKAGE]
     if isinstance(value, ast.Constant) and isinstance(value.value, str):
         return [value.value]
     if isinstance(value, (ast.List, ast.Tuple, ast.Set)) and all(
@@ -276,7 +280,15 @@ def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str
         ):
             errors.append(f"test loader reference: {shown(f)}:{node.lineno}")
         if is_test and isinstance(
-            node, (ast.Import, ast.ImportFrom, ast.Call, ast.Assign, ast.AnnAssign)
+            node,
+            (
+                ast.Import,
+                ast.ImportFrom,
+                ast.Call,
+                ast.Assign,
+                ast.AnnAssign,
+                ast.AugAssign,
+            ),
         ):
             names = (
                 imported(node, bindings, package_file(f))
@@ -286,7 +298,7 @@ def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str
             bad = [
                 n
                 for n in names
-                if RE["package"].match(n)
+                if (n == PACKAGE or n.startswith(f"{PACKAGE}."))
                 and (n != TESTING or getattr(node, "level", 0))
             ]
             errors += [f"test import: {shown(f)}:{node.lineno} {shown(n)}" for n in bad]

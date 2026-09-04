@@ -131,6 +131,9 @@ class LimitsFixtureTest(unittest.TestCase):
             ('import importlib\nimportlib.import_module("pkg.internal")', 1),
             ('import importlib as loader\nloader.import_module(name="pkg.testing")', 0),
             ('from importlib import import_module as load\nload("pkg.internal")', 1),
+            ('from importlib import *\nimport_module("pkg.internal")', 1),
+            ('from pytest import *\nimportorskip("pkg.internal")', 1),
+            ('import importlib\nimportlib.import_module("pkg.internal-name")', 1),
             ('from builtins import __import__ as load\nload("pkg.testing")', 1),
             ('import pytest as p\np.importorskip("pkg.internal")', 1),
             ('from pytest import importorskip as skip\nskip(modname="pkg.testing")', 0),
@@ -178,6 +181,7 @@ class LimitsFixtureTest(unittest.TestCase):
             ("'pkg.testing'", False),
             ("['pkg.internal']", True),
             ("plugins", True),
+            ("[]\npytest_plugins += ['pkg.internal']", True),
         ):
             with self.subTest(value=value):
                 self.write("conftest.py", f"pytest_plugins = {value}\n")
