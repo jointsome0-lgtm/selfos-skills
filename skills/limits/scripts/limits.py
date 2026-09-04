@@ -1,4 +1,5 @@
 import ast
+import collections
 import io
 import os
 import pathlib
@@ -33,11 +34,12 @@ TEST = rf"(?:[^/.][^/]*/)*{TEST_NAME}"
 MARKDOWN_INDENT = r" {0,3}"
 LIST_MARKER = rf"{MARKDOWN_INDENT}(?:\d{{1,9}}[.)]|[-+*])[ \t]+"
 ATX_HEADING = rf"{MARKDOWN_INDENT}#{{1,6}}(?:[ \t]+|$)"
-SETEXT_HEADING = rf"(?!{LIST_MARKER}|{ATX_HEADING}|{MARKDOWN_INDENT}>).+\n{MARKDOWN_INDENT}(?:=+|-+)[ \t]*$"
+SETEXT_HEADING = rf"(?={MARKDOWN_INDENT}\S)(?!{LIST_MARKER}|{ATX_HEADING}|{MARKDOWN_INDENT}>).+\n{MARKDOWN_INDENT}(?:=+|-+)[ \t]*$"
 HEADING = rf"(?:{ATX_HEADING}|{SETEXT_HEADING})"
 THEMATIC_BREAK = (
     rf"{MARKDOWN_INDENT}(?:(?:\*[ \t]*){{3,}}|(?:-[ \t]*){{3,}}|(?:_[ \t]*){{3,}})$"
 )
+HTML_BLOCK_TAG = r"address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul"
 RE = {
     "marker": re.compile(
         r"^(noqa(:\s*[A-Z]+\d+(,\s*[A-Z]+\d+)*)?|type:\s*ignore(\[[a-z-]+(,\s*[a-z-]+)*\])?)$"
@@ -47,7 +49,7 @@ RE = {
     ),
     "test_file": re.compile(f"^{TEST}$"),
     "test_path": re.compile(f"`({TEST})`"),
-    "goal_start": re.compile(r"^( {0,3})(\d{1,9}[.)])([ \t]+).+"),
+    "goal_start": re.compile(r"^( {0,3})(\d{1,9}[.)])(?:([ \t]+).+)?$"),
     "list_start": re.compile(r"^( *)(?:\d{1,9}[.)]|[-+*])[ \t]+"),
     "atx_heading": re.compile(r"^( *)#{1,6}(?:[ \t]+|$)"),
     "setext_underline": re.compile(r"^ {0,3}(?:=+|-+)[ \t]*$"),
@@ -56,9 +58,26 @@ RE = {
     "map_heading": re.compile(r"^## Map$", re.MULTILINE),
     "map_line": re.compile(r"^- `([^`]+)/`: (?=.*\S).+$", re.MULTILINE),
     "fence": re.compile(
-        r"^ {0,3}(`{3,}|~{3,}).*?(?:^ {0,3}\1[`~ \t]*$|\Z)", re.MULTILINE | re.DOTALL
+        r"^ {0,3}(?P<fence>(?P<fence_char>`|~)(?P=fence_char){2,}).*?(?:^ {0,3}(?P=fence)(?P=fence_char)*[ \t]*$|\Z)",
+        re.MULTILINE | re.DOTALL,
     ),
     "html_comment": re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL),
+    "html_raw": re.compile(
+        r"^ {0,3}<(?P<html_tag>script|pre|style|textarea)(?:[ \t>]|$).*?(?:</(?P=html_tag)[ \t]*>|\Z)",
+        re.IGNORECASE | re.MULTILINE | re.DOTALL,
+    ),
+    "html_special": re.compile(
+        r"^ {0,3}(?:<\?.*?(?:\?>|\Z)|<!\[CDATA\[.*?(?:\]\]>|\Z)|<![A-Z].*?(?:>|\Z))",
+        re.MULTILINE | re.DOTALL,
+    ),
+    "html_block": re.compile(
+        rf"^ {{0,3}}</?(?:{HTML_BLOCK_TAG})(?:[ \t]+|/?>|$).*?(?=\n[ \t]*\n|\Z)",
+        re.IGNORECASE | re.MULTILINE | re.DOTALL,
+    ),
+    "html_tag_block": re.compile(
+        r"^ {0,3}</?[A-Za-z][A-Za-z0-9-]*(?:[ \t]+[^>\n]*)?/?>[ \t]*$.*?(?=\n[ \t]*\n|\Z)",
+        re.MULTILINE | re.DOTALL,
+    ),
     "package": re.compile(rf"^{re.escape(PACKAGE)}(\.\w+)*$"),
 }
 
@@ -92,9 +111,14 @@ def blob_sizes(objects: list[str]) -> list[int]:
 def compare(
     named: list[str], actual: set[str], twice: str, missing: str, extra: str
 ) -> list[str]:
-    errors = [twice % t for t in sorted({t for t in named if named.count(t) > 1})]
-    errors += [missing % t for t in sorted(set(named) - actual)]
-    return errors + [extra % t for t in sorted(actual - set(named))]
+    counts = collections.Counter(named)
+    errors = [twice % shown(t) for t, count in sorted(counts.items()) if count > 1]
+    errors += [missing % shown(t) for t in sorted(set(named) - actual)]
+    return errors + [extra % shown(t) for t in sorted(actual - set(named))]
+
+
+def shown(value: object) -> str:
+    return ascii(str(value))
 
 
 def call_argument(node: ast.Call, position: int, keyword: str) -> ast.AST | None:
@@ -121,16 +145,21 @@ def resolve_import(name: str, package: str) -> str:
     return f"{base}.{tail}" if tail else base
 
 
-def imported(node: ast.AST) -> list[str]:
+def imported(
+    node: ast.AST, aliases: dict[str, str], package_relative: bool
+) -> list[str]:
     if isinstance(node, ast.Import):
         return [a.name if a.asname else bare_import(a.name) for a in node.names]
     if isinstance(node, ast.ImportFrom):
+        if node.level and package_relative:
+            return [PACKAGE]
         return [node.module or ""]
     func = (
         node.func.attr
         if isinstance(node.func, ast.Attribute)
         else getattr(node.func, "id", "")
     )
+    func = aliases.get(func, func)
     if func == "__import__":
         name = call_argument(node, 0, "name")
         fromlist = call_argument(node, 3, "fromlist")
@@ -164,7 +193,31 @@ def imported(node: ast.AST) -> list[str]:
     return []
 
 
-def check_python(f: pathlib.Path, text: str, is_test: bool) -> list[str]:
+def loader_aliases(tree: ast.AST) -> dict[str, str]:
+    modules = {
+        "builtins": {"__import__"},
+        "importlib": {"import_module"},
+        "pytest": {"importorskip"},
+    }
+    return {
+        alias.asname or alias.name: alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        and not node.level
+        and node.module in modules
+        for alias in node.names
+        if alias.name in modules[node.module]
+    }
+
+
+def package_file(f: pathlib.PurePosixPath) -> bool:
+    package = pathlib.PurePosixPath(*PACKAGE.split("."))
+    return f.is_relative_to(package) or f.is_relative_to(
+        pathlib.PurePosixPath("src") / package
+    )
+
+
+def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str]:
     errors = []
     for tok in tokenize.generate_tokens(io.StringIO(text).readline):
         shebang = tok.start == (1, 0) and tok.string.startswith("#!")
@@ -173,37 +226,65 @@ def check_python(f: pathlib.Path, text: str, is_test: bool) -> list[str]:
             and not shebang
             and not RE["marker"].match(tok.string[1:].strip())
         ):
-            errors.append(f"comment: {f}:{tok.start[0]}")
-    for node in ast.walk(ast.parse(text)):
+            errors.append(f"comment: {shown(f)}:{tok.start[0]}")
+    tree = ast.parse(text)
+    aliases = loader_aliases(tree)
+    for node in ast.walk(tree):
         if (
             isinstance(node, ast.Expr)
             and isinstance(node.value, ast.Constant)
             and isinstance(node.value.value, str)
         ):
-            errors.append(f"docstring: {f}:{node.lineno}")
+            errors.append(f"docstring: {shown(f)}:{node.lineno}")
         if is_test and isinstance(node, (ast.Import, ast.ImportFrom, ast.Call)):
-            names = imported(node)
+            names = imported(node, aliases, package_file(f))
             bad = [
                 n
                 for n in names
                 if RE["package"].match(n)
                 and (n != TESTING or getattr(node, "level", 0))
             ]
-            errors += [f"test import: {f}:{node.lineno} {n}" for n in bad]
+            errors += [f"test import: {shown(f)}:{node.lineno} {shown(n)}" for n in bad]
     return errors
 
 
 def has_test(text: str) -> bool:
+    tree = ast.parse(text)
+    functions = (ast.FunctionDef, ast.AsyncFunctionDef)
     return any(
-        isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and node.name.startswith("test")
-        for node in ast.walk(ast.parse(text))
+        isinstance(node, functions) and node.name.startswith("test")
+        for node in tree.body
+    ) or any(
+        isinstance(node, ast.ClassDef)
+        and node.name.startswith("Test")
+        and not any(
+            isinstance(item, functions) and item.name == "__init__"
+            for item in node.body
+        )
+        and any(
+            isinstance(item, functions) and item.name.startswith("test")
+            for item in node.body
+        )
+        for node in tree.body
     )
 
 
 def read_python(f: pathlib.PurePosixPath) -> str:
     with tokenize.open(ROOT / f) as source:
         return source.read()
+
+
+def markdown(text: str) -> str:
+    text = RE["fence"].sub("", text)
+    for name in (
+        "html_comment",
+        "html_raw",
+        "html_special",
+        "html_block",
+        "html_tag_block",
+    ):
+        text = RE[name].sub("", text)
+    return text
 
 
 def goal_entries(text: str) -> list[str]:
@@ -215,7 +296,7 @@ def goal_entries(text: str) -> list[str]:
         if not match:
             i += 1
             continue
-        content_indent = len(match[1]) + len(match[2]) + len(match[3].expandtabs(4))
+        content_indent = len((match[1] + match[2] + (match[3] or " ")).expandtabs(4))
         entry = [lines[i]]
         i += 1
         while i < len(lines):
@@ -250,8 +331,7 @@ def goal_entries(text: str) -> list[str]:
 
 
 def check_map(dirs: set[str], text: str) -> list[str]:
-    text = RE["fence"].sub("", text)
-    text = RE["html_comment"].sub("", text)
+    text = markdown(text)
     match = RE["map_heading"].search(text)
     section = RE["section_break"].split(text[match.end() :], 1)[0] if match else ""
     lines = [(m[1], m[0]) for m in RE["map_line"].finditer(section)]
@@ -263,14 +343,14 @@ def check_map(dirs: set[str], text: str) -> list[str]:
         if raw.strip() and (raw.startswith(" ") or not RE["map_line"].match(raw))
     ]
     errors += compare(
-        [d for d, _ in lines],
-        dirs,
-        "map: duplicate line for %s/",
-        "map: no directory %s/",
-        "map: no line for %s/",
+        [f"{d}/" for d, _ in lines],
+        {f"{d}/" for d in dirs},
+        "map: duplicate line for %s",
+        "map: no directory %s",
+        "map: no line for %s",
     )
     return errors + [
-        f"map: line for {d}/ exceeds {MAP_LINE_CHARS} chars"
+        f"map: line for {shown(f'{d}/')} exceeds {MAP_LINE_CHARS} chars"
         for d, line in lines
         if len(line) > MAP_LINE_CHARS
     ]
@@ -278,7 +358,7 @@ def check_map(dirs: set[str], text: str) -> list[str]:
 
 def check_goals(tests: set[str], text: str) -> list[str]:
     named, errors = [], []
-    for entry in goal_entries(RE["html_comment"].sub("", RE["fence"].sub("", text))):
+    for entry in goal_entries(markdown(text)):
         paths = RE["test_path"].findall(entry)
         if len(paths) != 1:
             number = entry.lstrip().split(maxsplit=1)[0].rstrip(".)")
@@ -323,13 +403,17 @@ def main() -> int:
         if tokens <= BUDGET_TOKENS
         else [f"budget: {tokens} tokens, limit {BUDGET_TOKENS}"]
     )
-    errors += [f"symlink: {f}" for f in sorted(symlinks)]
+    errors += [f"symlink: {shown(f)}" for f in sorted(symlinks)]
     tracked = {str(f) for f in files}
     required = {"README.md", "GOALS.md"}
-    errors += [f"required file: {f} is missing" for f in sorted(required - tracked)]
-    errors += [f"required file: {f} is a submodule" for f in sorted(required & links)]
     errors += [
-        f"artifact: {f}"
+        f"required file: {shown(f)} is missing" for f in sorted(required - tracked)
+    ]
+    errors += [
+        f"required file: {shown(f)} is a submodule" for f in sorted(required & links)
+    ]
+    errors += [
+        f"artifact: {shown(f)}"
         for f in files
         if str(f) not in links
         and RE["markdown"].search(str(f))
@@ -346,7 +430,9 @@ def main() -> int:
         errors += check_python(
             f,
             text,
-            bool(RE["test_file"].match(str(f))) or f.name == "conftest.py",
+            "tests" in f.parts[:-1]
+            or bool(RE["test_file"].match(str(f)))
+            or f.name == "conftest.py",
         )
     if "README.md" in regular:
         errors += check_map(
@@ -360,12 +446,14 @@ def main() -> int:
             (ROOT / "README.md").read_text(encoding="utf-8"),
         )
     if "GOALS.md" in regular:
+        test_files = {str(f) for f in python if RE["test_file"].match(str(f))}
+        errors += [
+            f"test: {shown(f)} defines no test"
+            for f in sorted(test_files)
+            if not has_test(python[pathlib.PurePosixPath(f)])
+        ]
         errors += check_goals(
-            {
-                str(f)
-                for f, text in python.items()
-                if RE["test_file"].match(str(f)) and has_test(text)
-            },
+            test_files,
             (ROOT / "GOALS.md").read_text(encoding="utf-8"),
         )
     print(

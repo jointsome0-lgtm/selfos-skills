@@ -10,6 +10,7 @@ import tempfile
 import unittest
 
 SCRIPT = pathlib.Path(__file__).resolve().parent / "limits.py"
+WORKFLOW = SCRIPT.parent.parent / "templates" / "limits.yml"
 
 README = """# fixture
 
@@ -154,7 +155,12 @@ class LimitsFixtureTest(unittest.TestCase):
         self.stage()
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 1)
-        for needle in ("comment:", "docstring:", "artifact: NOTES.md", "test import:"):
+        for needle in (
+            "comment:",
+            "docstring:",
+            "artifact: 'NOTES.md'",
+            "test import:",
+        ):
             self.assertIn(needle, result.stdout)
         self.assertEqual(result.stdout.count("test import:"), 2)
         self.assertNotIn("pkg.testing", result.stdout)
@@ -172,7 +178,7 @@ class LimitsFixtureTest(unittest.TestCase):
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 1)
         self.assertEqual(result.stdout.count("test import:"), 1)
-        self.assertIn("test import: tests/test_works.py:1 pkg", result.stdout)
+        self.assertIn("test import: 'tests/test_works.py':1 'pkg'", result.stdout)
 
     def test_import_with_computed_empty_fromlist_exposes_package_root(self):
         (self.root / "tests" / "test_works.py").write_text(
@@ -186,7 +192,55 @@ class LimitsFixtureTest(unittest.TestCase):
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 1)
         self.assertEqual(result.stdout.count("test import:"), 1)
-        self.assertIn("test import: tests/test_works.py:2 pkg", result.stdout)
+        self.assertIn("test import: 'tests/test_works.py':2 'pkg'", result.stdout)
+
+    def test_dynamic_loader_aliases_are_import_checked(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            "from importlib import import_module as load\n"
+            "from pytest import importorskip as skip\n\n"
+            'first = load("pkg.internal")\n'
+            'second = skip("pkg.internal")\n\n'
+            "def test_works():\n"
+            "    assert first and second\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.count("test import:"), 2)
+
+    def test_helper_under_tests_is_import_checked(self):
+        (self.root / "tests" / "helper.py").write_text(
+            "import pkg.internal\n", encoding="utf-8"
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("test import: 'tests/helper.py':1 'pkg'", result.stdout)
+
+    def test_package_relative_static_import_is_rejected(self):
+        package_tests = self.root / "src" / "pkg" / "tests"
+        package_tests.mkdir()
+        (package_tests / "test_inside.py").write_text(
+            "from .. import internal\n\ndef test_inside():\n    assert internal\n",
+            encoding="utf-8",
+        )
+        (self.root / "README.md").write_text(
+            README.rstrip() + "\n- `src/pkg/tests/`: package tests.\n",
+            encoding="utf-8",
+        )
+        (self.root / "GOALS.md").write_text(
+            GOALS + "\n2. Package tests stay behind the public API.\n"
+            "   `src/pkg/tests/test_inside.py`\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "test import: 'src/pkg/tests/test_inside.py':1 'pkg'", result.stdout
+        )
+        self.assertNotIn("goals:", result.stdout)
 
     def test_bare_imports_reject_dotted_package_root(self):
         (self.root / "tests" / "test_works.py").write_text(
@@ -202,7 +256,7 @@ class LimitsFixtureTest(unittest.TestCase):
         result = self.run_limits("pkg.sub")
         self.assertEqual(result.returncode, 1)
         self.assertEqual(result.stdout.count("test import:"), 2)
-        self.assertIn(" pkg.sub", result.stdout)
+        self.assertIn("'pkg.sub'", result.stdout)
 
     def test_relative_import_module_resolves_allowed_api(self):
         (self.root / "tests" / "test_works.py").write_text(
@@ -265,6 +319,15 @@ class LimitsFixtureTest(unittest.TestCase):
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_indented_code_before_thematic_break_stays_in_map(self):
+        (self.root / "README.md").write_text(
+            README.rstrip() + "\n    hidden code\n---\n", encoding="utf-8"
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("map: wrapped line", result.stdout)
+
     def test_html_commented_goal_is_ignored(self):
         (self.root / "GOALS.md").write_text(
             GOALS + "\n<!--\n2. Hidden example.\n   `tests/test_hidden.py`\n-->\n",
@@ -280,6 +343,29 @@ class LimitsFixtureTest(unittest.TestCase):
                 "1. The package holds a value.\n   `tests/test_works.py`",
                 "1. The package holds a value.\n\n   `tests/test_works.py`",
             ),
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_goal_accepts_bare_marker_with_indented_content(self):
+        (self.root / "GOALS.md").write_text(
+            "# fixture\n\n"
+            "1.\n"
+            "   The package holds a value.\n"
+            "   `tests/test_works.py`\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_goal_tab_indent_uses_marker_column(self):
+        (self.root / "GOALS.md").write_text(
+            "# fixture\n\n"
+            "1.\tThe package holds a value.\n"
+            "    - Verified by `tests/test_works.py`\n",
             encoding="utf-8",
         )
         self.stage()
@@ -336,11 +422,11 @@ class LimitsFixtureTest(unittest.TestCase):
         )
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 1)
-        self.assertIn("map: no line for docs/", result.stdout)
+        self.assertIn("map: no line for 'docs/'", result.stdout)
         self.assertIn(
-            "goals: tests/test_extra.py exists but no goal names it", result.stdout
+            "goals: 'tests/test_extra.py' exists but no goal names it", result.stdout
         )
-        self.assertIn("symlink: tests/test_link.py", result.stdout)
+        self.assertIn("symlink: 'tests/test_link.py'", result.stdout)
         self.assertNotIn("test_link.py exists but no goal names it", result.stdout)
 
     def test_python_named_gitlink_is_not_read_as_source(self):
@@ -403,9 +489,20 @@ class LimitsFixtureTest(unittest.TestCase):
         self.stage()
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 1)
-        self.assertIn(
-            "goals: tests/test_works.py named in GOALS.md but missing", result.stdout
+        self.assertIn("test: 'tests/test_works.py' defines no test", result.stdout)
+
+    def test_nested_test_function_does_not_count(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            "def helper():\n"
+            "    def test_hidden():\n"
+            "        assert True\n"
+            "    return test_hidden\n",
+            encoding="utf-8",
         )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("test: 'tests/test_works.py' defines no test", result.stdout)
 
     def test_map_description_must_not_be_blank(self):
         (self.root / "README.md").write_text(
@@ -425,7 +522,7 @@ class LimitsFixtureTest(unittest.TestCase):
         self.stage()
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-        self.assertIn("symlink: README.md", result.stdout)
+        self.assertIn("symlink: 'README.md'", result.stdout)
         self.assertNotIn("Traceback", result.stderr)
 
     def test_missing_required_files_are_reported(self):
@@ -434,8 +531,8 @@ class LimitsFixtureTest(unittest.TestCase):
         self.stage()
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-        self.assertIn("required file: README.md is missing", result.stdout)
-        self.assertIn("required file: GOALS.md is missing", result.stdout)
+        self.assertIn("required file: 'README.md' is missing", result.stdout)
+        self.assertIn("required file: 'GOALS.md' is missing", result.stdout)
         self.assertIn("limits: 2 problems", result.stdout)
 
     def test_nested_list_stays_inside_goal_entry(self):
@@ -457,6 +554,46 @@ class LimitsFixtureTest(unittest.TestCase):
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_mixed_fence_characters_do_not_close_code_block(self):
+        (self.root / "GOALS.md").write_text(
+            "# fixture\n\n"
+            "```text\n"
+            "```~~~\n"
+            "1. Hidden example.\n"
+            "   `tests/test_works.py`\n"
+            "```\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "goals: 'tests/test_works.py' exists but no goal names it", result.stdout
+        )
+
+    def test_raw_html_blocks_do_not_create_goals(self):
+        for opening, closing in (
+            ("<pre>", "</pre>"),
+            ("<div>", "</div>"),
+            ("<fixture-card>", "</fixture-card>"),
+        ):
+            with self.subTest(opening=opening):
+                (self.root / "GOALS.md").write_text(
+                    "# fixture\n\n"
+                    f"{opening}\n"
+                    "1. Hidden example.\n"
+                    "   `tests/test_works.py`\n"
+                    f"{closing}\n",
+                    encoding="utf-8",
+                )
+                self.stage()
+                result = self.run_limits("pkg")
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(
+                    "goals: 'tests/test_works.py' exists but no goal names it",
+                    result.stdout,
+                )
+
     def test_root_test_is_bound_and_import_checked(self):
         (self.root / "test_root.py").write_text(
             "import pkg\n\ndef test_root():\n    assert pkg\n", encoding="utf-8"
@@ -468,7 +605,7 @@ class LimitsFixtureTest(unittest.TestCase):
         self.stage()
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 1)
-        self.assertIn("test import: test_root.py:1 pkg", result.stdout)
+        self.assertIn("test import: 'test_root.py':1 'pkg'", result.stdout)
         self.assertNotIn("goals:", result.stdout)
 
     def test_test_module_in_other_directory_requires_goal(self):
@@ -484,7 +621,8 @@ class LimitsFixtureTest(unittest.TestCase):
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 1)
         self.assertIn(
-            "goals: integration/test_api.py exists but no goal names it", result.stdout
+            "goals: 'integration/test_api.py' exists but no goal names it",
+            result.stdout,
         )
 
     def test_utf8_bom_python_source_is_read_by_interpreter_rules(self):
@@ -494,6 +632,34 @@ class LimitsFixtureTest(unittest.TestCase):
         self.stage()
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_empty_test_module_is_bound_and_rejected(self):
+        (self.root / "tests" / "test_placeholder.py").write_text(
+            "VALUE = True\n", encoding="utf-8"
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "test: 'tests/test_placeholder.py' defines no test", result.stdout
+        )
+        self.assertIn(
+            "goals: 'tests/test_placeholder.py' exists but no goal names it",
+            result.stdout,
+        )
+
+    def test_control_characters_in_paths_are_escaped(self):
+        name = "forged\n::error title=forged::message.md"
+        (self.root / name).write_text("scratch\n", encoding="utf-8")
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertNotIn("\n::error title=forged::message.md", result.stdout)
+        self.assertIn("\\n::error title=forged::message.md", result.stdout)
+
+    def test_workflow_restricts_repository_token(self):
+        text = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("permissions:\n  contents: read\n", text)
 
 
 if __name__ == "__main__":

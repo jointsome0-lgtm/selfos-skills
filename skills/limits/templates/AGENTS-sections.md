@@ -18,8 +18,9 @@ reason it is the way it is lives there, not in a file.
 
 ## Limiters (numbers checked in CI, not conventions)
 
-All of them live in one script, `scripts/limits.py`, run by
-`.github/workflows/limits.yml` on every PR.
+`.github/workflows/limits.yml` runs these checks on every PR.
+`scripts/limits.py` handles the repository limits. Ruff and the named test
+files are separate steps in the same workflow.
 
 - Budget: the whole repository fits in 70k tokens (bytes ÷ 4), counting
   every tracked file except `LICENSE` and lock files. There are no generated
@@ -36,8 +37,9 @@ All of them live in one script, `scripts/limits.py`, run by
 - Every goal line names its test file and every test file is named by a goal
   line. Adding a test file means adding a goal line, and the PR says why an
   existing test could not be strengthened instead.
-- Tests reach the system only through its public test API: the only
-  `<package>` import allowed in `tests/` is `<package>.testing`.
+- Tests reach the system only through its public test API. Python files under
+  a `tests/` directory, pytest-style test modules elsewhere, and `conftest.py`
+  may import `<package>.testing`, but no other part of `<package>`.
 - Zero comments and zero docstrings in Python, including inline ones. A CI
   count fails the PR on the first one; only machine markers (`# noqa`,
   `# type: ignore`, shebang) are exempt. A function that needs a paragraph

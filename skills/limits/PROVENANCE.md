@@ -98,6 +98,32 @@ statement, reformatted per deviation 12:
     POSIX path ending in a newline or carriage return remains intact.
 39. Python sources are decoded through Python's tokenizer rules, including
     UTF-8 BOM handling, before token and syntax inspection.
+40. Relative static imports from tests inside the checked package are rejected
+    conservatively instead of disappearing as an empty module name.
+41. A goal marker's complete prefix determines tab stops for its content
+    indentation.
+42. Setext heading text accepts at most three leading spaces, so indented code
+    cannot hide an invalid Map line.
+43. A closing Markdown fence must use only the opening fence character and be
+    at least as long as the opener.
+44. Raw HTML blocks are removed before Map and goal discovery.
+45. The adopting AGENTS template separates script checks from the Ruff and
+    named-test steps that run directly in the workflow.
+46. The import gate covers every Python file below a `tests/` directory, not
+    only pytest-style filenames.
+47. Every pytest-style module participates in goal comparison, while a
+    separate check rejects modules that define no collectable test.
+48. The workflow template grants its token read-only repository contents
+    access before it runs code from a pull request.
+49. Aliases imported for `import_module`, `importorskip`, and `__import__` keep
+    their dynamic-import meaning during inspection.
+50. Test discovery accepts module-level functions and methods on collectable
+    test classes, but not functions nested in helpers or classes.
+51. A bare ordered-list marker starts a goal whose content continues on the
+    following indented line.
+52. Diagnostics render paths and imported names with escaped ASCII
+    representations, so control characters cannot forge output lines.
+53. Duplicate goal names are counted once in linear time.
 
 ## skills/limits/templates/
 
@@ -117,12 +143,12 @@ added limiter bullet for the ruff and named-test steps that live outside
 the script. Workflow action references are pinned to immutable commits at
 the named releases.
 
-## Upstream license notice
+## Downstream license notice
 
-The upstream repository is licensed Apache-2.0 (its `LICENSE` at the pinned
-commit) with the same copyright holder as this catalog, who relicenses the
-adapted copies here under this skill's MIT `LICENSE.txt`. The catalog
-validator requires the notice in full:
+The upstream repository uses Apache-2.0 at the pinned commit. Its copyright
+holder also owns this catalog and relicenses these adapted copies under this
+skill's MIT `LICENSE.txt`. The catalog validator requires the downstream MIT
+notice in full:
 
 ```
 MIT License
