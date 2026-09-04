@@ -152,6 +152,13 @@ statement, reformatted per deviation 12:
     through local base classes.
 67. Lexical name bindings are indexed once per syntax tree and searched by
     position, avoiding a full scope traversal for every call.
+68. Simple assignments copy a recognized dynamic loader's identity to the new
+    name.
+69. Test classes inherit collectable test methods through local base classes.
+70. An ordered marker other than `1` cannot start a goal while a Markdown
+    paragraph is open.
+71. Literal `pytest_plugins` declarations participate in the import gate, and
+    nonliteral declarations fail closed.
 
 ## skills/limits/templates/
 

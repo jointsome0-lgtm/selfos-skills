@@ -238,6 +238,22 @@ class LimitsFixtureTest(unittest.TestCase):
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_assigned_dynamic_loader_alias_is_import_checked(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            "import importlib\n\n"
+            "load = importlib.import_module\n"
+            'internal = load("pkg.internal")\n\n'
+            "def test_works():\n"
+            "    assert internal\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "test import: 'tests/test_works.py':4 'pkg.internal'", result.stdout
+        )
+
     def test_helper_under_tests_is_import_checked(self):
         (self.root / "tests" / "helper.py").write_text(
             "import pkg.internal\n", encoding="utf-8"
@@ -298,6 +314,15 @@ class LimitsFixtureTest(unittest.TestCase):
         self.stage()
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_pytest_plugins_declaration_is_import_checked(self):
+        (self.root / "conftest.py").write_text(
+            'pytest_plugins = ["pkg.internal"]\n', encoding="utf-8"
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("test import: 'conftest.py':1 'pkg.internal'", result.stdout)
 
     def test_dynamic_loader_with_unknown_name_fails_closed(self):
         (self.root / "tests" / "test_works.py").write_text(
@@ -412,6 +437,18 @@ class LimitsFixtureTest(unittest.TestCase):
         self.stage()
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_ordered_marker_cannot_interrupt_paragraph_unless_one(self):
+        (self.root / "GOALS.md").write_text(
+            "# fixture\n\nOrdinary prose.\n2. Example `tests/test_works.py`\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "goals: 'tests/test_works.py' exists but no goal names it", result.stdout
+        )
 
     def test_goal_tab_indent_uses_marker_column(self):
         (self.root / "GOALS.md").write_text(
@@ -655,6 +692,19 @@ class LimitsFixtureTest(unittest.TestCase):
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 1)
         self.assertIn("test: 'tests/test_works.py' defines no test", result.stdout)
+
+    def test_pytest_class_inherits_test_methods(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            "class Base:\n"
+            "    def test_works(self):\n"
+            "        assert True\n\n"
+            "class TestWorks(Base):\n"
+            "    pass\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_map_description_must_not_be_blank(self):
         (self.root / "README.md").write_text(

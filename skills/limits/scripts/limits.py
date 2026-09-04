@@ -212,6 +212,7 @@ def scoped_nodes(node: ast.AST):
 
 def indexed_bindings(
     tree: ast.AST,
+    parents: dict[ast.AST, ast.AST],
 ) -> tuple[
     dict[ast.AST, dict[str, list[tuple[int, int, str]]]],
     dict[ast.AST, set[str]],
@@ -264,7 +265,44 @@ def indexed_bindings(
                 declared.update(node.names)
         index[scope] = {name: sorted(items) for name, items in found.items()}
         declarations[scope] = declared
+    assignments = sorted(
+        (
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.Assign, ast.AnnAssign))
+        ),
+        key=lambda node: (node.lineno, node.col_offset),
+    )
+    for node in assignments:
+        value = loader_reference(node.value, parents, index, declarations)
+        if not value:
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        for target in targets:
+            if not isinstance(target, ast.Name):
+                continue
+            scope = enclosing_scope(target, parents)
+            index[scope].setdefault(target.id, []).append(
+                (target.lineno, target.col_offset, value)
+            )
+            index[scope][target.id].sort()
     return index, declarations
+
+
+def enclosing_scope(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> ast.AST:
+    scopes = (
+        ast.Module,
+        ast.FunctionDef,
+        ast.AsyncFunctionDef,
+        ast.Lambda,
+        ast.ClassDef,
+    )
+    current = node
+    while current in parents:
+        current = parents[current]
+        if isinstance(current, scopes):
+            return current
+    return current
 
 
 def resolved_name(
@@ -308,21 +346,52 @@ def loader_call(
     binding_index: dict[ast.AST, dict[str, list[tuple[int, int, str]]]],
     declarations: dict[ast.AST, set[str]],
 ) -> str:
-    if isinstance(node.func, ast.Name):
-        return resolved_name(
-            node.func, node.func.id, parents, binding_index, declarations
-        )
-    if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
+    return loader_reference(node.func, parents, binding_index, declarations)
+
+
+def loader_reference(
+    node: ast.AST,
+    parents: dict[ast.AST, ast.AST],
+    binding_index: dict[ast.AST, dict[str, list[tuple[int, int, str]]]],
+    declarations: dict[ast.AST, set[str]],
+) -> str:
+    if isinstance(node, ast.Name):
+        return resolved_name(node, node.id, parents, binding_index, declarations)
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
         module = resolved_name(
-            node.func.value,
-            node.func.value.id,
+            node.value,
+            node.value.id,
             parents,
             binding_index,
             declarations,
         )
-        if node.func.attr in LOADER_MODULES.get(module, set()):
-            return node.func.attr
+        if node.attr in LOADER_MODULES.get(module, set()):
+            return node.attr
     return ""
+
+
+def pytest_plugin_imports(node: ast.AST) -> list[str]:
+    if isinstance(node, ast.Assign):
+        targets = node.targets
+        value = node.value
+    elif isinstance(node, ast.AnnAssign):
+        targets = [node.target]
+        value = node.value
+    else:
+        return []
+    if not any(
+        isinstance(target, ast.Name) and target.id == "pytest_plugins"
+        for target in targets
+    ):
+        return []
+    if isinstance(value, ast.Constant) and isinstance(value.value, str):
+        return [value.value]
+    if isinstance(value, (ast.List, ast.Tuple, ast.Set)) and all(
+        isinstance(item, ast.Constant) and isinstance(item.value, str)
+        for item in value.elts
+    ):
+        return [item.value for item in value.elts]
+    return [PACKAGE]
 
 
 def package_file(f: pathlib.PurePosixPath) -> bool:
@@ -348,7 +417,7 @@ def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str
         for parent in ast.walk(tree)
         for child in ast.iter_child_nodes(parent)
     }
-    binding_index, declarations = indexed_bindings(tree)
+    binding_index, declarations = indexed_bindings(tree, parents)
     for node in ast.walk(tree):
         if (
             isinstance(node, ast.Expr)
@@ -356,9 +425,13 @@ def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str
             and isinstance(node.value.value, str)
         ):
             errors.append(f"docstring: {shown(f)}:{node.lineno}")
-        if is_test and isinstance(node, (ast.Import, ast.ImportFrom, ast.Call)):
-            names = imported(
-                node, parents, binding_index, declarations, package_file(f)
+        if is_test and isinstance(
+            node, (ast.Import, ast.ImportFrom, ast.Call, ast.Assign, ast.AnnAssign)
+        ):
+            names = (
+                imported(node, parents, binding_index, declarations, package_file(f))
+                if isinstance(node, (ast.Import, ast.ImportFrom, ast.Call))
+                else pytest_plugin_imports(node)
             )
             bad = [
                 n
@@ -394,12 +467,7 @@ def has_test(text: str) -> bool:
             unittest_case(node, testcase_calls, testcase_modules)
             or not inherited_constructor(node, classes, set())
         )
-        and any(
-            isinstance(item, functions)
-            and item.name.startswith("test")
-            and item.name not in pytest_optouts(node.body)
-            for item in node.body
-        )
+        and any(name.startswith("test") for name in class_methods(node, classes, set()))
         for node in tree.body
     )
 
@@ -422,6 +490,40 @@ def inherited_constructor(
         and inherited_constructor(classes[base.id], classes, seen)
         for base in node.bases
     )
+
+
+def class_methods(
+    node: ast.ClassDef, classes: dict[str, ast.ClassDef], seen: set[str]
+) -> set[str]:
+    if node.name in seen:
+        return set()
+    seen = seen | {node.name}
+    inherited = {
+        name
+        for base in node.bases
+        if isinstance(base, ast.Name) and base.id in classes
+        for name in class_methods(classes[base.id], classes, seen)
+    }
+    bound = {
+        item.name
+        for item in node.body
+        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+    } | {
+        target.id
+        for item in node.body
+        if isinstance(item, (ast.Assign, ast.AnnAssign))
+        for target in (item.targets if isinstance(item, ast.Assign) else [item.target])
+        if isinstance(target, ast.Name)
+    }
+    methods = inherited - bound
+    optouts = pytest_optouts(node.body)
+    methods |= {
+        item.name
+        for item in node.body
+        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and item.name not in optouts
+    }
+    return methods
 
 
 def pytest_disabled(body: list[ast.stmt]) -> bool:
@@ -555,9 +657,21 @@ def goal_entries(text: str) -> list[str]:
     lines = text.splitlines()
     entries = []
     i = 0
+    paragraph = False
     while i < len(lines):
         match = RE["goal_start"].match(lines[i])
         if not match:
+            raw = lines[i]
+            paragraph = bool(raw.strip()) and not (
+                RE["list_start"].match(raw)
+                or RE["atx_heading"].match(raw)
+                or RE["thematic_break"].match(raw)
+                or raw.lstrip().startswith(">")
+            )
+            i += 1
+            continue
+        number = int(match[2][:-1])
+        if paragraph and number != 1:
             i += 1
             continue
         content_indent = len((match[1] + match[2] + (match[3] or " ")).expandtabs(4))
@@ -591,6 +705,7 @@ def goal_entries(text: str) -> list[str]:
             entry.append(raw)
             i += 1
         entries.append("\n".join(entry))
+        paragraph = False
     return entries
 
 
