@@ -224,6 +224,19 @@ class LimitsFixtureTest(unittest.TestCase):
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_shadowed_dynamic_loader_alias_is_ignored(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            "from importlib import import_module\n\n"
+            "def test_works():\n"
+            "    def import_module(name):\n"
+            "        return name\n\n"
+            '    assert import_module("pkg.internal")\n',
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_helper_under_tests_is_import_checked(self):
         (self.root / "tests" / "helper.py").write_text(
             "import pkg.internal\n", encoding="utf-8"
@@ -381,6 +394,15 @@ class LimitsFixtureTest(unittest.TestCase):
             "# fixture\n\n"
             "1.\tThe package holds a value.\n"
             "    - Verified by `tests/test_works.py`\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_tab_indented_goal_continuation_is_not_code(self):
+        (self.root / "GOALS.md").write_text(
+            "# fixture\n\n1. The package holds a value.\n\t`tests/test_works.py`\n",
             encoding="utf-8",
         )
         self.stage()
@@ -581,6 +603,20 @@ class LimitsFixtureTest(unittest.TestCase):
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_pytest_class_with_new_is_not_collectable(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            "class TestWorks:\n"
+            "    def __new__(cls):\n"
+            "        return super().__new__(cls)\n\n"
+            "    def test_works(self):\n"
+            "        assert True\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("test: 'tests/test_works.py' defines no test", result.stdout)
+
     def test_map_description_must_not_be_blank(self):
         (self.root / "README.md").write_text(
             README.replace("- `src/`: source layout root.", "- `src/`:    "),
@@ -647,6 +683,16 @@ class LimitsFixtureTest(unittest.TestCase):
         self.assertIn(
             "goals: 'tests/test_works.py' exists but no goal names it", result.stdout
         )
+
+    def test_backtick_in_fence_info_string_does_not_open_block(self):
+        (self.root / "GOALS.md").write_text(
+            "# fixture\n\n```bad`info\n1. A visible goal without a test.\n```\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("goals: entry 1 names 0 tests", result.stdout)
 
     def test_raw_html_blocks_do_not_create_goals(self):
         for opening, closing in (
@@ -737,6 +783,17 @@ class LimitsFixtureTest(unittest.TestCase):
     def test_workflow_restricts_repository_token(self):
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("permissions:\n  contents: read\n", text)
+
+    def test_custom_pytest_file_pattern_is_rejected(self):
+        (self.root / "pytest.ini").write_text(
+            "[pytest]\npython_files = check_*.py\n", encoding="utf-8"
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "pytest: custom python_files in 'pytest.ini' is unsupported", result.stdout
+        )
 
 
 if __name__ == "__main__":

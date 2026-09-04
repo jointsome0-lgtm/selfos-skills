@@ -137,6 +137,15 @@ statement, reformatted per deviation 12:
     class names do not start with `Test`.
 59. Dynamic loader calls are recognized through imports and their aliases,
     not by an unrelated object's method name.
+60. Pytest configuration that overrides `python_files` is rejected, keeping
+    goal and import checks aligned with the default module-name patterns.
+61. Pytest-style classes that define `__new__` do not count as collectable.
+62. Goal continuation tabs expand to Markdown tab stops before the outer list
+    indentation is removed.
+63. Dynamic loader names and module receivers resolve to the closest lexical
+    binding at each call site.
+64. A backtick fence opener is ignored when its info string contains a
+    backtick, as required by CommonMark.
 
 ## skills/limits/templates/
 
