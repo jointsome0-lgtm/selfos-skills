@@ -36,10 +36,16 @@ files are separate steps in the same workflow.
   Hidden directories (harness and CI config) are outside the map.
 - Every goal line names its test file and every test file is named by a goal
   line. Adding a test file means adding a goal line, and the PR says why an
-  existing test could not be strengthened instead.
+  existing test could not be strengthened instead. The checker uses fixed
+  `test_*.py` and `*_test.py` filenames under visible directories and requires
+  a module-level `test*` function or a `test*` method in a top-level class.
+  Pytest determines collection and execution in the workflow.
 - Tests reach the system only through its public test API. Python files under
-  a `tests/` directory, pytest-style test modules elsewhere, and `conftest.py`
+  a `tests/` directory, files matching those test patterns, and `conftest.py`
   may import `<package>.testing`, but no other part of `<package>`.
+  Use direct imports or direct loader calls with literal module names.
+  Loader aliases declared in imports keep that meaning throughout the file;
+  do not shadow them or store or pass a loader for later calls.
 - Zero comments and zero docstrings in Python, including inline ones. A CI
   count fails the PR on the first one; only machine markers (`# noqa`,
   `# type: ignore`, shebang) are exempt. A function that needs a paragraph

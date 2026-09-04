@@ -4,7 +4,7 @@ description: Use when a repository adopts or enforces the three-sources-of-truth
 license: LICENSE.txt
 compatibility: Requires Python 3.10+ and git for the bundled python scripts, and the checked repository's Python files must parse. OS-independent and offline, with no external integration.
 metadata:
-  selfos.version: "0.1.7"
+  selfos.version: "0.2.0"
 ---
 
 # Limits
@@ -16,14 +16,14 @@ Three sources of truth, one per tense: git holds the past, code holds the presen
 Run `python scripts/limits.py <package> [budget-tokens]` from the repository root. `<package>` is the Python package whose internals tests must not reach. The script prints one line per problem plus the current budget figure, and exits nonzero on any problem.
 
 - Budget: every tracked file except `LICENSE` and lock files, at bytes ÷ 4, fits the budget. The default is 70,000 tokens, sized so a repository plus the task, diff, and tool output fit a 100k working window. The default changes only through a refresh of this skill, never in the PR that needs the room.
-- Map: `README.md` has a `## Map` section with exactly one unwrapped line per directory, in the form ``- `dir/`: what it holds``, at most 250 characters. Hidden directories stay outside the map. A src layout needs a line for `src/` and one for `src/<package>/`.
-- Goals bind to tests: every numbered entry in `GOALS.md` names exactly one test file in backticks, every named test exists and defines a test, and every test file is named by exactly one goal. Test modules use pytest's default filename patterns; a configured `python_files` override is an error.
-- Import gate: the only `<package>` import in Python files under a `tests/` directory, pytest-style test modules elsewhere, and `conftest.py` is `<package>.testing`, via `from` or an aliased `import`, since a bare `import <package>.testing` binds `<package>`. The dynamic forms `import_module`, `__import__`, `importorskip`, and `pytest_plugins` declarations count as imports. Their module arguments must be string literals; unresolved names fail closed.
+- Map: `README.md` has a `## Map` section ending at the next `#`-style heading. It contains exactly one unwrapped line per visible directory, in the form ``- `dir/`: what it holds``, at most 250 characters. A src layout needs lines for `src/` and `src/<package>/`.
+- Goals bind to tests: each plain `N. text` paragraph starting at column one in `GOALS.md` names exactly one test file in backticks, on that line or an indented continuation. A blank line ends the goal. Every tracked `test_*.py` or `*_test.py` file under visible directories must be named once and define a module-level `test*` function or a `test*` method directly in a top-level class. The checker ignores fenced examples and HTML comments; use the template's plain format for checked entries.
+- Import gate: Python files under `tests/`, files matching those test patterns, and `conftest.py` may import only `<package>.testing` from `<package>`, via `from` or an aliased `import`. The checker also inspects literal `pytest_plugins` declarations and direct `import_module`, `__import__`, and `importorskip` calls with literal module names. It recognizes aliases declared in imports across the file, conservatively retaining them through shadowing. Storing or passing a recognized loader is an error; use a direct call.
 - Zero comments and zero docstrings in Python. Machine markers survive: `# noqa`, `# type: ignore`, a shebang.
 - Markdown allowlist: the only `.md` files are `GOALS.md`, `AGENTS.md`, `README.md`, `CLAUDE.md`.
 - No symlinks: every tracked path is a regular file or a submodule.
 
-Two limiters live outside the script: `ruff` handles format and lint, and the workflow names the test files that must be green, so a goal test can stay red while the code it claims is still being built. [templates/limits.yml](templates/limits.yml) shows both.
+These are syntax checks, not runtime isolation or pytest collection. Pytest configuration does not change the checked filename patterns. Two limiters live outside the script: `ruff` handles format and lint, and the workflow runs pytest on the test files that must be green. A goal test can stay red while its code is being built. [templates/limits.yml](templates/limits.yml) shows both.
 
 ## Adopting in a repository
 

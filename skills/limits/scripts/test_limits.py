@@ -1,5 +1,3 @@
-"""Run the limits checker against fixture repositories and check each limiter fires."""
-
 import os
 import pathlib
 import re
@@ -11,16 +9,15 @@ import unittest
 
 SCRIPT = pathlib.Path(__file__).resolve().parent / "limits.py"
 WORKFLOW = SCRIPT.parent.parent / "templates" / "limits.yml"
-
 README = """# fixture
 
 ## Mapping notes
 
-A decoy section whose heading and this literal ## Map mention must not
-anchor the parser.
+This mention of ## Map is not a heading.
 
 ```text
 ## Map
+- malformed example
 ```
 
 ## Map
@@ -29,859 +26,357 @@ anchor the parser.
 - `src/pkg/`: the package.
 - `tests/`: goal tests.
 """
-
 GOALS = """# fixture
-
-Rules of this file: each numbered line names exactly one test, naïvely.
 
 1. The package holds a value.
    `tests/test_works.py`
 
-```
-1. A fenced example that is not a goal.
-```
-
-  ~~~markdown
-2. A tilde-fenced example that is not a goal either.
-  ~~~
+~~~text
+2. A fenced example without a test.
+~~~
 """
+TEST = "def test_works():\n    assert True\n"
 
 
 class LimitsFixtureTest(unittest.TestCase):
     def setUp(self):
         self.root = pathlib.Path(tempfile.mkdtemp(prefix="limits-fixture-"))
-        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
-        (self.root / "src" / "pkg").mkdir(parents=True)
-        (self.root / "tests").mkdir()
-        (self.root / "README.md").write_text(README, encoding="utf-8")
-        (self.root / "GOALS.md").write_text(GOALS, encoding="utf-8")
-        (self.root / "src" / "pkg" / "__init__.py").write_text(
-            "VALUE = 1\n", encoding="utf-8"
-        )
-        (self.root / "tests" / "test_works.py").write_text(
-            "class TestWorks:\n    def test_works(self):\n        assert True\n",
-            encoding="utf-8",
-        )
-        subprocess.run(["git", "init", "-q"], cwd=self.root, check=True)
-        self.stage()
+        self.addCleanup(lambda: shutil.rmtree(self.root, ignore_errors=True))
+        self.write("README.md", README)
+        self.write("GOALS.md", GOALS)
+        self.write("src/pkg/__init__.py", "VALUE = 1\n")
+        self.write("tests/test_works.py", TEST)
+        self.git("init", "-q")
 
-    def stage(self):
-        subprocess.run(["git", "add", "-A"], cwd=self.root, check=True)
+    def write(self, path, text, encoding="utf-8"):
+        target = self.root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding=encoding)
 
-    def run_limits(self, *args, timeout=None):
+    def git(self, *args, **kwargs):
         return subprocess.run(
+            ["git", *args],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=True,
+            **kwargs,
+        ).stdout.strip()
+
+    def check(self, *needles, package="pkg", budget=None, stage=True, code=None):
+        if stage:
+            self.git("add", "-A")
+        args = [] if package is None else [package]
+        if budget is not None:
+            args.append(str(budget))
+        result = subprocess.run(
             [sys.executable, str(SCRIPT), *args],
             cwd=self.root,
             capture_output=True,
             text=True,
             check=False,
-            timeout=timeout,
         )
-
-    def test_clean_fixture_passes(self):
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("limits: 0 problems", result.stdout)
-        self.assertIn(f"of {70_000} tokens", result.stdout)
-
-    @unittest.skipIf(os.name == "nt", "Win32 does not preserve trailing spaces")
-    def test_repository_root_preserves_trailing_space(self):
-        spaced = self.root.with_name(f"{self.root.name} ")
-        self.root.rename(spaced)
-        self.root = spaced
-        self.addCleanup(shutil.rmtree, spaced, ignore_errors=True)
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_repository_root_preserves_non_utf8_bytes(self):
-        encoded = os.fsencode(self.root) + b"-\xff"
-        try:
-            os.rename(os.fsencode(self.root), encoded)
-        except OSError:
-            self.skipTest("filesystem rejects non-UTF-8 names")
-        self.root = pathlib.Path(os.fsdecode(encoded))
-        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    @unittest.skipIf(os.name == "nt", "Win32 does not preserve newlines")
-    def test_repository_root_preserves_trailing_newline(self):
-        renamed = self.root.with_name(f"{self.root.name}\n")
-        self.root.rename(renamed)
-        self.root = renamed
-        self.addCleanup(shutil.rmtree, renamed, ignore_errors=True)
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    @unittest.skipIf(os.name == "nt", "Win32 does not preserve carriage returns")
-    def test_repository_root_preserves_trailing_carriage_return(self):
-        renamed = self.root.with_name(f"{self.root.name}\r")
-        self.root.rename(renamed)
-        self.root = renamed
-        self.addCleanup(shutil.rmtree, renamed, ignore_errors=True)
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_missing_package_argument_prints_usage(self):
-        result = self.run_limits()
-        self.assertEqual(result.returncode, 2)
-        self.assertIn("usage:", result.stdout)
-
-    def test_budget_argument_overrides_default(self):
-        result = self.run_limits("pkg", "1")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("limit 1", result.stdout)
-
-    def test_budget_uses_staged_blob_sizes(self):
-        payload = self.root / "payload.txt"
-        payload.write_text("small\n", encoding="utf-8")
-        self.stage()
-        baseline = self.run_limits("pkg")
-        match = re.search(r"budget: (\d+) of", baseline.stdout)
-        self.assertIsNotNone(match)
-        budget = match.group(1)
-        payload.write_text("large\n" * 100_000, encoding="utf-8")
-        result = self.run_limits("pkg", budget)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_python_markdown_and_import_limiters_fire(self):
-        (self.root / "src" / "pkg" / "extra.py").write_text(
-            '"""module doc"""\nX = 1  # explains itself\n', encoding="utf-8"
-        )
-        (self.root / "NOTES.md").write_text("scratch\n", encoding="utf-8")
-        (self.root / "tests" / "test_works.py").write_text(
-            "import pkg\nimport pkg.testing\nimport pkg.testing as ok\nfrom pkg.testing import fake\n\ndef test_works():\n    assert fake\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        for needle in (
-            "comment:",
-            "docstring:",
-            "artifact: 'NOTES.md'",
-            "test import:",
-        ):
+        expected = code if code is not None else int(bool(needles))
+        self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        for needle in needles:
             self.assertIn(needle, result.stdout)
-        self.assertEqual(result.stdout.count("test import:"), 2)
-        self.assertNotIn("pkg.testing", result.stdout)
-        self.assertNotIn("goals:", result.stdout)
+        return result.stdout
 
-    def test_import_without_fromlist_exposes_package_root(self):
-        (self.root / "tests" / "test_works.py").write_text(
-            'pkg = __import__("pkg.testing")\n'
-            'allowed = __import__("pkg.testing", fromlist=["testing"])\n\n'
-            "def test_works():\n"
-            "    assert pkg and allowed\n",
-            encoding="utf-8",
+    def test_cli_and_budget(self):
+        self.assertIn("of 70000 tokens", self.check())
+        self.check("usage:", package=None, code=2)
+        self.check("limit 1", budget=1)
+
+    def test_budget_counts_staged_blobs(self):
+        self.write("payload.txt", "small\n")
+        budget = re.search(r"budget: (\d+) of", self.check())[1]
+        self.write("payload.txt", "large\n" * 100_000)
+        self.check(budget=budget, stage=False)
+
+    def test_python_and_markdown_rules(self):
+        self.write("src/pkg/extra.py", '"""module doc"""\nX = 1  # prose\n')
+        self.write("NOTES.md", "scratch\n")
+        self.check("comment:", "docstring:", "artifact: 'NOTES.md'")
+
+    def test_machine_markers_and_source_encoding(self):
+        self.write("src/pkg/__init__.py", "VALUE = 1\n", encoding="utf-8-sig")
+        self.write(
+            "src/pkg/markers.py",
+            "#!/usr/bin/env python3\nX = 1  # noqa\nY = X  # type: ignore\n",
         )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertEqual(result.stdout.count("test import:"), 1)
-        self.assertIn("test import: 'tests/test_works.py':1 'pkg'", result.stdout)
+        self.check()
 
-    def test_import_with_computed_empty_fromlist_exposes_package_root(self):
-        (self.root / "tests" / "test_works.py").write_text(
-            "parts = []\n"
-            'pkg = __import__("pkg.testing", fromlist=parts)\n\n'
-            "def test_works():\n"
-            "    assert pkg\n",
-            encoding="utf-8",
+    def test_static_imports(self):
+        cases = (
+            ("import pkg", 1),
+            ("import pkg.testing", 1),
+            ("import pkg.testing as testing", 0),
+            ("from pkg.testing import fake", 0),
+            ("from pkg import testing", 1),
+            ("import pkg.internal as internal", 1),
+            ("import unrelated", 0),
         )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertEqual(result.stdout.count("test import:"), 1)
-        self.assertIn("test import: 'tests/test_works.py':2 'pkg'", result.stdout)
+        for source, count in cases:
+            with self.subTest(source=source):
+                self.write("tests/test_works.py", source + "\n" + TEST)
+                output = self.check(code=int(bool(count)))
+                self.assertEqual(output.count("test import:"), count, output)
 
-    def test_dynamic_loader_aliases_are_import_checked(self):
-        (self.root / "tests" / "test_works.py").write_text(
+    def test_dynamic_imports(self):
+        cases = (
+            ('__import__("pkg.testing")', 1),
+            ('__import__("pkg.testing", fromlist=["fake"])', 0),
+            ('__import__("pkg.testing", fromlist=parts)', 1),
+            ('import importlib\nimportlib.import_module("pkg.internal")', 1),
+            ('import importlib as loader\nloader.import_module(name="pkg.testing")', 0),
+            ('from importlib import import_module as load\nload("pkg.internal")', 1),
+            ('from builtins import __import__ as load\nload("pkg.testing")', 1),
+            ('import pytest as p\np.importorskip("pkg.internal")', 1),
+            ('from pytest import importorskip as skip\nskip(modname="pkg.testing")', 0),
+            ("import importlib\nimportlib.import_module(target)", 1),
+            ('import importlib\nimportlib.import_module(".testing", "pkg")', 0),
+            ('import importlib\nimportlib.import_module(".internal", "pkg")', 1),
+            ('import importlib\nimportlib.import_module(".testing", package)', 1),
+            ('loader.import_module("pkg.internal")', 0),
+        )
+        for source, count in cases:
+            with self.subTest(source=source):
+                self.write("tests/test_works.py", source + "\n" + TEST)
+                output = self.check(code=int(bool(count)))
+                self.assertEqual(output.count("test import:"), count, output)
+
+    def test_loader_aliases_are_file_wide_and_require_direct_calls(self):
+        self.write(
+            "tests/test_works.py",
             "from importlib import import_module as load\n"
-            "from pytest import importorskip as skip\n\n"
-            'first = load("pkg.internal")\n'
-            'second = skip("pkg.internal")\n\n'
-            "def test_works():\n"
-            "    assert first and second\n",
-            encoding="utf-8",
+            "def test_works():\n    def load(name):\n        return name\n"
+            '    assert load("pkg.internal")\n',
         )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertEqual(result.stdout.count("test import:"), 2)
+        self.check("test import:")
+        for source in (
+            "import importlib\nload = importlib.import_module",
+            "from importlib import import_module as load\nconsume(load)",
+        ):
+            with self.subTest(source=source):
+                self.write("tests/test_works.py", source + "\n" + TEST)
+                self.check("test loader reference: 'tests/test_works.py':2")
 
-    def test_unrelated_dynamic_loader_method_is_ignored(self):
-        (self.root / "tests" / "test_works.py").write_text(
-            "class Loader:\n"
-            "    def import_module(self, name):\n"
-            "        return name\n\n"
-            "loader = Loader()\n"
-            'value = loader.import_module("pkg.internal")\n\n'
-            "def test_works():\n"
-            "    assert value\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_shadowed_dynamic_loader_alias_is_ignored(self):
-        (self.root / "tests" / "test_works.py").write_text(
-            "from importlib import import_module\n\n"
-            "def test_works():\n"
-            "    def import_module(name):\n"
-            "        return name\n\n"
-            '    assert import_module("pkg.internal")\n',
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_assigned_dynamic_loader_alias_is_import_checked(self):
-        (self.root / "tests" / "test_works.py").write_text(
-            "import importlib\n\n"
-            "load = importlib.import_module\n"
-            'internal = load("pkg.internal")\n\n'
-            "def test_works():\n"
-            "    assert internal\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn(
-            "test import: 'tests/test_works.py':4 'pkg.internal'", result.stdout
-        )
-
-    def test_helper_under_tests_is_import_checked(self):
-        (self.root / "tests" / "helper.py").write_text(
-            "import pkg.internal\n", encoding="utf-8"
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("test import: 'tests/helper.py':1 'pkg'", result.stdout)
-
-    def test_package_relative_static_import_is_rejected(self):
-        package_tests = self.root / "src" / "pkg" / "tests"
-        package_tests.mkdir()
-        (package_tests / "test_inside.py").write_text(
-            "from .. import internal\n\ndef test_inside():\n    assert internal\n",
-            encoding="utf-8",
-        )
-        (self.root / "README.md").write_text(
-            README.rstrip() + "\n- `src/pkg/tests/`: package tests.\n",
-            encoding="utf-8",
-        )
-        (self.root / "GOALS.md").write_text(
-            GOALS + "\n2. Package tests stay behind the public API.\n"
-            "   `src/pkg/tests/test_inside.py`\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn(
-            "test import: 'src/pkg/tests/test_inside.py':1 'pkg'", result.stdout
-        )
-        self.assertNotIn("goals:", result.stdout)
-
-    def test_bare_imports_reject_dotted_package_root(self):
-        (self.root / "tests" / "test_works.py").write_text(
+    def test_dotted_package_imports(self):
+        self.write(
+            "tests/test_works.py",
             "import pkg.sub.testing\n"
             "import pkg.sub.testing as allowed\n"
-            'dynamic = __import__("pkg.sub.testing")\n'
-            'allowed_dynamic = __import__("pkg.sub.testing", fromlist=["testing"])\n\n'
-            "def test_works():\n"
-            "    assert allowed and dynamic and allowed_dynamic\n",
-            encoding="utf-8",
+            '__import__("pkg.sub.testing")\n'
+            '__import__("pkg.sub.testing", fromlist=["fake"])\n' + TEST,
         )
-        self.stage()
-        result = self.run_limits("pkg.sub")
-        self.assertEqual(result.returncode, 1)
-        self.assertEqual(result.stdout.count("test import:"), 2)
-        self.assertIn("'pkg.sub'", result.stdout)
+        output = self.check("test import:", package="pkg.sub")
+        self.assertEqual(output.count("test import:"), 2)
 
-    def test_relative_import_module_resolves_allowed_api(self):
-        (self.root / "tests" / "test_works.py").write_text(
-            "import importlib\n\n"
-            'testing = importlib.import_module(".testing", "pkg")\n\n'
-            "def test_works():\n"
-            "    assert testing\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_pytest_plugins_declaration_is_import_checked(self):
-        (self.root / "conftest.py").write_text(
-            'pytest_plugins = ["pkg.internal"]\n', encoding="utf-8"
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("test import: 'conftest.py':1 'pkg.internal'", result.stdout)
-
-    def test_dynamic_loader_with_unknown_name_fails_closed(self):
-        (self.root / "tests" / "test_works.py").write_text(
-            "import importlib\n\n"
-            'target = "pkg.internal"\n'
-            "loaded = importlib.import_module(target)\n\n"
-            "def test_works():\n"
-            "    assert loaded\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("test import: 'tests/test_works.py':4 'pkg'", result.stdout)
-
-    def test_many_calls_do_not_rescan_all_bindings(self):
-        calls = "\n".join(f"str({number})" for number in range(1_000))
-        (self.root / "tests" / "test_works.py").write_text(
-            calls + "\n\ndef test_works():\n    assert True\n", encoding="utf-8"
-        )
-        self.stage()
-        result = self.run_limits("pkg", timeout=5)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_missing_map_heading_fires(self):
-        (self.root / "README.md").write_text("# fixture\n", encoding="utf-8")
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("map: no ## Map heading in README.md", result.stdout)
-
-    def test_malformed_first_map_item_fires_without_visible_directories(self):
-        shutil.rmtree(self.root / "src")
-        shutil.rmtree(self.root / "tests")
-        (self.root / "README.md").write_text(
-            "# fixture\n\n## Map\n\n- malformed\n", encoding="utf-8"
-        )
-        (self.root / "GOALS.md").write_text("# fixture\n", encoding="utf-8")
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("map: wrapped line", result.stdout)
-        self.assertNotIn("map: no line for", result.stdout)
-
-    def test_map_rejects_nonblank_content_before_first_hyphen_item(self):
-        (self.root / "README.md").write_text(
-            README.replace(
-                "## Map\n\n",
-                "## Map\n\nMap introduction.\n* malformed\n",
-            ),
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertEqual(result.stdout.count("map: wrapped line"), 2)
-
-    def test_html_commented_map_heading_is_ignored(self):
-        (self.root / "README.md").write_text(
-            "<!--\n## Map\n- malformed\n-->\n\n" + README, encoding="utf-8"
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_setext_heading_ends_map_section(self):
-        (self.root / "README.md").write_text(
-            README + "\nOther section\n-------------\n\nProse.\n", encoding="utf-8"
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_indented_code_before_thematic_break_stays_in_map(self):
-        (self.root / "README.md").write_text(
-            README.rstrip() + "\n    hidden code\n---\n", encoding="utf-8"
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("map: wrapped line", result.stdout)
-
-    def test_html_commented_goal_is_ignored(self):
-        (self.root / "GOALS.md").write_text(
-            GOALS + "\n<!--\n2. Hidden example.\n   `tests/test_hidden.py`\n-->\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_goal_allows_blank_line_before_test_path(self):
-        (self.root / "GOALS.md").write_text(
-            GOALS.replace(
-                "1. The package holds a value.\n   `tests/test_works.py`",
-                "1. The package holds a value.\n\n   `tests/test_works.py`",
-            ),
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_goal_accepts_bare_marker_with_indented_content(self):
-        (self.root / "GOALS.md").write_text(
-            "# fixture\n\n"
-            "1.\n"
-            "   The package holds a value.\n"
-            "   `tests/test_works.py`\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_ordered_marker_cannot_interrupt_paragraph_unless_one(self):
-        (self.root / "GOALS.md").write_text(
-            "# fixture\n\nOrdinary prose.\n2. Example `tests/test_works.py`\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn(
-            "goals: 'tests/test_works.py' exists but no goal names it", result.stdout
-        )
-
-    def test_goal_tab_indent_uses_marker_column(self):
-        (self.root / "GOALS.md").write_text(
-            "# fixture\n\n"
-            "1.\tThe package holds a value.\n"
-            "    - Verified by `tests/test_works.py`\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_tab_indented_goal_continuation_is_not_code(self):
-        (self.root / "GOALS.md").write_text(
-            "# fixture\n\n1. The package holds a value.\n\t`tests/test_works.py`\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_nested_list_fence_does_not_name_goal_test(self):
-        (self.root / "GOALS.md").write_text(
-            "# fixture\n\n"
-            "1. The goal has a fenced example.\n"
-            "   - Example:\n"
-            "     ~~~text\n"
-            "     `tests/test_works.py`\n"
-            "     ~~~\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("goals: entry 1 names 0 tests", result.stdout)
-
-    def test_indented_code_block_does_not_name_goal_test(self):
-        (self.root / "GOALS.md").write_text(
-            "# fixture\n\n"
-            "1. The goal has an indented example.\n"
-            "       `tests/test_works.py`\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("goals: entry 1 names 0 tests", result.stdout)
-
-    def test_goal_recognizes_indented_parenthesis_marker(self):
-        (self.root / "tests" / "test_works.py").write_text(
-            "VALUE = True\n", encoding="utf-8"
-        )
-        (self.root / "GOALS.md").write_text(
-            "# fixture\n\n   1) A goal without a test path.\n", encoding="utf-8"
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("goals: entry 1 names 0 tests", result.stdout)
-
-    def test_heading_ends_goal_entry(self):
-        (self.root / "GOALS.md").write_text(
-            "# fixture\n\n"
-            "1. A goal without a test path.\n"
-            "## Separate section\n"
-            "`tests/test_works.py`\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("goals: entry 1 names 0 tests", result.stdout)
-
-    def test_map_goal_and_symlink_drift_fire(self):
-        (self.root / "docs").mkdir()
-        (self.root / "docs" / "notes.txt").write_text("x\n", encoding="utf-8")
-        (self.root / "tests" / "test_extra.py").write_text(
-            "def test_extra():\n    assert True\n", encoding="utf-8"
-        )
-        (self.root / "tests" / "test_link.py").write_text(
-            "../missing.py", encoding="utf-8"
-        )
-        self.stage()
-        blob = subprocess.run(
-            ["git", "hash-object", "-w", "--stdin"],
-            cwd=self.root,
-            input="../missing.py",
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-        subprocess.run(
-            ["git", "update-index", "--cacheinfo", f"120000,{blob},tests/test_link.py"],
-            cwd=self.root,
-            check=True,
-        )
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("map: no line for 'docs/'", result.stdout)
-        self.assertIn(
-            "goals: 'tests/test_extra.py' exists but no goal names it", result.stdout
-        )
-        self.assertIn("symlink: 'tests/test_link.py'", result.stdout)
-        self.assertNotIn("test_link.py exists but no goal names it", result.stdout)
-
-    def test_python_named_gitlink_is_not_read_as_source(self):
-        (self.root / "README.md").write_text(
-            README.rstrip() + "\n- `vendor.py/`: a pinned dependency.\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        subprocess.run(
-            [
-                "git",
-                "-c",
-                "user.name=Fixture",
-                "-c",
-                "user.email=fixture@example.invalid",
-                "commit",
-                "-qm",
-                "fixture",
-            ],
-            cwd=self.root,
-            check=True,
-        )
-        commit = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=self.root,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-        subprocess.run(
-            [
-                "git",
-                "update-index",
-                "--add",
-                "--cacheinfo",
-                f"160000,{commit},vendor.py",
-            ],
-            cwd=self.root,
-            check=True,
-        )
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_unordered_sibling_ends_goal_entry(self):
-        (self.root / "GOALS.md").write_text(
-            "# fixture\n\n"
-            "1. A goal without a test path.\n"
-            "- Separate item: `tests/test_works.py`\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("goals: entry 1 names 0 tests", result.stdout)
-
-    def test_test_definition_inside_string_does_not_count(self):
-        (self.root / "tests" / "test_works.py").write_text(
-            'SOURCE = """\ndef test_works():\n    pass\n"""\n', encoding="utf-8"
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("test: 'tests/test_works.py' defines no test", result.stdout)
-
-    def test_nested_test_function_does_not_count(self):
-        (self.root / "tests" / "test_works.py").write_text(
-            "def helper():\n"
-            "    def test_hidden():\n"
-            "        assert True\n"
-            "    return test_hidden\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("test: 'tests/test_works.py' defines no test", result.stdout)
-
-    def test_pytest_class_opt_out_does_not_count(self):
-        (self.root / "tests" / "test_works.py").write_text(
-            "class TestWorks:\n"
-            "    __test__ = False\n\n"
-            "    def test_works(self):\n"
-            "        assert True\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("test: 'tests/test_works.py' defines no test", result.stdout)
-
-    def test_pytest_function_opt_out_does_not_count(self):
-        (self.root / "tests" / "test_works.py").write_text(
-            "def test_works():\n    assert True\n\ntest_works.__test__ = False\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("test: 'tests/test_works.py' defines no test", result.stdout)
-
-    def test_unittest_case_name_need_not_start_with_test(self):
-        (self.root / "tests" / "test_works.py").write_text(
-            "import unittest\n\n"
-            "class Works(unittest.TestCase):\n"
-            "    def test_works(self):\n"
-            "        assert True\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_pytest_class_with_new_is_not_collectable(self):
-        (self.root / "tests" / "test_works.py").write_text(
-            "class TestWorks:\n"
-            "    def __new__(cls):\n"
-            "        return super().__new__(cls)\n\n"
-            "    def test_works(self):\n"
-            "        assert True\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("test: 'tests/test_works.py' defines no test", result.stdout)
-
-    def test_pytest_class_with_inherited_constructor_is_not_collectable(self):
-        (self.root / "tests" / "test_works.py").write_text(
-            "class Base:\n"
-            "    def __init__(self):\n"
-            "        self.ready = True\n\n"
-            "class TestWorks(Base):\n"
-            "    def test_works(self):\n"
-            "        assert self.ready\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("test: 'tests/test_works.py' defines no test", result.stdout)
-
-    def test_pytest_class_inherits_test_methods(self):
-        (self.root / "tests" / "test_works.py").write_text(
-            "class Base:\n"
-            "    def test_works(self):\n"
-            "        assert True\n\n"
-            "class TestWorks(Base):\n"
-            "    pass\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_map_description_must_not_be_blank(self):
-        (self.root / "README.md").write_text(
-            README.replace("- `src/`: source layout root.", "- `src/`:    "),
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("map: wrapped line", result.stdout)
-
-    @unittest.skipIf(os.name == "nt", "creating symlinks needs extra Windows rights")
-    def test_required_symlink_is_not_read(self):
-        readme = self.root / "README.md"
-        readme.unlink()
-        readme.symlink_to("missing-readme")
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-        self.assertIn("symlink: 'README.md'", result.stdout)
-        self.assertNotIn("Traceback", result.stderr)
-
-    def test_missing_required_files_are_reported(self):
-        (self.root / "README.md").unlink()
-        (self.root / "GOALS.md").unlink()
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-        self.assertIn("required file: 'README.md' is missing", result.stdout)
-        self.assertIn("required file: 'GOALS.md' is missing", result.stdout)
-        self.assertIn("limits: 2 problems", result.stdout)
-
-    def test_nested_list_stays_inside_goal_entry(self):
-        (self.root / "GOALS.md").write_text(
-            "# fixture\n\n"
-            "1. The package holds a value.\n"
-            "   - Verified by `tests/test_works.py`\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_thematic_break_does_not_hide_final_map_item(self):
-        (self.root / "README.md").write_text(
-            README.rstrip() + "\n---\n\nAfter the Map.\n", encoding="utf-8"
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_mixed_fence_characters_do_not_close_code_block(self):
-        (self.root / "GOALS.md").write_text(
-            "# fixture\n\n"
-            "```text\n"
-            "```~~~\n"
-            "1. Hidden example.\n"
-            "   `tests/test_works.py`\n"
-            "```\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn(
-            "goals: 'tests/test_works.py' exists but no goal names it", result.stdout
-        )
-
-    def test_backtick_in_fence_info_string_does_not_open_block(self):
-        (self.root / "GOALS.md").write_text(
-            "# fixture\n\n```bad`info\n1. A visible goal without a test.\n```\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("goals: entry 1 names 0 tests", result.stdout)
-
-    def test_raw_html_blocks_do_not_create_goals(self):
-        for opening, closing in (
-            ("<pre>", "</pre>"),
-            ("<div>", "</div>"),
-            ("<fixture-card>", "</fixture-card>"),
+    def test_pytest_plugins(self):
+        for value, bad in (
+            ("'pkg.testing'", False),
+            ("['pkg.internal']", True),
+            ("plugins", True),
         ):
-            with self.subTest(opening=opening):
-                (self.root / "GOALS.md").write_text(
-                    "# fixture\n\n"
-                    f"{opening}\n"
-                    "1. Hidden example.\n"
-                    "   `tests/test_works.py`\n"
-                    f"{closing}\n",
-                    encoding="utf-8",
-                )
-                self.stage()
-                result = self.run_limits("pkg")
-                self.assertEqual(result.returncode, 1)
-                self.assertIn(
-                    "goals: 'tests/test_works.py' exists but no goal names it",
-                    result.stdout,
-                )
+            with self.subTest(value=value):
+                self.write("conftest.py", f"pytest_plugins = {value}\n")
+                output = self.check(code=int(bad))
+                self.assertEqual(output.count("test import:"), int(bad), output)
 
-    def test_root_test_is_bound_and_import_checked(self):
-        (self.root / "test_root.py").write_text(
-            "import pkg\n\ndef test_root():\n    assert pkg\n", encoding="utf-8"
-        )
-        (self.root / "GOALS.md").write_text(
-            GOALS + "\n2. The root test stays bound.\n   `test_root.py`\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("test import: 'test_root.py':1 'pkg'", result.stdout)
-        self.assertNotIn("goals:", result.stdout)
+    def test_test_file_scope(self):
+        for path in (
+            "tests/helper.py",
+            "conftest.py",
+            "test_root.py",
+            "integration/api_test.py",
+        ):
+            with self.subTest(path=path):
+                self.write(path, "import pkg.internal\n" + TEST)
+                output = self.check(f"test import: {path!a}:1")
+                if path in ("test_root.py", "integration/api_test.py"):
+                    self.assertIn(
+                        f"goals: {path!a} exists but no goal names it", output
+                    )
+                (self.root / path).unlink()
 
-    def test_test_module_in_other_directory_requires_goal(self):
-        (self.root / "integration").mkdir()
-        (self.root / "integration" / "test_api.py").write_text(
-            "def test_api():\n    assert True\n", encoding="utf-8"
-        )
-        (self.root / "README.md").write_text(
-            README.rstrip() + "\n- `integration/`: integration tests.\n",
-            encoding="utf-8",
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn(
-            "goals: 'integration/test_api.py' exists but no goal names it",
-            result.stdout,
-        )
+    def test_package_relative_import(self):
+        path = "src/pkg/tests/test_inside.py"
+        self.write(path, "from .. import internal\n" + TEST)
+        self.write("README.md", README + "- `src/pkg/tests/`: package tests.\n")
+        self.write("GOALS.md", GOALS + f"\n2. Internal tests use the seam. `{path}`\n")
+        output = self.check(f"test import: {path!a}:1 'pkg'")
+        self.assertNotIn("goals:", output)
 
-    def test_utf8_bom_python_source_is_read_by_interpreter_rules(self):
-        (self.root / "src" / "pkg" / "__init__.py").write_text(
-            "VALUE = 1\n", encoding="utf-8-sig"
+    def test_map_grammar(self):
+        cases = (
+            ("# fixture\n", "map: no ## Map heading"),
+            (
+                README.replace("- `src/`: source layout root.", "- malformed"),
+                "map: wrapped line",
+            ),
+            (
+                README.replace("- `src/`: source layout root.", "- `src/`:    "),
+                "map: wrapped line",
+            ),
+            (
+                README.replace("## Map\n\n", "## Map\n\nIntroduction.\n"),
+                "map: wrapped line",
+            ),
+            (README + "  continued description\n", "map: wrapped line"),
+            (README + "- `src/`: duplicate.\n", "map: duplicate line for 'src/'"),
+            (
+                README + "- `absent/`: missing directory.\n",
+                "map: no directory 'absent/'",
+            ),
+            (README.replace("source layout root.", "x" * 250), "exceeds 250 chars"),
         )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        for text, error in cases:
+            with self.subTest(error=error, text=text):
+                self.write("README.md", text)
+                self.check(error)
 
-    def test_empty_test_module_is_bound_and_rejected(self):
-        (self.root / "tests" / "test_placeholder.py").write_text(
-            "VALUE = True\n", encoding="utf-8"
+    def test_markdown_examples_and_next_heading(self):
+        self.write(
+            "README.md",
+            "<!--\n## Map\n- malformed\n-->\n" + README + "\n## Other\nProse.\n",
         )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn(
-            "test: 'tests/test_placeholder.py' defines no test", result.stdout
+        self.write("GOALS.md", GOALS + "\n<!--\n2. Hidden goal without a test.\n-->\n")
+        self.check()
+
+    def test_map_tracks_visible_directories(self):
+        self.write("docs/notes.txt", "notes\n")
+        self.check("map: no line for 'docs/'")
+        shutil.rmtree(self.root / "docs")
+        self.write(".cache/notes.txt", "cache\n")
+        self.check()
+
+    def test_goals_bind_exactly_one_existing_test(self):
+        cases = (
+            ("1. Missing path.\n", "goals: entry 1 names 0 tests"),
+            (
+                "1. Two paths `tests/test_works.py` and `tests/test_other.py`.\n",
+                "goals: entry 1 names 2 tests",
+            ),
+            (
+                "1. Missing file `tests/test_missing.py`.\n",
+                "goals: 'tests/test_missing.py' named in GOALS.md but missing",
+            ),
+            (
+                "1. First `tests/test_works.py`.\n2. Second `tests/test_works.py`.\n",
+                "goals: 'tests/test_works.py' named twice",
+            ),
+            (
+                "1. No path before the blank.\n\n   `tests/test_works.py`\n",
+                "goals: entry 1 names 0 tests",
+            ),
+            (
+                "1. No path before the blank.\n   \n   `tests/test_works.py`\n",
+                "goals: entry 1 names 0 tests",
+            ),
+            (
+                "1. No path before the heading.\n## Other\n`tests/test_works.py`\n",
+                "goals: entry 1 names 0 tests",
+            ),
+            (
+                "1. No path before prose.\nSeparate `tests/test_works.py`.\n",
+                "goals: entry 1 names 0 tests",
+            ),
         )
-        self.assertIn(
+        for text, error in cases:
+            with self.subTest(text=text):
+                self.write("GOALS.md", text)
+                self.check(error)
+
+    def test_definition_syntax(self):
+        cases = (
+            (TEST, True),
+            ("async def test_works():\n    pass\n", True),
+            ("class Works:\n    def test_works(self):\n        pass\n", True),
+            ("__test__ = False\n" + TEST, True),
+            ("VALUE = True\n", False),
+            ('SOURCE = "def test_hidden(): pass"\n', False),
+            ("def helper():\n    def test_hidden():\n        pass\n", False),
+        )
+        for source, valid in cases:
+            with self.subTest(source=source):
+                self.write("tests/test_works.py", source)
+                output = self.check(code=int(not valid))
+                self.assertEqual("defines no test" in output, not valid, output)
+
+    def test_definition_and_goal_checks_are_independent(self):
+        self.write("tests/test_placeholder.py", "VALUE = True\n")
+        self.check(
+            "test: 'tests/test_placeholder.py' defines no test",
             "goals: 'tests/test_placeholder.py' exists but no goal names it",
-            result.stdout,
         )
 
-    def test_control_characters_in_paths_are_escaped(self):
+    def test_pytest_configuration_does_not_change_filename_rule(self):
+        self.write("pytest.ini", "[pytest]\npython_files = check_*.py\n")
+        self.write("check_optional.py", TEST)
+        self.check()
+
+    def test_missing_required_inputs(self):
+        for path in ("README.md", "GOALS.md"):
+            (self.root / path).unlink()
+        self.check(
+            "required file: 'README.md' is missing",
+            "required file: 'GOALS.md' is missing",
+            "limits: 2 problems",
+        )
+
+    def test_index_symlink_is_rejected_without_reading_source(self):
+        self.write("tests/test_link.py", "not valid Python!\n")
+        self.git("add", "-A")
+        blob = self.git("hash-object", "-w", "--stdin", input="../missing.py")
+        self.git("update-index", "--cacheinfo", f"120000,{blob},tests/test_link.py")
+        output = self.check("symlink: 'tests/test_link.py'", stage=False)
+        self.assertNotIn("goals:", output)
+
+    @unittest.skipIf(os.name == "nt", "symlinks need extra Windows rights")
+    def test_required_symlink_is_not_read(self):
+        (self.root / "README.md").unlink()
+        (self.root / "README.md").symlink_to("missing-readme")
+        self.check("symlink: 'README.md'")
+
+    def test_python_named_submodule_is_not_read(self):
+        self.write("README.md", README + "- `vendor.py/`: pinned dependency.\n")
+        self.git("add", "-A")
+        self.git(
+            "-c",
+            "user.name=Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit",
+            "-qm",
+            "fixture",
+        )
+        commit = self.git("rev-parse", "HEAD")
+        self.git("update-index", "--add", "--cacheinfo", f"160000,{commit},vendor.py")
+        self.check(stage=False)
+
+    @unittest.skipIf(os.name == "nt", "requires POSIX filename support")
+    def test_repository_root_preserves_unusual_names(self):
+        for suffix in (" ", "\n", "\r", os.fsdecode(b"-\xff")):
+            with self.subTest(suffix=repr(suffix)):
+                target = self.root.with_name(self.root.name + suffix)
+                try:
+                    self.root.rename(target)
+                except OSError:
+                    self.skipTest("filesystem rejects the fixture name")
+                self.root = target
+                self.check()
+
+    @unittest.skipIf(os.name == "nt", "requires POSIX filename support")
+    def test_diagnostic_paths_are_escaped(self):
         name = "forged\n::error title=forged::message.md"
-        (self.root / name).write_text("scratch\n", encoding="utf-8")
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
-        self.assertNotIn("\n::error title=forged::message.md", result.stdout)
-        self.assertIn("\\n::error title=forged::message.md", result.stdout)
+        self.write(name, "scratch\n")
+        output = self.check("artifact: " + ascii(name))
+        self.assertNotIn("\n::error title=forged::message.md", output)
 
     def test_workflow_restricts_repository_token(self):
-        text = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("permissions:\n  contents: read\n", text)
-
-    def test_custom_pytest_file_pattern_is_rejected(self):
-        (self.root / "pytest.ini").write_text(
-            "[pytest]\npython_files = check_*.py\n", encoding="utf-8"
-        )
-        self.stage()
-        result = self.run_limits("pkg")
-        self.assertEqual(result.returncode, 1)
         self.assertIn(
-            "pytest: custom python_files in 'pytest.ini' is unsupported", result.stdout
+            "permissions:\n  contents: read\n", WORKFLOW.read_text(encoding="utf-8")
         )
 
 

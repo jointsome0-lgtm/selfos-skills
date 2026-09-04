@@ -1,5 +1,4 @@
 import ast
-import bisect
 import collections
 import io
 import os
@@ -32,15 +31,6 @@ LOCKS = {
 }
 TEST_NAME = r"(?:test_[^/]*|[^/]*_test)\.py"
 TEST = rf"(?:[^/.][^/]*/)*{TEST_NAME}"
-MARKDOWN_INDENT = r" {0,3}"
-LIST_MARKER = rf"{MARKDOWN_INDENT}(?:\d{{1,9}}[.)]|[-+*])[ \t]+"
-ATX_HEADING = rf"{MARKDOWN_INDENT}#{{1,6}}(?:[ \t]+|$)"
-SETEXT_HEADING = rf"(?={MARKDOWN_INDENT}\S)(?!{LIST_MARKER}|{ATX_HEADING}|{MARKDOWN_INDENT}>).+\n{MARKDOWN_INDENT}(?:=+|-+)[ \t]*$"
-HEADING = rf"(?:{ATX_HEADING}|{SETEXT_HEADING})"
-THEMATIC_BREAK = (
-    rf"{MARKDOWN_INDENT}(?:(?:\*[ \t]*){{3,}}|(?:-[ \t]*){{3,}}|(?:_[ \t]*){{3,}})$"
-)
-HTML_BLOCK_TAG = r"address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul"
 LOADER_MODULES = {
     "builtins": {"__import__"},
     "importlib": {"import_module"},
@@ -54,13 +44,9 @@ RE = {
         r"\.(md|markdown|mdown|mkd|mdwn|mkdn|mdtext|mdx)$", re.IGNORECASE
     ),
     "test_file": re.compile(f"^{TEST}$"),
-    "test_path": re.compile(f"`({TEST})`"),
-    "goal_start": re.compile(r"^( {0,3})(\d{1,9}[.)])(?:([ \t]+).+)?$"),
-    "list_start": re.compile(r"^( *)(?:\d{1,9}[.)]|[-+*])[ \t]+"),
-    "atx_heading": re.compile(r"^( *)#{1,6}(?:[ \t]+|$)"),
-    "setext_underline": re.compile(r"^ {0,3}(?:=+|-+)[ \t]*$"),
-    "thematic_break": re.compile(rf"^{THEMATIC_BREAK}"),
-    "section_break": re.compile(rf"^(?:{HEADING}|{THEMATIC_BREAK})", re.MULTILINE),
+    "test_path": re.compile(r"`([^`\n]+)`"),
+    "goal": re.compile(r"^\d+\. [^\n]+(?:\n[ \t]+\S[^\n]*)*", re.MULTILINE),
+    "section_break": re.compile(r"^#{1,6}(?:[ \t]+|$)", re.MULTILINE),
     "map_heading": re.compile(r"^## Map$", re.MULTILINE),
     "map_line": re.compile(r"^- `([^`]+)/`: (?=.*\S).+$", re.MULTILINE),
     "fence": re.compile(
@@ -68,23 +54,6 @@ RE = {
         re.MULTILINE | re.DOTALL,
     ),
     "html_comment": re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL),
-    "html_raw": re.compile(
-        r"^ {0,3}<(?P<html_tag>script|pre|style|textarea)(?:[ \t>]|$).*?(?:</(?P=html_tag)[ \t]*>|\Z)",
-        re.IGNORECASE | re.MULTILINE | re.DOTALL,
-    ),
-    "html_special": re.compile(
-        r"^ {0,3}(?:<\?.*?(?:\?>|\Z)|<!\[CDATA\[.*?(?:\]\]>|\Z)|<![A-Z].*?(?:>|\Z))",
-        re.MULTILINE | re.DOTALL,
-    ),
-    "html_block": re.compile(
-        rf"^ {{0,3}}</?(?:{HTML_BLOCK_TAG})(?:[ \t]+|/?>|$).*?(?=\n[ \t]*\n|\Z)",
-        re.IGNORECASE | re.MULTILINE | re.DOTALL,
-    ),
-    "html_tag_block": re.compile(
-        r"^ {0,3}</?[A-Za-z][A-Za-z0-9-]*(?:[ \t]+[^>\n]*)?/?>[ \t]*$.*?(?=\n[ \t]*\n|\Z)",
-        re.MULTILINE | re.DOTALL,
-    ),
-    "indented_code": re.compile(r"^(?: {4}|\t).*$", re.MULTILINE),
     "package": re.compile(rf"^{re.escape(PACKAGE)}(\.\w+)*$"),
 }
 
@@ -152,12 +121,44 @@ def resolve_import(name: str, package: str) -> str:
     return f"{base}.{tail}" if tail else base
 
 
+def loader_bindings(tree: ast.AST) -> dict[str, set[str]]:
+    bindings = collections.defaultdict(set)
+    bindings["__import__"].add("__import__")
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                module = alias.name if alias.asname else alias.name.partition(".")[0]
+                if module in LOADER_MODULES:
+                    bindings[alias.asname or module].add(module)
+        elif (
+            isinstance(node, ast.ImportFrom)
+            and not node.level
+            and node.module in LOADER_MODULES
+        ):
+            for alias in node.names:
+                if alias.name in LOADER_MODULES[node.module]:
+                    bindings[alias.asname or alias.name].add(alias.name)
+    return bindings
+
+
+def loader_reference(node: ast.AST, bindings: dict[str, set[str]]) -> set[str]:
+    if isinstance(node, ast.Name):
+        return bindings.get(node.id, set()) & {
+            "__import__",
+            "import_module",
+            "importorskip",
+        }
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+        return {
+            node.attr
+            for module in bindings.get(node.value.id, set())
+            if node.attr in LOADER_MODULES.get(module, set())
+        }
+    return set()
+
+
 def imported(
-    node: ast.AST,
-    parents: dict[ast.AST, ast.AST],
-    binding_index: dict[ast.AST, dict[str, list[tuple[int, int, str]]]],
-    declarations: dict[ast.AST, set[str]],
-    package_relative: bool,
+    node: ast.AST, bindings: dict[str, set[str]], package_relative: bool
 ) -> list[str]:
     if isinstance(node, ast.Import):
         return [a.name if a.asname else bare_import(a.name) for a in node.names]
@@ -165,7 +166,14 @@ def imported(
         if node.level and package_relative:
             return [PACKAGE]
         return [node.module or ""]
-    func = loader_call(node, parents, binding_index, declarations)
+    return [
+        name
+        for func in loader_reference(node.func, bindings)
+        for name in dynamic_import(node, func)
+    ]
+
+
+def dynamic_import(node: ast.Call, func: str) -> list[str]:
     if func == "__import__":
         name = call_argument(node, 0, "name")
         fromlist = call_argument(node, 3, "fromlist")
@@ -200,174 +208,6 @@ def imported(
             return [name.value]
         return [PACKAGE]
     return []
-
-
-def scoped_nodes(node: ast.AST):
-    scopes = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
-    for child in ast.iter_child_nodes(node):
-        yield child
-        if not isinstance(child, scopes):
-            yield from scoped_nodes(child)
-
-
-def indexed_bindings(
-    tree: ast.AST,
-    parents: dict[ast.AST, ast.AST],
-) -> tuple[
-    dict[ast.AST, dict[str, list[tuple[int, int, str]]]],
-    dict[ast.AST, set[str]],
-]:
-    scopes = (
-        ast.Module,
-        ast.FunctionDef,
-        ast.AsyncFunctionDef,
-        ast.Lambda,
-        ast.ClassDef,
-    )
-    index = {}
-    declarations = {}
-    for scope in (node for node in ast.walk(tree) if isinstance(node, scopes)):
-        found = collections.defaultdict(list)
-        declared = set()
-        for node in scoped_nodes(scope):
-            line = getattr(node, "lineno", 0)
-            column = getattr(node, "col_offset", 0)
-            if isinstance(node, ast.ImportFrom):
-                for alias in node.names:
-                    value = (
-                        alias.name
-                        if not node.level
-                        and node.module in LOADER_MODULES
-                        and alias.name in LOADER_MODULES[node.module]
-                        else ""
-                    )
-                    found[alias.asname or alias.name].append((line, column, value))
-            elif isinstance(node, ast.Import):
-                for alias in node.names:
-                    name = alias.asname or alias.name.partition(".")[0]
-                    module = (
-                        alias.name if alias.asname else alias.name.partition(".")[0]
-                    )
-                    found[name].append(
-                        (line, column, module if module in LOADER_MODULES else "")
-                    )
-            elif isinstance(node, ast.arg):
-                found[node.arg].append((line, column, ""))
-            elif isinstance(
-                node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
-            ):
-                found[node.name].append((line, column, ""))
-            elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
-                found[node.id].append((line, column, ""))
-            elif isinstance(node, ast.ExceptHandler) and node.name:
-                found[node.name].append((line, column, ""))
-            elif isinstance(node, (ast.Global, ast.Nonlocal)):
-                declared.update(node.names)
-        index[scope] = {name: sorted(items) for name, items in found.items()}
-        declarations[scope] = declared
-    assignments = sorted(
-        (
-            node
-            for node in ast.walk(tree)
-            if isinstance(node, (ast.Assign, ast.AnnAssign))
-        ),
-        key=lambda node: (node.lineno, node.col_offset),
-    )
-    for node in assignments:
-        value = loader_reference(node.value, parents, index, declarations)
-        if not value:
-            continue
-        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-        for target in targets:
-            if not isinstance(target, ast.Name):
-                continue
-            scope = enclosing_scope(target, parents)
-            index[scope].setdefault(target.id, []).append(
-                (target.lineno, target.col_offset, value)
-            )
-            index[scope][target.id].sort()
-    return index, declarations
-
-
-def enclosing_scope(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> ast.AST:
-    scopes = (
-        ast.Module,
-        ast.FunctionDef,
-        ast.AsyncFunctionDef,
-        ast.Lambda,
-        ast.ClassDef,
-    )
-    current = node
-    while current in parents:
-        current = parents[current]
-        if isinstance(current, scopes):
-            return current
-    return current
-
-
-def resolved_name(
-    node: ast.AST,
-    name: str,
-    parents: dict[ast.AST, ast.AST],
-    binding_index: dict[ast.AST, dict[str, list[tuple[int, int, str]]]],
-    declarations: dict[ast.AST, set[str]],
-) -> str:
-    position = (getattr(node, "lineno", 0), getattr(node, "col_offset", 0))
-    scopes = (
-        ast.Module,
-        ast.FunctionDef,
-        ast.AsyncFunctionDef,
-        ast.Lambda,
-        ast.ClassDef,
-    )
-    current = node
-    while current in parents:
-        current = parents[current]
-        if not isinstance(current, scopes):
-            continue
-        if name in declarations[current]:
-            continue
-        candidates = binding_index[current].get(name, [])
-        place = bisect.bisect_right(
-            candidates, (position[0], position[1], chr(0x10FFFF))
-        )
-        if place:
-            return candidates[place - 1][2]
-        if candidates and isinstance(
-            current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
-        ):
-            return ""
-    return "__import__" if name == "__import__" else ""
-
-
-def loader_call(
-    node: ast.Call,
-    parents: dict[ast.AST, ast.AST],
-    binding_index: dict[ast.AST, dict[str, list[tuple[int, int, str]]]],
-    declarations: dict[ast.AST, set[str]],
-) -> str:
-    return loader_reference(node.func, parents, binding_index, declarations)
-
-
-def loader_reference(
-    node: ast.AST,
-    parents: dict[ast.AST, ast.AST],
-    binding_index: dict[ast.AST, dict[str, list[tuple[int, int, str]]]],
-    declarations: dict[ast.AST, set[str]],
-) -> str:
-    if isinstance(node, ast.Name):
-        return resolved_name(node, node.id, parents, binding_index, declarations)
-    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
-        module = resolved_name(
-            node.value,
-            node.value.id,
-            parents,
-            binding_index,
-            declarations,
-        )
-        if node.attr in LOADER_MODULES.get(module, set()):
-            return node.attr
-    return ""
 
 
 def pytest_plugin_imports(node: ast.AST) -> list[str]:
@@ -417,7 +257,7 @@ def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str
         for parent in ast.walk(tree)
         for child in ast.iter_child_nodes(parent)
     }
-    binding_index, declarations = indexed_bindings(tree, parents)
+    bindings = loader_bindings(tree)
     for node in ast.walk(tree):
         if (
             isinstance(node, ast.Expr)
@@ -425,11 +265,21 @@ def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str
             and isinstance(node.value.value, str)
         ):
             errors.append(f"docstring: {shown(f)}:{node.lineno}")
+        if (
+            is_test
+            and isinstance(node, (ast.Name, ast.Attribute))
+            and isinstance(node.ctx, ast.Load)
+            and loader_reference(node, bindings)
+            and not (
+                isinstance(parents.get(node), ast.Call) and parents[node].func is node
+            )
+        ):
+            errors.append(f"test loader reference: {shown(f)}:{node.lineno}")
         if is_test and isinstance(
             node, (ast.Import, ast.ImportFrom, ast.Call, ast.Assign, ast.AnnAssign)
         ):
             names = (
-                imported(node, parents, binding_index, declarations, package_file(f))
+                imported(node, bindings, package_file(f))
                 if isinstance(node, (ast.Import, ast.ImportFrom, ast.Call))
                 else pytest_plugin_imports(node)
             )
@@ -443,151 +293,16 @@ def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str
     return errors
 
 
-def has_test(text: str) -> bool:
-    tree = ast.parse(text)
-    functions = (ast.FunctionDef, ast.AsyncFunctionDef)
-    classes = {node.name: node for node in tree.body if isinstance(node, ast.ClassDef)}
-    function_optouts = pytest_optouts(tree.body)
-    testcase_calls, testcase_modules = unittest_bindings(tree)
-    if pytest_disabled(tree.body):
-        return False
+def has_test_definition(text: str) -> bool:
+    body = ast.parse(text).body
+    definitions = [*body]
+    for node in body:
+        if isinstance(node, ast.ClassDef):
+            definitions.extend(node.body)
     return any(
-        isinstance(node, functions)
+        isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
         and node.name.startswith("test")
-        and node.name not in function_optouts
-        for node in tree.body
-    ) or any(
-        isinstance(node, ast.ClassDef)
-        and (
-            node.name.startswith("Test")
-            or unittest_case(node, testcase_calls, testcase_modules)
-        )
-        and not pytest_disabled(node.body)
-        and (
-            unittest_case(node, testcase_calls, testcase_modules)
-            or not inherited_constructor(node, classes, set())
-        )
-        and any(name.startswith("test") for name in class_methods(node, classes, set()))
-        for node in tree.body
-    )
-
-
-def inherited_constructor(
-    node: ast.ClassDef, classes: dict[str, ast.ClassDef], seen: set[str]
-) -> bool:
-    if node.name in seen:
-        return False
-    seen = seen | {node.name}
-    if any(
-        isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and item.name in {"__init__", "__new__"}
-        for item in node.body
-    ):
-        return True
-    return any(
-        isinstance(base, ast.Name)
-        and base.id in classes
-        and inherited_constructor(classes[base.id], classes, seen)
-        for base in node.bases
-    )
-
-
-def class_methods(
-    node: ast.ClassDef, classes: dict[str, ast.ClassDef], seen: set[str]
-) -> set[str]:
-    if node.name in seen:
-        return set()
-    seen = seen | {node.name}
-    inherited = {
-        name
-        for base in node.bases
-        if isinstance(base, ast.Name) and base.id in classes
-        for name in class_methods(classes[base.id], classes, seen)
-    }
-    bound = {
-        item.name
-        for item in node.body
-        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
-    } | {
-        target.id
-        for item in node.body
-        if isinstance(item, (ast.Assign, ast.AnnAssign))
-        for target in (item.targets if isinstance(item, ast.Assign) else [item.target])
-        if isinstance(target, ast.Name)
-    }
-    methods = inherited - bound
-    optouts = pytest_optouts(node.body)
-    methods |= {
-        item.name
-        for item in node.body
-        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and item.name not in optouts
-    }
-    return methods
-
-
-def pytest_disabled(body: list[ast.stmt]) -> bool:
-    return any(
-        isinstance(node, (ast.Assign, ast.AnnAssign))
-        and isinstance(node.value, ast.Constant)
-        and not bool(node.value.value)
-        and (
-            isinstance(node, ast.Assign)
-            and any(
-                isinstance(target, ast.Name) and target.id == "__test__"
-                for target in node.targets
-            )
-            or isinstance(node, ast.AnnAssign)
-            and isinstance(node.target, ast.Name)
-            and node.target.id == "__test__"
-        )
-        for node in body
-    )
-
-
-def pytest_optouts(body: list[ast.stmt]) -> set[str]:
-    return {
-        target.value.id
-        for node in body
-        if isinstance(node, (ast.Assign, ast.AnnAssign))
-        and isinstance(node.value, ast.Constant)
-        and not bool(node.value.value)
-        for target in (node.targets if isinstance(node, ast.Assign) else [node.target])
-        if isinstance(target, ast.Attribute)
-        and target.attr == "__test__"
-        and isinstance(target.value, ast.Name)
-    }
-
-
-def unittest_bindings(tree: ast.AST) -> tuple[set[str], set[str]]:
-    calls = {
-        alias.asname or alias.name
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ImportFrom)
-        and not node.level
-        and node.module == "unittest"
-        for alias in node.names
-        if alias.name == "TestCase"
-    }
-    modules = {
-        alias.asname or alias.name
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Import)
-        for alias in node.names
-        if alias.name == "unittest"
-    }
-    return calls, modules
-
-
-def unittest_case(node: ast.ClassDef, calls: set[str], modules: set[str]) -> bool:
-    return any(
-        isinstance(base, ast.Name)
-        and base.id in calls
-        or isinstance(base, ast.Attribute)
-        and base.attr == "TestCase"
-        and isinstance(base.value, ast.Name)
-        and base.value.id in modules
-        for base in node.bases
+        for node in definitions
     )
 
 
@@ -597,116 +312,7 @@ def read_python(f: pathlib.PurePosixPath) -> str:
 
 
 def markdown(text: str) -> str:
-    text = RE["fence"].sub("", text)
-    for name in (
-        "html_comment",
-        "html_raw",
-        "html_special",
-        "html_block",
-        "html_tag_block",
-    ):
-        text = RE[name].sub("", text)
-    return text
-
-
-def goal_markdown(entry: str) -> str:
-    lines = entry.splitlines()
-    match = RE["goal_start"].match(lines[0])
-    indent = len((match[1] + match[2] + (match[3] or " ")).expandtabs(4))
-    prefix = " " * indent
-    continuations = [line.expandtabs(4) for line in lines[1:]]
-    return markdown(
-        RE["indented_code"].sub(
-            "",
-            "\n".join(
-                [lines[0]]
-                + [
-                    line[indent:] if line.startswith(prefix) else line
-                    for line in continuations
-                ]
-            ),
-        )
-    )
-
-
-def pytest_pattern_configs(regular: set[str]) -> list[str]:
-    sections = {
-        "pytest.ini": "pytest",
-        "tox.ini": "pytest",
-        "setup.cfg": "tool:pytest",
-        "pyproject.toml": "tool.pytest.ini_options",
-        "pytest.toml": "pytest",
-        ".pytest.toml": "pytest",
-    }
-    found = []
-    for path, section in sections.items():
-        if path not in regular:
-            continue
-        text = (ROOT / path).read_text(encoding="utf-8")
-        match = re.search(
-            rf"^\[{re.escape(section)}\][ \t]*$(.*?)(?=^\[|\Z)",
-            text,
-            re.MULTILINE | re.DOTALL,
-        )
-        if match and re.search(r"^[ \t]*python_files[ \t]*=", match[1], re.MULTILINE):
-            found.append(path)
-    return found
-
-
-def goal_entries(text: str) -> list[str]:
-    lines = text.splitlines()
-    entries = []
-    i = 0
-    paragraph = False
-    while i < len(lines):
-        match = RE["goal_start"].match(lines[i])
-        if not match:
-            raw = lines[i]
-            paragraph = bool(raw.strip()) and not (
-                RE["list_start"].match(raw)
-                or RE["atx_heading"].match(raw)
-                or RE["thematic_break"].match(raw)
-                or raw.lstrip().startswith(">")
-            )
-            i += 1
-            continue
-        number = int(match[2][:-1])
-        if paragraph and number != 1:
-            i += 1
-            continue
-        content_indent = len((match[1] + match[2] + (match[3] or " ")).expandtabs(4))
-        entry = [lines[i]]
-        i += 1
-        while i < len(lines):
-            raw = lines[i]
-            if not raw.strip():
-                following = i
-                while following < len(lines) and not lines[following].strip():
-                    following += 1
-                if following < len(lines):
-                    indent = len(lines[following]) - len(lines[following].lstrip(" "))
-                    if indent >= content_indent:
-                        entry.extend(lines[i:following])
-                        i = following
-                        continue
-                break
-            indent = len(raw) - len(raw.lstrip(" "))
-            marker = RE["list_start"].match(raw)
-            heading = RE["atx_heading"].match(raw)
-            setext = i + 1 < len(lines) and RE["setext_underline"].match(lines[i + 1])
-            if (
-                (marker and len(marker[1]) < content_indent)
-                or (heading and len(heading[1]) < content_indent)
-                or (setext and indent < content_indent and not marker)
-                or (RE["thematic_break"].match(raw) and indent < content_indent)
-                or (raw.lstrip().startswith(">") and indent < content_indent)
-            ):
-                break
-            entry.append(raw)
-            i += 1
-        entries.append("\n".join(entry))
-        paragraph = False
-    return entries
+    return RE["html_comment"].sub("", RE["fence"].sub("", text))
 
 
 def check_map(dirs: set[str], text: str) -> list[str]:
@@ -737,8 +343,12 @@ def check_map(dirs: set[str], text: str) -> list[str]:
 
 def check_goals(tests: set[str], text: str) -> list[str]:
     named, errors = [], []
-    for entry in goal_entries(markdown(text)):
-        paths = RE["test_path"].findall(goal_markdown(entry))
+    for entry in RE["goal"].findall(markdown(text)):
+        paths = [
+            path
+            for path in RE["test_path"].findall(entry)
+            if RE["test_file"].fullmatch(path)
+        ]
         if len(paths) != 1:
             number = entry.lstrip().split(maxsplit=1)[0].rstrip(".)")
             errors.append(f"goals: entry {number} names {len(paths)} tests")
@@ -756,7 +366,6 @@ def main() -> int:
     if not PACKAGE:
         print("usage: python limits.py <package> [budget-tokens]")
         return 2
-    files = [pathlib.PurePosixPath(p) for p in git("ls-files") if p]
     entries = git("ls-files", "-s")
     index = {}
     for entry in entries:
@@ -767,11 +376,11 @@ def main() -> int:
     links = {str(path) for path, item in index.items() if item[0] == "160000"}
     symlinks = {str(path) for path, item in index.items() if item[0] == "120000"}
     dirs = {
-        str(p) for f in files for p in f.parents if p != pathlib.PurePosixPath(".")
+        str(p) for f in index for p in f.parents if p != pathlib.PurePosixPath(".")
     } | links
     counted = [
         f
-        for f in files
+        for f in index
         if str(f) not in links | {"LICENSE"}
         and f.name not in LOCKS
         and f.suffix != ".lock"
@@ -783,7 +392,7 @@ def main() -> int:
         else [f"budget: {tokens} tokens, limit {BUDGET_TOKENS}"]
     )
     errors += [f"symlink: {shown(f)}" for f in sorted(symlinks)]
-    tracked = {str(f) for f in files}
+    tracked = {str(f) for f in index}
     required = {"README.md", "GOALS.md"}
     errors += [
         f"required file: {shown(f)} is missing" for f in sorted(required - tracked)
@@ -793,20 +402,16 @@ def main() -> int:
     ]
     errors += [
         f"artifact: {shown(f)}"
-        for f in files
+        for f in index
         if str(f) not in links
         and RE["markdown"].search(str(f))
         and str(f) not in ALLOWED_MARKDOWN
     ]
     blocked = links | symlinks
     regular = tracked - blocked
-    errors += [
-        f"pytest: custom python_files in {shown(f)} is unsupported"
-        for f in pytest_pattern_configs(regular)
-    ]
     python = {
         f: read_python(f)
-        for f in files
+        for f in index
         if str(f) not in blocked and f.suffix.lower() in (".py", ".pyi", ".pyw")
     }
     for f, text in python.items():
@@ -833,7 +438,7 @@ def main() -> int:
         errors += [
             f"test: {shown(f)} defines no test"
             for f in sorted(test_files)
-            if not has_test(python[pathlib.PurePosixPath(f)])
+            if not has_test_definition(python[pathlib.PurePosixPath(f)])
         ]
         errors += check_goals(
             test_files,
