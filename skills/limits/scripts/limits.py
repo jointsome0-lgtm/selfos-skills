@@ -11,8 +11,8 @@ ROOT = pathlib.Path(
     os.fsdecode(
         subprocess.run(
             ["git", "rev-parse", "--show-toplevel"], capture_output=True, check=True
-        ).stdout
-    ).rstrip("\r\n")
+        ).stdout.removesuffix(b"\n")
+    )
 )
 PACKAGE = sys.argv[1] if len(sys.argv) > 1 else ""
 TESTING = f"{PACKAGE}.testing"
@@ -29,7 +29,7 @@ LOCKS = {
     "uv.lock",
 }
 TEST_NAME = r"(?:test_[^/]*|[^/]*_test)\.py"
-TEST = rf"(?:tests/(?:[^/.][^/]*/)*{TEST_NAME}|{TEST_NAME})"
+TEST = rf"(?:[^/.][^/]*/)*{TEST_NAME}"
 MARKDOWN_INDENT = r" {0,3}"
 LIST_MARKER = rf"{MARKDOWN_INDENT}(?:\d{{1,9}}[.)]|[-+*])[ \t]+"
 ATX_HEADING = rf"{MARKDOWN_INDENT}#{{1,6}}(?:[ \t]+|$)"
@@ -135,15 +135,15 @@ def imported(node: ast.AST) -> list[str]:
         name = call_argument(node, 0, "name")
         fromlist = call_argument(node, 3, "fromlist")
         if isinstance(name, ast.Constant) and isinstance(name.value, str):
-            empty = (
-                fromlist is None
-                or (isinstance(fromlist, ast.Constant) and not fromlist.value)
-                or (
-                    isinstance(fromlist, (ast.List, ast.Tuple, ast.Set))
-                    and not fromlist.elts
-                )
+            nonempty = (
+                isinstance(fromlist, ast.Constant)
+                and bool(fromlist.value)
+                or isinstance(fromlist, (ast.List, ast.Tuple, ast.Set))
+                and bool(fromlist.elts)
+                or isinstance(fromlist, ast.Dict)
+                and bool(fromlist.keys)
             )
-            return [bare_import(name.value) if empty else name.value]
+            return [name.value if nonempty else bare_import(name.value)]
         return []
     if func == "import_module":
         name = call_argument(node, 0, "name")
@@ -201,6 +201,11 @@ def has_test(text: str) -> bool:
     )
 
 
+def read_python(f: pathlib.PurePosixPath) -> str:
+    with tokenize.open(ROOT / f) as source:
+        return source.read()
+
+
 def goal_entries(text: str) -> list[str]:
     lines = text.splitlines()
     entries = []
@@ -251,16 +256,11 @@ def check_map(dirs: set[str], text: str) -> list[str]:
     section = RE["section_break"].split(text[match.end() :], 1)[0] if match else ""
     lines = [(m[1], m[0]) for m in RE["map_line"].finditer(section)]
     raws = section.splitlines()
-    start = next((i for i, raw in enumerate(raws, 1) if raw.startswith("- ")), None)
     errors = [] if match else ["map: no ## Map heading in README.md"]
     errors += [
         f"map: wrapped line {i}"
         for i, raw in enumerate(raws, 1)
-        if raw.strip()
-        and (
-            raw.startswith(" ")
-            or (start is not None and i >= start and not RE["map_line"].match(raw))
-        )
+        if raw.strip() and (raw.startswith(" ") or not RE["map_line"].match(raw))
     ]
     errors += compare(
         [d for d, _ in lines],
@@ -338,7 +338,7 @@ def main() -> int:
     blocked = links | symlinks
     regular = tracked - blocked
     python = {
-        f: (ROOT / f).read_text(encoding="utf-8")
+        f: read_python(f)
         for f in files
         if str(f) not in blocked and f.suffix.lower() in (".py", ".pyi", ".pyw")
     }

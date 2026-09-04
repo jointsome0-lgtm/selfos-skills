@@ -87,6 +87,17 @@ statement, reformatted per deviation 12:
 33. A thematic break ends the Map without being mistaken for a Setext
     heading or hiding the preceding Map line.
 34. Root-level pytest module names join the goal and import checks.
+35. Pytest-style module names below any visible directory join the goal and
+    import checks, matching recursive collection outside `tests/`.
+36. A literal `__import__` preserves the full module name only when its
+    `fromlist` is statically known to be nonempty; computed values are treated
+    as potentially empty and exposing the package root.
+37. Every nonblank line in the Map section is validated, including prose and
+    non-hyphen list items before the first valid directory entry.
+38. Only Git's single trailing LF is removed from the repository root, so a
+    POSIX path ending in a newline or carriage return remains intact.
+39. Python sources are decoded through Python's tokenizer rules, including
+    UTF-8 BOM handling, before token and syntax inspection.
 
 ## skills/limits/templates/
 

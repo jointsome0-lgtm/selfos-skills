@@ -102,6 +102,24 @@ class LimitsFixtureTest(unittest.TestCase):
         result = self.run_limits("pkg")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    @unittest.skipIf(os.name == "nt", "Win32 does not preserve newlines")
+    def test_repository_root_preserves_trailing_newline(self):
+        renamed = self.root.with_name(f"{self.root.name}\n")
+        self.root.rename(renamed)
+        self.root = renamed
+        self.addCleanup(shutil.rmtree, renamed, ignore_errors=True)
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    @unittest.skipIf(os.name == "nt", "Win32 does not preserve carriage returns")
+    def test_repository_root_preserves_trailing_carriage_return(self):
+        renamed = self.root.with_name(f"{self.root.name}\r")
+        self.root.rename(renamed)
+        self.root = renamed
+        self.addCleanup(shutil.rmtree, renamed, ignore_errors=True)
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_missing_package_argument_prints_usage(self):
         result = self.run_limits()
         self.assertEqual(result.returncode, 2)
@@ -156,6 +174,20 @@ class LimitsFixtureTest(unittest.TestCase):
         self.assertEqual(result.stdout.count("test import:"), 1)
         self.assertIn("test import: tests/test_works.py:1 pkg", result.stdout)
 
+    def test_import_with_computed_empty_fromlist_exposes_package_root(self):
+        (self.root / "tests" / "test_works.py").write_text(
+            "parts = []\n"
+            'pkg = __import__("pkg.testing", fromlist=parts)\n\n'
+            "def test_works():\n"
+            "    assert pkg\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.count("test import:"), 1)
+        self.assertIn("test import: tests/test_works.py:2 pkg", result.stdout)
+
     def test_bare_imports_reject_dotted_package_root(self):
         (self.root / "tests" / "test_works.py").write_text(
             "import pkg.sub.testing\n"
@@ -203,6 +235,19 @@ class LimitsFixtureTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("map: wrapped line", result.stdout)
         self.assertNotIn("map: no line for", result.stdout)
+
+    def test_map_rejects_nonblank_content_before_first_hyphen_item(self):
+        (self.root / "README.md").write_text(
+            README.replace(
+                "## Map\n\n",
+                "## Map\n\nMap introduction.\n* malformed\n",
+            ),
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.count("map: wrapped line"), 2)
 
     def test_html_commented_map_heading_is_ignored(self):
         (self.root / "README.md").write_text(
@@ -425,6 +470,30 @@ class LimitsFixtureTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("test import: test_root.py:1 pkg", result.stdout)
         self.assertNotIn("goals:", result.stdout)
+
+    def test_test_module_in_other_directory_requires_goal(self):
+        (self.root / "integration").mkdir()
+        (self.root / "integration" / "test_api.py").write_text(
+            "def test_api():\n    assert True\n", encoding="utf-8"
+        )
+        (self.root / "README.md").write_text(
+            README.rstrip() + "\n- `integration/`: integration tests.\n",
+            encoding="utf-8",
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "goals: integration/test_api.py exists but no goal names it", result.stdout
+        )
+
+    def test_utf8_bom_python_source_is_read_by_interpreter_rules(self):
+        (self.root / "src" / "pkg" / "__init__.py").write_text(
+            "VALUE = 1\n", encoding="utf-8-sig"
+        )
+        self.stage()
+        result = self.run_limits("pkg")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
