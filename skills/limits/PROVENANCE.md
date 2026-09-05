@@ -32,7 +32,8 @@ Named deviations in the shipped copy. Earlier forms are in git history:
    `README.md` and `GOALS.md` inputs before attempting their reads.
 5. Find Map by its complete `## Map` heading, ending at the next top-level
    ATX heading. Check every nonblank row, including the first; descriptions
-   must contain text. Strip ordinary fenced examples and HTML comments.
+   must contain text. Strip ordinary fenced examples and HTML comment blocks
+   whose opener starts a line with at most three leading spaces.
 6. Read goals as unindented `N. text` paragraphs. Require nonblank text on
    the first line, with optional indented continuation lines. Blank lines
    end paragraphs. Strip fenced examples
@@ -63,6 +64,7 @@ Named deviations in the shipped copy. Earlier forms are in git history:
     Check literal `pytest_plugins` declarations; computed, augmented, and
     destructured declarations fail. Match modules by their package prefix,
     including dynamically importable names that are not Python identifiers.
+    Ignore annotations without values and split string plugin lists on commas.
 11. Escape paths and import names in diagnostics and count duplicate names
     with a counter. Format the copy with Ruff.
 
@@ -80,7 +82,7 @@ Named deviations in the shipped copy. Earlier forms are in git history:
 The templates generalize project names and goals to placeholders, describe
 the checked syntax, and separate the checker from the Ruff and named-test
 steps. Workflow action references are pinned to immutable commits at the
-named releases.
+named releases. Adopters configure the interpreter for their project's syntax.
 
 ## Downstream license notice
 

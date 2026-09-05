@@ -53,7 +53,7 @@ RE = {
         r"^ {0,3}(?:(?P<backtick>`{3,})[^`\n]*\n.*?(?:^ {0,3}(?P=backtick)`*[ \t]*$|\Z)|(?P<tilde>~{3,})[^\n]*\n.*?(?:^ {0,3}(?P=tilde)~*[ \t]*$|\Z))",
         re.MULTILINE | re.DOTALL,
     ),
-    "html_comment": re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL),
+    "html_comment": re.compile(r"^ {0,3}<!--.*?(?:-->|\Z)", re.MULTILINE | re.DOTALL),
 }
 
 
@@ -227,6 +227,8 @@ def pytest_plugin_imports(node: ast.AST) -> list[str]:
         value = node.value
     else:
         return []
+    if value is None:
+        return []
     if not any(
         isinstance(name, ast.Name)
         and isinstance(name.ctx, ast.Store)
@@ -240,7 +242,7 @@ def pytest_plugin_imports(node: ast.AST) -> list[str]:
     ):
         return [PACKAGE]
     if isinstance(value, ast.Constant) and isinstance(value.value, str):
-        return [value.value]
+        return value.value.split(",")
     if isinstance(value, (ast.List, ast.Tuple, ast.Set)) and all(
         isinstance(item, ast.Constant) and isinstance(item.value, str)
         for item in value.elts

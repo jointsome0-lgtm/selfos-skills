@@ -8,6 +8,8 @@ Rules of this file:
 
 - Use plain `N. text` paragraphs, with the test path on that line or an
   indented continuation. A blank line ends the goal.
+- Put examples in fences or HTML comment blocks starting a line with at
+  most three leading spaces. Inline comment markers remain ordinary text.
 - A line below exists only if it has a test. Growing this file costs a test.
 - A test sees the system only through the public API and `<package>.testing`.
   It knows nothing about tables, modules or repositories.

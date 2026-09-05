@@ -199,6 +199,8 @@ class LimitsFixtureTest(unittest.TestCase):
     def test_pytest_plugins(self):
         for value, bad in (
             ("'pkg.testing'", False),
+            ("'helper,pkg.internal'", True),
+            ("'helper,pkg.testing'", False),
             ("['pkg.internal']", True),
             ("plugins", True),
             ("[]\npytest_plugins += ['pkg.internal']", True),
@@ -207,6 +209,8 @@ class LimitsFixtureTest(unittest.TestCase):
                 self.write("conftest.py", f"pytest_plugins = {value}\n")
                 output = self.check(code=int(bad))
                 self.assertEqual(output.count("test import:"), int(bad), output)
+        self.write("conftest.py", "pytest_plugins: list[str]\n")
+        self.check()
         self.write("conftest.py", "pytest_plugins, unused = ['pkg.internal'], None\n")
         self.check("test import:")
 
@@ -273,6 +277,10 @@ class LimitsFixtureTest(unittest.TestCase):
         )
         self.write("GOALS.md", GOALS + "\n<!--\n2. Hidden goal without a test.\n-->\n")
         self.check()
+        self.write("GOALS.md", "Intro `<!--`\n\n1. Missing a test.\n")
+        (self.root / "tests/test_works.py").unlink()
+        self.write("tests/helper.py", "VALUE = 1\n")
+        self.check("goals: entry 1 names 0 tests")
 
     def test_map_tracks_visible_directories(self):
         self.write("docs/notes.txt", "notes\n")
