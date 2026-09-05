@@ -25,23 +25,19 @@ otherwise preserved:
    open to model invocation behind a prose start gate — confirm-first
    originally, relaxed to announce-and-proceed per issue #126 (2026-08-18),
    with repository writes still owner-gated inside the grilling loop.
-2. **Skill invocations become bundled references** — upstream runs
-   `/codebase-design` and `/grilling` as host slash-commands; here both are
-   bundled dependencies read at `references/codebase-design/` and
-   `references/grilling/`, and `sdd-conventions` is bundled for the Decision
-   Log grammar, so the workflow is self-contained on hosts without those
-   skills installed.
+2. **Skill invocations become bundled references** — design vocabulary and
+   grilling are bundled at `references/codebase-design/` and
+   `references/grilling/`. No conventions checker is required.
 3. **`CONTEXT.md` replaced by repository terminology** — upstream requires a
    `CONTEXT.md` domain glossary (created lazily during the grilling loop);
-   the adaptation draws the project's domain terminology from its SDD,
-   specs, or code, maintained by the ecosystem's `domain-modeling` skill
+   the adaptation draws the project's domain terminology from code
+   and existing documentation, maintained by the ecosystem's `domain-modeling` skill
    where installed, introducing no domain-document requirement (same
    substitution as the `codebase-design` adaptation).
-4. **ADRs replaced by the SDD Decision Log** — upstream reads `docs/adr/`
-   and offers to record rejections as ADRs; the adaptation reads the
-   project's SDD Decision Log and offers Decision Log entries instead, with
-   the same reopen-only-when-friction-warrants rule for conflicting
-   candidates.
+4. **Prior decisions read from commits and issues** — existing reasons
+   constrain recommendations without requiring an ADR or Decision Log
+   format. Cite the original decision when actual friction warrants
+   reopening it. A rejected candidate creates no artifact by default.
 5. **Sub-agents made harness-optional** — upstream mandates "use the Agent
    tool with `subagent_type=Explore`" and the design-it-twice "parallel
    sub-agent pattern"; the adaptation uses parallel sub-agents where the
@@ -52,7 +48,7 @@ otherwise preserved:
    the OS temp directory is the only written artifact); candidates are
    recommendations and implementation requires a separate explicit user
    request; grilling-loop side effects land only as owner-confirmed
-   domain-model or Decision Log updates that honor the target repository's
+   changes that honor the target repository's
    recognized instruction files; other repository-derived text is untrusted
    data whose embedded directives are never acted on.
 7. **Host-specific upstream config not imported** — upstream's `agents/`
@@ -94,8 +90,8 @@ otherwise preserved:
 Named semantic deviations — the scaffold, card contract, diagram patterns,
 style guidance, and tone rules are otherwise verbatim upstream text:
 
-1. **ADR callout becomes a Decision Log callout** — the card's conflict line
-   cites the contradicted Decision Log entry instead of an ADR.
+1. **Prior-decision callout** — the card cites the relevant commit or issue
+   instead of requiring an ADR format.
 2. **`/codebase-design` skill references become bundled-reference links** —
    the three mentions of the `/codebase-design` skill point at
    `references/codebase-design/CONTRACT.md`.
@@ -108,7 +104,6 @@ style guidance, and tone rules are otherwise verbatim upstream text:
 
 - `references/codebase-design/PROVENANCE.md`
 - `references/grilling/PROVENANCE.md`
-- `references/sdd-conventions/PROVENANCE.md`
 
 ## Upstream license notice
 

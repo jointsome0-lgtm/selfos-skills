@@ -35,10 +35,6 @@ jobs:
       - name: Version bump check
         if: github.event_name == 'pull_request'
         run: python scripts/check_version_bump.py --base "origin/$GITHUB_BASE_REF"
-      - name: Test portable SDD helpers
-        run: |
-          python skills/sdd-conventions/scripts/test_sync_conventions.py
-          python skills/sdd-conventions/scripts/test_check_decision_log.py
       - name: Test the portable limits checker
         run: python skills/limits/scripts/test_limits.py
       - name: ShellCheck portable helpers

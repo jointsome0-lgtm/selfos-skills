@@ -8,7 +8,7 @@ take the numeric database **id** (`gh api repos/$R/issues/$N --jq
 .id`). Never swap the two: an id in a path 404s or hits the wrong
 issue. Map and tickets live in
 one repository (sub-issues must share the repository owner): the one
-whose Decision Log the effort lands in.
+the effort belongs to.
 
 ## Conventions
 
@@ -125,6 +125,7 @@ gh issue comment "$N" --repo "$R" --body-file resolution.md
 gh issue close "$N" --repo "$R"
 ```
 
-Ordering is the skill's contract, not the tracker's: the Decision Log
-entry lands in the repository first, the resolution comment quotes it
-and links the landing commit or pull request, and the close comes last.
+Land any authorized repository change first, with its reason and ticket
+reference in the commit. Then post the resolution and link that commit;
+close last. Planning-only decisions resolve in the issue without an empty
+commit or a separate log file.
