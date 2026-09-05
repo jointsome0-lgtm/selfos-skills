@@ -241,7 +241,7 @@ report_review() {
   else
     echo "(no inline comments — read the body above; it may even be an all-clear note)"
   fi
-  echo "Next: fix (or explicitly rebut) each item, commit, push, re-run this watcher."
+  echo "Next: assess findings under the watch merge threshold. With no blockers, proceed to CI and authorized merge; otherwise fix or rebut blockers within budget."
 }
 
 # --- poll loop ----------------------------------------------------------------
