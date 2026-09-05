@@ -3,7 +3,7 @@
 Read [AGENTS.md](AGENTS.md) first: it is the shared agent contract for this
 repository (the generated capability catalog and public-data policy) and
 applies to Claude Code in full. Canonical installable skills live under
-`skills/<name>/`; `plugins/` is a legacy compatibility snapshot only.
+`skills/<name>/`.
 
 ## Security reviews go to an independent external reviewer
 

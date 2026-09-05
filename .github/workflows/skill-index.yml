@@ -22,16 +22,12 @@ jobs:
         run: python scripts/validate_skills.py
       - name: Test the portable catalog parser
         run: python scripts/test_skill_catalog.py
-      - name: Test the adapter validator
-        run: python scripts/test_validate_plugins.py
       - name: Check generated composed-skill bundles
         run: python scripts/build_bundles.py --check
       - name: Test the bundle builder
         run: python scripts/test_build_bundles.py
       - name: Check the generated repository index
         run: python scripts/build_index.py --check
-      - name: Validate the aggregate Claude adapter
-        run: python scripts/validate_plugins.py
       - name: Test the version-bump gate
         run: python scripts/test_check_version_bump.py
       - name: Test the installation smoke matrix

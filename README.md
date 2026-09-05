@@ -102,7 +102,7 @@ Compatibility describes hard runtime needs and conditional capabilities; descrip
 | `slice` | `0.3.0` | Requires Python 3.9+ for bundled SDD helpers, read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
 | `unslop` | `0.1.0` | No specific CLI, OS, network access, repository write access, or external integration is required. |
 | `wait-what` | `0.1.1` | No specific CLI, OS, network access, repository write access, or external integration is required. |
-| `watch` | `0.5.1` | Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; repositories that require a post-verdict manual dispatch additionally need authenticated GitHub Actions write (workflow-dispatch) access; requires a POSIX-style shell environment but no specific OS. |
+| `watch` | `1.0.1` | Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; repositories that require a post-verdict manual dispatch additionally need authenticated GitHub Actions write (workflow-dispatch) access; requires a POSIX-style shell environment but no specific OS. |
 | `wayfinder` | `0.3.0` | Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the repository holding the SDD Decision Log, and Python 3.9+ for the bundled Decision Log lint. Research and prototype tickets require the sibling research and prototype skills installed; grilling tickets run on the bundled grilling contract. No OS constraint. |
 <!-- END GENERATED COMPATIBILITY -->
 
@@ -162,7 +162,7 @@ python scripts/build_bundles.py --check
 python scripts/build_index.py --check
 ```
 
-The main CI additionally runs the canonical SDD helper tests, the watcher suite, ShellCheck, the static adapter validator, and the matrixed installation checks described above.
+The main CI additionally runs the canonical SDD helper tests, the watcher suite, ShellCheck, and the matrixed installation checks described above.
 
 ## Versioning and releases
 
@@ -178,7 +178,6 @@ Every canonical skill bump gets a tag on the validated merge commit using the ex
 
 - Skill behavior changes
 - Packaging-only changes
-- Legacy-adapter changes
 
 Because releases follow merges of skill changes, a release batch that changes nothing installable should not exist: it has no new derived version and therefore nothing to release.
 
