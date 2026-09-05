@@ -20,7 +20,7 @@ class InstallSmokeMatrixTests(unittest.TestCase):
                 "cursor-installer",
                 "opencode-installer",
                 "codex-native",
-                "claude-root-and-legacy",
+                "claude-native",
             }.issubset(case_ids)
         )
 
@@ -33,25 +33,24 @@ class InstallSmokeMatrixTests(unittest.TestCase):
                 "fixture", {"compose", "watch"}, {"invented-skill", "watch"}, "skill"
             )
 
-    def test_skill_tree_checks_companions_modes_and_absolute_paths(self) -> None:
+    def test_skill_tree_accepts_arbitrary_names_and_rejects_changed_companion(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "checkout"
             canonical = root / "skills"
             installed = Path(temporary) / "installed"
             for base in (canonical, installed):
-                (base / "slice" / "references" / "grilling").mkdir(parents=True)
-                (base / "watch" / "scripts").mkdir(parents=True)
-                (base / "slice" / "SKILL.md").write_text("slice\n", encoding="utf-8")
-                (base / "slice" / "references" / "grilling" / "CONTRACT.md").write_text(
+                (base / "invented-skill" / "references" / "invented-reference").mkdir(parents=True)
+                (base / "invented-skill" / "scripts").mkdir(parents=True)
+                (base / "invented-skill" / "SKILL.md").write_text("invented skill\n", encoding="utf-8")
+                (base / "invented-skill" / "references" / "invented-reference" / "CONTRACT.md").write_text(
                     "composed\n", encoding="utf-8"
                 )
-                (base / "watch" / "SKILL.md").write_text("watch\n", encoding="utf-8")
-                helper = base / "watch" / "scripts" / "codex-pr-watch.sh"
+                helper = base / "invented-skill" / "scripts" / "helper.sh"
                 helper.write_text("#!/bin/sh\n", encoding="utf-8")
                 helper.chmod(0o755)
 
             smoke.assert_skill_tree(canonical, installed, root)
-            (installed / "watch" / "scripts" / "codex-pr-watch.sh").write_text(
+            (installed / "invented-skill" / "scripts" / "helper.sh").write_text(
                 str(root), encoding="utf-8"
             )
             with self.assertRaisesRegex(smoke.SmokeFailure, "changed companion file"):

@@ -45,8 +45,8 @@
       "npm_install": "@openai/codex@0.144.0"
     },
     {
-      "id": "claude-root-and-legacy",
-      "kind": "claude-root-and-legacy",
+      "id": "claude-native",
+      "kind": "claude-native",
       "npm_install": "@anthropic-ai/claude-code"
     }
   ],
