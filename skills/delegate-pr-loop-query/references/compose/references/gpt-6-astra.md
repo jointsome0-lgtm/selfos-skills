@@ -1,12 +1,12 @@
 # GPT-6 Astra
 
-Sources: OpenAI's [GPT-6 Astra model guide](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra), which carries the model's prompting guidance; there is no separate prompting guide. Checked against upstream 2026-09-04.
+Sources: OpenAI's [GPT-6 Astra model guide](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra), which carries the model's prompting guidance; there is no separate prompting guide. Checked against upstream 2026-09-05.
 
-Applies to `gpt-6-astra` — in the Codex CLI, Codex cloud, or the API (Responses API; Chat Completions works but without tool calling). At the check date it was rolling out to enterprises in the Trusted Access Program, with API and plan access announced for the following days. GPT-6 Astra supports the same API capabilities as GPT-5.6 (computer use, Structured Outputs, streaming, Programmatic Tool Calling, multi-agent orchestration, prompt caching, persisted reasoning, compaction, pro mode), and the lean, outcome-first prompt style carries over, so read [gpt-5.6.md](gpt-5.6.md) first: everything there still applies unless a section below replaces it. On conflict with the core skill, this file wins.
+Applies to `gpt-6-astra` in the Codex CLI, Codex cloud, or the API. Tool calling requires the Responses API. This reference is self-contained; use it with the core skill's delegation contract and effort policy. On conflict with the core skill, this file wins.
 
 ## Initiative and follow-through
 
-Stays coherent on long tasks better than GPT-5.6 Sol, and is designed to ask when more input could materially change the result — so it asks for clarification where earlier models assumed and persisted, and it may stop where you expected it to make reasonable assumptions and carry on. It also asks non-blocking questions while working by default; for a subagent whose final message is the deliverable, nobody answers those, so decide the autonomy level up front. Three upstream blocks, in escalating order; the first replaces the GPT-5.6 reference's "the core skill's compact autonomy policy is enough":
+Stays coherent on long tasks better than GPT-5.6 Sol, and is designed to ask when more input could materially change the result — so it asks for clarification where earlier models assumed and persisted, and it may stop where you expected it to make reasonable assumptions and carry on. It also asks non-blocking questions while working by default; for a subagent whose final message is the deliverable, nobody answers those, so decide the autonomy level up front. Choose the upstream blocks below according to the autonomy the task needs:
 
 - **Bias toward action.** Use as the prompt's autonomy boundary. Its "clearly destructive or irreversible" clause is narrower than the core skill's policy, so keep the core's confirmation categories: append "Require confirmation for external writes, destructive actions, purchases, or a material expansion of scope." plus any product-specific gates.
 
@@ -46,7 +46,7 @@ If a skill causes you to ask for permission or confirmation, pause, leave reques
 
 ## Writing style
 
-Tends toward detailed, formatted answers — lists, tables, Markdown — and may reuse the same phrases across sessions. The GPT-5.6 reference's "drop bare 'be concise'" advice still holds; instead specify the style and structure the deliverable needs. Upstream blocks, each usable alone:
+Tends toward detailed, formatted answers — lists, tables, Markdown — and may reuse the same phrases across sessions. Specify the style and structure the deliverable needs. Upstream blocks, each usable alone:
 
 - Prose over formatting:
 
@@ -86,7 +86,7 @@ Messages that you send to other agents and your final answer may be read by a hu
 
 ## Testing and verification
 
-Thorough in testing before it calls a coding task done — on small tasks, broader than the change warrants, or the same checks repeated. The GPT-5.6 reference's single check-your-work criterion still belongs in the prompt; bound it so it scales with the change:
+Thorough in testing before it calls a coding task done — on small tasks, broader than the change warrants, or the same checks repeated. State the required validation and evidence in the success criteria, scaled to the change:
 
 ```text
 Do not write tests for reversible, low-impact changes that mirror the implementation. If you do choose to verify your work with tests, make sure that the tests are meaningful and necessary to verify implementation.
@@ -100,17 +100,17 @@ One variant, `gpt-6-astra`, for the hardest delegated work: computer use, browsi
 
 - Reasoning effort `none` is not supported. Migrating from `none` or `minimal`, start at `low` and compare; otherwise keep the current effective effort. The core skill's ladder (`low`–`high`, `medium` as the default) applies.
 - To change effort mid-conversation, add a `configuration_update` input item rather than changing the request-level `reasoning.effort`; the update holds until the next one and preserves the cached prompt prefix. Standard single-agent requests only; check upstream compatibility limits before adopting it.
-- Pro mode (`reasoning.mode: "pro"`) carries over from GPT-5.6, with the same rule: same outcome-first prompt, no "think harder" prose.
+- Pro mode (`reasoning.mode: "pro"`) belongs in configuration; keep the same outcome-first prompt.
 - Fast mode (`service_tier: "fast"`) has no latency SLA on GPT-6 Astra and, like `"priority"`, is unavailable with EU data residency, where Standard processing is the only option.
 - Effort, mode, and service tier belong in config or API parameters, not in prompt prose.
 
-## Migrating a GPT-5.6 prompt
+## Migrating an existing prompt
 
-Eval-driven and incremental, as in the GPT-5.6 reference: switch the model with the prompt unchanged, baseline, then fix one measured regression at a time. Codex can apply the recommended changes with the OpenAI Docs skill: `$openai-docs migrate this project to GPT-6 Astra`.
+Switch the model with the prompt unchanged, establish a baseline, then fix one measured regression at a time. Codex can apply the recommended changes with the OpenAI Docs skill: `$openai-docs migrate this project to GPT-6 Astra`.
 
 - Set `model` to `gpt-6-astra`. Remove `temperature`, `top_p`, and `top_logprobs`; in Chat Completions also `logprobs`, in Responses also `message.output_text.logprobs` from `include`.
 - Tool calling requires the Responses API; move Chat Completions integrations that call tools.
 - Coming from GPT-5.5 or earlier, replace `prompt_cache_retention` with `prompt_cache_options.ttl` set to `"30m"`, and review the prompt-caching changes (cache boundaries, cache-write billing).
 - The most likely regression is unnecessary approval pauses; fix it with the initiative blocks above before touching anything else. Then check formatting, delegation rate, and test breadth against the sections above.
 - Async tool calling (`async: true` on a function or custom tool, result returned later under the original `call_id`), mid-turn steering over WebSocket, and misalignment monitoring are integration features, not prompt text; see the official guide.
-- Security-adjacent work: state the defensive purpose and authorization up front, as for GPT-5.6. GPT-6 Astra adds asynchronous misalignment monitoring that can trigger alerts; it is a safeguard on the run, not a prompt surface.
+- Security-adjacent work: state the defensive purpose and authorization up front. GPT-6 Astra adds asynchronous misalignment monitoring that can trigger alerts; it is a safeguard on the run, not a prompt surface.
