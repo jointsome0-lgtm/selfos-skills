@@ -49,11 +49,11 @@ RE = {
     "section_break": re.compile(r"^#{1,6}(?:[ \t]+|$)", re.MULTILINE),
     "map_heading": re.compile(r"^## Map$", re.MULTILINE),
     "map_line": re.compile(r"^- `([^`]+)/`: (?=.*\S).+$", re.MULTILINE),
-    "fence": re.compile(
-        r"^ {0,3}(?:(?P<backtick>`{3,})[^`\n]*\n.*?(?:^ {0,3}(?P=backtick)`*[ \t]*$|\Z)|(?P<tilde>~{3,})[^\n]*\n.*?(?:^ {0,3}(?P=tilde)~*[ \t]*$|\Z))",
+    "example": re.compile(
+        r"^ {0,3}(?:(?P<backtick>`{3,})[^`\n]*\n.*?(?:^ {0,3}(?P=backtick)`*[ \t]*$|\Z)|(?P<tilde>~{3,})[^\n]*\n.*?(?:^ {0,3}(?P=tilde)~*[ \t]*$|\Z))"
+        r"|^ {0,3}<!--.*?(?:-->|\Z)",
         re.MULTILINE | re.DOTALL,
     ),
-    "html_comment": re.compile(r"^ {0,3}<!--.*?(?:-->|\Z)", re.MULTILINE | re.DOTALL),
 }
 
 
@@ -159,20 +159,23 @@ def loader_reference(node: ast.AST, bindings: dict[str, set[str]]) -> set[str]:
     return set()
 
 
-def imported(
-    node: ast.AST, bindings: dict[str, set[str]], package_relative: bool
-) -> list[str]:
+def imported_members(module: str, names) -> list[str]:
+    if PACKAGE.startswith(f"{module}."):
+        return [
+            PACKAGE if name == "*" else bare_import(f"{module}.{name}")
+            for name in names
+        ]
+    return [module]
+
+
+def imported(node: ast.AST, bindings: dict[str, set[str]], package: str) -> list[str]:
     if isinstance(node, ast.Import):
         return [a.name if a.asname else bare_import(a.name) for a in node.names]
     if isinstance(node, ast.ImportFrom):
-        if node.level and package_relative:
-            return [PACKAGE]
-        if PACKAGE.startswith(f"{node.module}."):
-            return [
-                PACKAGE if a.name == "*" else f"{node.module}.{a.name}"
-                for a in node.names
-            ]
-        return [node.module or ""]
+        module = node.module or ""
+        if node.level:
+            module = resolve_import("." * node.level + module, package)
+        return imported_members(module, (a.name for a in node.names))
     return [
         name
         for func in loader_reference(node.func, bindings)
@@ -191,10 +194,13 @@ def dynamic_import(node: ast.Call, func: str) -> list[str]:
         fromlist = call_argument(node, 3, "fromlist")
         if isinstance(name, ast.Constant) and isinstance(name.value, str):
             try:
-                nonempty = fromlist is not None and bool(ast.literal_eval(fromlist))
+                members = ast.literal_eval(fromlist) if fromlist is not None else ()
+                if members:
+                    return imported_members(name.value, members)
             except (ValueError, TypeError):
-                nonempty = False
-            return [name.value if nonempty else bare_import(name.value)]
+                if PACKAGE.startswith(f"{name.value}."):
+                    return [PACKAGE]
+            return [bare_import(name.value)]
         return [PACKAGE]
     if func == "import_module":
         name = call_argument(node, 0, "name")
@@ -251,9 +257,12 @@ def pytest_plugin_imports(node: ast.AST) -> list[str]:
     return [PACKAGE]
 
 
-def package_file(f: pathlib.PurePosixPath) -> bool:
-    package = tuple(PACKAGE.split("."))
-    return any(parent.parts[-len(package) :] == package for parent in f.parents)
+def package_context(f: pathlib.PurePosixPath) -> str:
+    root = PACKAGE.partition(".")[0]
+    for index, part in enumerate(f.parts[:-1]):
+        if part == root:
+            return ".".join(f.parts[index:-1])
+    return ""
 
 
 def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str]:
@@ -302,7 +311,7 @@ def check_python(f: pathlib.PurePosixPath, text: str, is_test: bool) -> list[str
             ),
         ):
             names = (
-                imported(node, bindings, package_file(f))
+                imported(node, bindings, package_context(f))
                 if isinstance(node, (ast.Import, ast.ImportFrom, ast.Call))
                 else pytest_plugin_imports(node)
             )
@@ -335,7 +344,7 @@ def read_python(f: pathlib.PurePosixPath) -> str:
 
 
 def markdown(text: str) -> str:
-    return RE["html_comment"].sub("", RE["fence"].sub("", text))
+    return RE["example"].sub("", text)
 
 
 def check_map(dirs: set[str], text: str) -> list[str]:

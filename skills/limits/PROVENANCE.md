@@ -34,6 +34,7 @@ Named deviations in the shipped copy. Earlier forms are in git history:
    ATX heading. Check every nonblank row, including the first; descriptions
    must contain text. Strip ordinary fenced examples and HTML comment blocks
    whose opener starts a line with at most three leading spaces.
+   Scan them together so one ignored block cannot open another.
 6. Read goals as unindented `N. text` paragraphs. Require nonblank text on
    the first line, with optional indented continuation lines. Blank lines
    end paragraphs. Strip fenced examples
@@ -47,8 +48,9 @@ Named deviations in the shipped copy. Earlier forms are in git history:
 8. Check imports in every Python file below a `tests/` directory, matching
    test files elsewhere, and `conftest.py`. Reject bare imports that expose
    the protected package root, including dotted package arguments. Reject
-   relative static imports within that package conservatively.
-   Match the package's path segments beneath any source root.
+   relative static imports into that package conservatively. Resolve relative
+   names using path segments starting at the protected package's root name,
+   beneath any source root, including sibling package tests.
    Check members imported from a parent of a dotted protected package.
 9. Recognize the three dynamic loaders through aliases declared in imports.
    Include both builtins and importlib exports of `__import__`.
@@ -58,8 +60,9 @@ Named deviations in the shipped copy. Earlier forms are in git history:
    loader references instead of following their later use.
 10. Read each loader's module argument and require a string literal. Resolve
     relative `import_module` calls with literal packages. Treat `__import__`
-    as exposing the root unless its `fromlist` is statically nonempty, and
-    require its `level` to be omitted or literal zero.
+    as exposing the root unless its `fromlist` is statically nonempty. Check
+    literal members imported from parents of dotted packages with the same
+    rule as static `from` imports. Require its `level` to be omitted or zero.
     Evaluate only literal fromlists; computed entries expose the root conservatively.
     Check literal `pytest_plugins` declarations; computed, augmented, and
     destructured declarations fail. Match modules by their package prefix,

@@ -184,6 +184,10 @@ class LimitsFixtureTest(unittest.TestCase):
             ("import pkg.sub.testing as allowed", 0),
             ('__import__("pkg.sub.testing")', 1),
             ('__import__("pkg.sub.testing", fromlist=["fake"])', 0),
+            ('__import__("pkg", fromlist=["sub"])', 1),
+            ('__import__("pkg", fromlist=["sub.testing"])', 1),
+            ('__import__("pkg", fromlist=["unrelated"])', 0),
+            ('__import__("pkg", fromlist=members)', 1),
             ("from pkg import sub", 1),
             ("from pkg import sub as protected", 1),
             ("from pkg import *", 1),
@@ -241,6 +245,12 @@ class LimitsFixtureTest(unittest.TestCase):
         for name in ("README.md", "GOALS.md"):
             self.write(name, (self.root / name).read_text().replace("`src/", "`lib/"))
         self.check("test import: 'lib/pkg/tests/test_inside.py':1 'pkg'")
+        self.write(path.replace("src/", "lib/"), "from .. import sub\n" + TEST)
+        self.check(
+            "test import: 'lib/pkg/tests/test_inside.py':1 'pkg.sub'", package="pkg.sub"
+        )
+        self.write(path.replace("src/", "lib/"), "from . import helper\n" + TEST)
+        self.check(package="pkg.sub")
 
     def test_map_grammar(self):
         cases = (
@@ -277,10 +287,12 @@ class LimitsFixtureTest(unittest.TestCase):
         )
         self.write("GOALS.md", GOALS + "\n<!--\n2. Hidden goal without a test.\n-->\n")
         self.check()
-        self.write("GOALS.md", "Intro `<!--`\n\n1. Missing a test.\n")
         (self.root / "tests/test_works.py").unlink()
         self.write("tests/helper.py", "VALUE = 1\n")
-        self.check("goals: entry 1 names 0 tests")
+        for prefix in ("Intro `<!--`", "<!--\n```\n-->", "```\n<!--\n```"):
+            with self.subTest(prefix=prefix):
+                self.write("GOALS.md", prefix + "\n\n1. Missing a test.\n")
+                self.check("goals: entry 1 names 0 tests")
 
     def test_map_tracks_visible_directories(self):
         self.write("docs/notes.txt", "notes\n")
