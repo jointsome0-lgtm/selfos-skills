@@ -25,7 +25,6 @@ class CheckVersionBumpTest(unittest.TestCase):
         self.repo = Path(tempfile.mkdtemp(prefix="version-bump-test."))
         self.addCleanup(shutil.rmtree, self.repo, ignore_errors=True)
         self.git("init", "--quiet", "--initial-branch=main")
-        self.write_plugin("demo", "1.0.0")
         (self.repo / "README.md").write_text("Invented fixture repository.\n", encoding="utf-8")
         self.commit("initial layout")
 
@@ -50,22 +49,6 @@ class CheckVersionBumpTest(unittest.TestCase):
             text=True,
             cwd=self.repo,
         )
-
-    def write_plugin(self, name: str, version: str) -> None:
-        manifest = self.repo / "plugins" / name / ".claude-plugin" / "plugin.json"
-        manifest.parent.mkdir(parents=True, exist_ok=True)
-        manifest.write_text(
-            json.dumps({"name": name, "version": version, "description": "Invented plugin."})
-            + "\n",
-            encoding="utf-8",
-        )
-        skill = self.repo / "plugins" / name / "skills" / name / "SKILL.md"
-        skill.parent.mkdir(parents=True, exist_ok=True)
-        skill.write_text(f"# {name}\n\nInvented skill body.\n", encoding="utf-8")
-
-    def touch_plugin_skill(self, name: str, line: str) -> None:
-        skill = self.repo / "plugins" / name / "skills" / name / "SKILL.md"
-        skill.write_text(skill.read_text(encoding="utf-8") + line + "\n", encoding="utf-8")
 
     def write_adapter(self, manifest_dir: str, version: str) -> None:
         manifest = self.repo / manifest_dir / "plugin.json"
@@ -108,52 +91,6 @@ class CheckVersionBumpTest(unittest.TestCase):
         self.write_adapters(version)
         self.commit("add canonical catalog")
 
-    def test_legacy_content_change_without_bump_fails(self) -> None:
-        self.branch()
-        self.touch_plugin_skill("demo", "Invented edit without a bump.")
-        self.commit("edit legacy skill")
-        result = self.check()
-        self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn("plugins/demo", result.stderr)
-        self.assertIn("did not strictly increase", result.stderr)
-        self.assertIn("bump plugins/demo/.claude-plugin/plugin.json", result.stderr)
-
-    def test_legacy_content_change_with_bump_passes(self) -> None:
-        self.branch()
-        self.touch_plugin_skill("demo", "Invented edit shipped with a bump.")
-        self.write_plugin("demo", "1.0.1")
-        self.commit("edit legacy skill and bump")
-        result = self.check()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("1 changed legacy plugin(s)", result.stdout)
-
-    def test_legacy_bump_only_diff_passes(self) -> None:
-        self.branch()
-        self.write_plugin("demo", "1.1.0")
-        self.commit("legacy bump only")
-        self.assertEqual(self.check().returncode, 0)
-
-    def test_legacy_version_downgrade_fails(self) -> None:
-        self.branch()
-        self.touch_plugin_skill("demo", "Invented edit shipped with a downgrade.")
-        self.write_plugin("demo", "0.9.0")
-        self.commit("downgrade legacy plugin")
-        result = self.check()
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("did not strictly increase", result.stderr)
-
-    def test_new_legacy_plugin_passes(self) -> None:
-        self.branch()
-        self.write_plugin("fresh", "0.1.0")
-        self.commit("add fresh legacy plugin")
-        self.assertEqual(self.check().returncode, 0)
-
-    def test_deleted_legacy_plugin_passes(self) -> None:
-        self.branch()
-        shutil.rmtree(self.repo / "plugins" / "demo")
-        self.commit("remove legacy plugin")
-        self.assertEqual(self.check().returncode, 0)
-
     def test_change_outside_guarded_roots_passes(self) -> None:
         self.branch()
         (self.repo / "README.md").write_text("Invented update.\n", encoding="utf-8")
@@ -162,23 +99,11 @@ class CheckVersionBumpTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("no guarded content changes", result.stdout)
 
-    def test_uncommitted_legacy_change_without_bump_fails(self) -> None:
+    def test_uncommitted_canonical_change_without_bump_fails(self) -> None:
+        self.set_up_catalog()
         self.branch()
-        self.touch_plugin_skill("demo", "Invented uncommitted edit.")
+        self.write_canonical_skill("catalog-demo", "1.0.0", "Invented uncommitted edit.")
         self.assertEqual(self.check().returncode, 1)
-
-    def test_names_only_the_unbumped_legacy_plugin(self) -> None:
-        self.write_plugin("extra", "2.0.0")
-        self.commit("add extra legacy plugin")
-        self.branch()
-        self.touch_plugin_skill("demo", "Invented bumped edit.")
-        self.write_plugin("demo", "1.0.1")
-        self.touch_plugin_skill("extra", "Invented unbumped edit.")
-        self.commit("edit both legacy plugins")
-        result = self.check()
-        self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn("plugins/extra", result.stderr)
-        self.assertNotIn("plugins/demo:", result.stderr)
 
     def test_canonical_content_change_without_skill_bump_fails(self) -> None:
         self.set_up_catalog()
@@ -419,11 +344,12 @@ class CheckVersionBumpTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("does not resolve", result.stderr)
 
-    def test_invalid_head_legacy_manifest_is_reported(self) -> None:
+    def test_invalid_head_adapter_manifest_is_reported(self) -> None:
+        self.set_up_catalog()
         self.branch()
-        manifest = self.repo / "plugins" / "demo" / ".claude-plugin" / "plugin.json"
+        manifest = self.repo / ".claude-plugin" / "plugin.json"
         manifest.write_text("{not json", encoding="utf-8")
-        self.commit("break legacy manifest")
+        self.commit("break adapter manifest")
         result = self.check()
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("invalid JSON", result.stderr)

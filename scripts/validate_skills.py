@@ -13,6 +13,7 @@ from skill_catalog import (
     ALLOWED_FIELDS,
     BUNDLE_ENTRYPOINT_NAME,
     BUNDLE_MANIFEST_NAME,
+    CONTROL_RE,
     GENERATED_MARKER_NAME,
     NAME_RE,
     ROOT,
@@ -218,6 +219,58 @@ def load_json(path: Path, errors: list[str]) -> dict | None:
     return value
 
 
+def required_text(data: dict, key: str, where: str, errors: list[str]) -> str | None:
+    value = data.get(key)
+    if not isinstance(value, str) or not value.strip():
+        errors.append(f"{where}: {key!r} must be non-empty text")
+        return None
+    if CONTROL_RE.search(value):
+        errors.append(f"{where}: {key!r} must not contain control characters")
+        return None
+    return value
+
+
+def validate_claude_adapter(manifest: dict | None, marketplace: dict | None) -> list[str]:
+    """Validate the aggregate-only Claude adapter and marketplace metadata."""
+    errors: list[str] = []
+    manifest_where = ".claude-plugin/plugin.json"
+    if manifest is not None:
+        required_text(manifest, "description", manifest_where, errors)
+
+    if marketplace is None:
+        return errors
+
+    where = ".claude-plugin/marketplace.json"
+    marketplace_name = required_text(marketplace, "name", where, errors)
+    if marketplace_name is not None and not NAME_RE.fullmatch(marketplace_name):
+        errors.append(f"{where}: marketplace name {marketplace_name!r} must be kebab-case")
+
+    owner = marketplace.get("owner")
+    if not isinstance(owner, dict):
+        errors.append(f"{where}: owner must be an object")
+    else:
+        required_text(owner, "name", f"{where}: owner", errors)
+
+    entries = marketplace.get("plugins")
+    if not isinstance(entries, list) or len(entries) != 1:
+        errors.append("Claude marketplace must contain exactly one selfos-skills entry")
+        return errors
+
+    entry = entries[0]
+    item_where = f"{where}: plugins[0]"
+    if not isinstance(entry, dict):
+        errors.append(f"{item_where}: must be an object")
+        return errors
+    name = required_text(entry, "name", item_where, errors)
+    source = required_text(entry, "source", item_where, errors)
+    required_text(entry, "description", item_where, errors)
+    if name is not None and name != "selfos-skills":
+        errors.append(f"{item_where}: name must be 'selfos-skills'")
+    if source is not None and source != "./":
+        errors.append(f"{item_where}: source must be './'")
+    return errors
+
+
 def validate_adapters(skills: list[Skill]) -> list[str]:
     errors: list[str] = []
     codex = load_json(ROOT / ".codex-plugin" / "plugin.json", errors)
@@ -242,6 +295,8 @@ def validate_adapters(skills: list[Skill]) -> list[str]:
     if codex is not None and codex.get("skills") != "./skills/":
         errors.append(".codex-plugin/plugin.json must point skills at './skills/'")
 
+    errors.extend(validate_claude_adapter(claude, claude_marketplace))
+
     if codex_marketplace is not None:
         entries = codex_marketplace.get("plugins")
         matching = [entry for entry in entries or [] if isinstance(entry, dict) and entry.get("name") == "selfos-skills"]
@@ -251,14 +306,6 @@ def validate_adapters(skills: list[Skill]) -> list[str]:
             source = matching[0].get("source")
             if source != {"source": "local", "path": "./"}:
                 errors.append("Codex marketplace selfos-skills source must be local path './'")
-
-    if claude_marketplace is not None:
-        entries = claude_marketplace.get("plugins")
-        matching = [entry for entry in entries or [] if isinstance(entry, dict) and entry.get("name") == "selfos-skills"]
-        if len(matching) != 1:
-            errors.append("Claude marketplace must contain exactly one aggregate selfos-skills entry")
-        elif matching[0].get("source") != "./":
-            errors.append("Claude marketplace aggregate source must be './'")
 
     return errors
 

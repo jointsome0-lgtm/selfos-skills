@@ -18,9 +18,6 @@ Generated version-only manifest edits are exempt from separate guarding;
 other aggregate adapter or marketplace edits require packaging bumps across
 the full canonical catalog so host caches also see those changes.
 
-Legacy plugins keep their existing independent manifest-version gate. Their
-manifest versions and release model are intentionally not derived here.
-
 Operates on the git repository containing the current directory, so it works
 in any checkout and in the self-test's invented fixture repositories.
 """
@@ -44,7 +41,6 @@ from skill_catalog import (
 )
 
 DEFAULT_BASES = ("origin/main", "main")
-LEGACY_MANIFEST_SUFFIX = ".claude-plugin/plugin.json"
 ADAPTER_MANIFESTS = (
     ".claude-plugin/plugin.json",
     ".codex-plugin/plugin.json",
@@ -135,40 +131,6 @@ def substantive_adapter_changes(
             # The normal manifest validators report the detailed parse error.
             changed.append(path)
     return changed
-
-
-def check_legacy_manifest(
-    root: Path,
-    merge_base: str,
-    manifest_path: str,
-    guarded: str,
-    errors: list[str],
-) -> bool:
-    """Return true when a legacy manifest existed at both ends and was compared."""
-    base_version = manifest_version_at(merge_base, manifest_path, errors)
-    if base_version is None:
-        return False
-    head_version = manifest_version_in_worktree(root, manifest_path, errors)
-    if head_version is None:
-        return False
-    base_semver = parse_semver(base_version)
-    head_semver = parse_semver(head_version)
-    if base_semver is None:
-        errors.append(
-            f"{manifest_path} at {merge_base}: legacy version {base_version!r} "
-            "must be semantic X.Y.Z with no leading zeroes"
-        )
-    elif head_semver is None:
-        errors.append(
-            f"{manifest_path}: legacy version {head_version!r} must be semantic X.Y.Z "
-            "with no leading zeroes"
-        )
-    elif head_semver <= base_semver:
-        errors.append(
-            f"{guarded}: content changed but version did not strictly increase "
-            f"from {base_version!r} to {head_version!r}; bump {manifest_path}"
-        )
-    return True
 
 
 def parsed_skill_from_text(
@@ -324,19 +286,10 @@ def main() -> int:
     merge_base = merged.stdout.strip()
 
     paths = changed_paths(merge_base, errors)
-    plugins: list[str] = []
     canonical: list[str] = []
     removed: list[str] = []
     adapter_changes: list[str] = []
-    checked_legacy = 0
     if paths is not None:
-        plugins = sorted(
-            {
-                parts[1]
-                for path in paths
-                if len(parts := path.split("/")) >= 3 and parts[0] == "plugins"
-            }
-        )
         canonical = sorted(
             {
                 parts[1]
@@ -345,11 +298,6 @@ def main() -> int:
             }
         )
         adapter_changes = substantive_adapter_changes(root, merge_base, paths)
-        for plugin in plugins:
-            manifest_path = f"plugins/{plugin}/{LEGACY_MANIFEST_SUFFIX}"
-            checked_legacy += check_legacy_manifest(
-                root, merge_base, manifest_path, f"plugins/{plugin}", errors
-            )
         for name in canonical:
             check_canonical_skill(root, merge_base, name, errors, removed)
 
@@ -392,7 +340,7 @@ def main() -> int:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
-    if not plugins and not canonical:
+    if not canonical:
         suffix = (
             f"; generated adapter version {adapter_version} is current"
             if adapter_version is not None
@@ -406,9 +354,7 @@ def main() -> int:
             else ""
         )
         print(
-            f"OK: {len(canonical)} changed canonical skill(s) and "
-            f"{len(plugins)} changed legacy plugin(s) relative to {base}; "
-            f"{checked_legacy} legacy version-checked; "
+            f"OK: {len(canonical)} changed canonical skill(s) relative to {base}; "
             f"{len(adapter_changes)} substantive adapter change(s){adapter}."
         )
     return 0
