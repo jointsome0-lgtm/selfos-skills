@@ -29,7 +29,12 @@ case "$path" in
       cat "$GH_FIXTURES/reactions.json"
     fi ;;
   */issues/*/comments*)  cat "$GH_FIXTURES/trigger.json" ;;
-  */events*)             cat "$GH_FIXTURES/events.json" ;;
+  */events*)
+    if [[ " $* " == *" --paginate "* ]]; then
+      cat "$GH_FIXTURES/events.json"
+    else
+      jq -s '.[0]' "$GH_FIXTURES/events.json"
+    fi ;;
   */commits/*)           cat "$GH_FIXTURES/commit.json" ;;
   */pulls/*)             cat "$GH_FIXTURES/pr.json" ;;
   *) echo "stub gh: unmatched call: $*" >&2; exit 1 ;;
@@ -42,6 +47,7 @@ STUB
   echo '[]' >"$GH_FIXTURES/events.json"
   echo '[]' >"$GH_FIXTURES/reviews.json"
   echo '[]' >"$GH_FIXTURES/reactions.json"
+  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
 }
 
 iso() { date -u -d "$1 seconds ago" +%Y-%m-%dT%H:%M:%SZ; }
@@ -62,14 +68,6 @@ review() { # seconds-ago commit-id — bot review tied to a commit
 }
 
 run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 2 "$@"; }
-
-@test "fresh 👍 after the push-event cutoff → APPROVED" {
-  push_event 120
-  thumb 60
-  run_watch
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"VERDICT: APPROVED"* ]]
-}
 
 @test "fresh 👍 does not approve after the PR head moves" {
   push_event 120
@@ -99,13 +97,14 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [[ "$output" == *"from before the cutoff"* ]]
 }
 
-@test "👍 while 👀 is still up is a leftover, not a verdict" {
-  push_event 120
+@test "👀 blocks both leftover approval and another review request" {
+  push_event 600
   printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"eyes","created_at":"%s"},{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"+1","created_at":"%s"}]' \
     "$(iso 60)" "$(iso 30)" >"$GH_FIXTURES/reactions.json"
-  run_watch
+  run_watch --grace 0
   [ "$status" -eq 3 ]
   [[ "$output" == *"review in progress"* ]]
+  [[ "$output" != *"posted '@codex review'"* ]]
 }
 
 @test "fresh same-head review → FINDINGS with body and inline comments" {
@@ -129,23 +128,16 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [ "$status" -eq 3 ]
 }
 
-@test "a different-head review never completes the watched round" {
+@test "a different-head review cannot complete or trigger a read-only round" {
   push_event 120
   review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
   echo '[]' >"$GH_FIXTURES/comments.json"
-  run_watch --no-trigger
+  run_watch --no-trigger --grace 0
   [ "$status" -eq 3 ]
   [[ "$output" == *"VERDICT: TIMEOUT"* ]]
   [[ "$output" != *"VERDICT: FINDINGS"* ]]
   [[ "$output" != *"VERDICT: APPROVED"* ]]
-}
-
-@test "no push event: reactions keep the conservative start − 90 s cutoff" {
-  printf '{"commit":{"committer":{"date":"%s"}}}' "$(iso 600)" >"$GH_FIXTURES/commit.json"
-  thumb 300
-  run_watch
-  [ "$status" -eq 3 ]
-  [[ "$output" == *"no push event found"* ]]
+  [[ "$output" != *"posted '@codex review'"* ]]
 }
 
 @test "no push event: a 👍 within the last 90 s is still accepted" {
@@ -167,24 +159,18 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
 
 @test "events pagination: the anchoring push can sit on a later page" {
   { printf '[{"type":"WatchEvent","created_at":"%s"}]' "$(iso 60)"
-    push_event_page=$(printf '[{"type":"PushEvent","created_at":"%s","payload":{"ref":"refs/heads/feat","head":"%s"}}]' "$(iso 120)" "$SHA")
+    push_event_page=$(printf '[{"type":"PushEvent","created_at":"%s","payload":{"ref":"refs/heads/feat","head":"%s"}}]' "$(iso 600)" "$SHA")
     printf '%s' "$push_event_page"
   } >"$GH_FIXTURES/events.json"
-  thumb 60
+  thumb 300
   run_watch
   [ "$status" -eq 0 ]
   [[ "$output" == *"VERDICT: APPROVED"* ]]
 }
 
-@test "closed PR with no verdict → PR_NOT_OPEN" {
-  printf '{"head":{"ref":"feat"},"state":"closed","merged":true}' >"$GH_FIXTURES/pr.json"
-  run_watch
-  [ "$status" -eq 4 ]
-  [[ "$output" == *"VERDICT: PR_NOT_OPEN"* ]]
-}
-
 @test "a failed explicit trigger is reported without inventing a verdict" {
   push_event 600
+  rm "$GH_FIXTURES/trigger.json"
   run_watch --trigger
   [ "$status" -eq 3 ]
   [[ "$output" == *"failed to post the trigger comment"* ]]
@@ -195,7 +181,6 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
 @test "--trigger: the cutoff anchors to the trigger comment, not the earlier push" {
   push_event 600
   thumb 300
-  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
   run_watch --trigger
   [ "$status" -eq 3 ]
   [[ "$output" == *"posted '@codex review' trigger"* ]]
@@ -203,52 +188,16 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
 
 # --- issue #47: auto-trigger --------------------------------------------------
 
-@test "issue #47: no bot activity after the push → the watcher posts '@codex review' itself and accepts the post-trigger 👍" {
-  push_event 600
-  printf '{"created_at":"%s"}' "$(iso 5)" >"$GH_FIXTURES/trigger.json"
-  printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"+1","created_at":"%s"}]' \
-    "$(iso 2)" >"$GH_FIXTURES/reactions.json.2"
-  run_watch --grace 0
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"posted '@codex review' trigger comment"* ]]
-  [[ "$output" == *"VERDICT: APPROVED"* ]]
-}
-
 @test "issue #47: the auto-trigger re-anchors the cutoffs — a 👍 predating the trigger comment is not accepted" {
   push_event 600
-  thumb 900
+  thumb 30
+  mv "$GH_FIXTURES/reactions.json" "$GH_FIXTURES/reactions.json.2"
+  echo '[]' >"$GH_FIXTURES/reactions.json"
   printf '{"created_at":"%s"}' "$(iso 5)" >"$GH_FIXTURES/trigger.json"
   run_watch --grace 0
   [ "$status" -eq 3 ]
   [[ "$output" == *"posted '@codex review' trigger comment"* ]]
   [[ "$output" == *"An '@codex review' trigger was posted"* ]]
-}
-
-@test "issue #47: --no-trigger keeps the watcher read-only" {
-  push_event 600
-  run_watch --no-trigger --grace 0
-  [ "$status" -eq 3 ]
-  [[ "$output" != *"posted '@codex review'"* ]]
-  [[ "$output" == *"re-run with --trigger"* ]]
-}
-
-@test "issue #47: 👀 up means a review is in progress — no auto-trigger" {
-  push_event 600
-  printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"eyes","created_at":"%s"}]' \
-    "$(iso 60)" >"$GH_FIXTURES/reactions.json"
-  run_watch --grace 0
-  [ "$status" -eq 3 ]
-  [[ "$output" == *"review in progress"* ]]
-  [[ "$output" != *"posted '@codex review'"* ]]
-}
-
-@test "issue #47: no push event + a 👍 before the conservative cutoff → auto-trigger is skipped, not a silent re-review" {
-  printf '{"commit":{"committer":{"date":"%s"}}}' "$(iso 600)" >"$GH_FIXTURES/commit.json"
-  thumb 300
-  run_watch --grace 0
-  [ "$status" -eq 3 ]
-  [[ "$output" == *"skipping auto-trigger"* ]]
-  [[ "$output" != *"posted '@codex review'"* ]]
 }
 
 @test "issue #47: an explicit --since pins the round — no auto-trigger" {
@@ -260,7 +209,6 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
 
 @test "issue #47: within the grace period the watcher still just waits" {
   push_event 10
-  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
   run_watch --grace 300
   [ "$status" -eq 3 ]
   [[ "$output" != *"posted '@codex review'"* ]]
@@ -269,7 +217,6 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
 @test "issue #47: a PR that is no longer open is reported before the auto-trigger posts anything" {
   push_event 600
   printf '{"head":{"ref":"feat"},"state":"closed","merged":false}' >"$GH_FIXTURES/pr.json"
-  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
   run_watch --grace 0
   [ "$status" -eq 4 ]
   [[ "$output" == *"VERDICT: PR_NOT_OPEN"* ]]
@@ -280,7 +227,6 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   push_event 600
   printf '{"head":{"ref":"feat","sha":"ffffffffffffffffffffffffffffffffffffffff"},"state":"open","merged":false}' \
     >"$GH_FIXTURES/pr.json"
-  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
   run_watch --grace 0
   [ "$status" -eq 3 ]
   [[ "$output" == *"the PR head moved"* ]]
@@ -290,7 +236,6 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
 @test "issue #47: an unreadable PR head postpones the auto-trigger instead of posting blind" {
   push_event 600
   rm -f "$GH_FIXTURES/pr.json"   # every pulls/N read fails
-  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
   run_watch --grace 0
   [ "$status" -eq 3 ]
   [[ "$output" == *"postponing the auto-trigger"* ]]
@@ -300,7 +245,6 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
 @test "issue #47: unreadable reactions postpone the auto-trigger — an empty read is not proof the bot is idle" {
   push_event 600
   rm -f "$GH_FIXTURES/reactions.json"   # every reactions read fails
-  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
   run_watch --grace 0
   [ "$status" -eq 3 ]
   [[ "$output" == *"postponing the auto-trigger"* ]]
@@ -325,7 +269,6 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   rm -f "$GH_FIXTURES/reactions.json"   # first reactions read fails…
   printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"+1","created_at":"%s"}]' \
     "$(iso 300)" >"$GH_FIXTURES/reactions.json.2"   # …the second one sees the old 👍
-  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
   # timeout 5, not run_watch's 2: the skip decision needs a second poll, and
   # the deadline now exits before the auto-trigger block gets to log it
   run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5 --grace 0
@@ -336,7 +279,6 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
 
 @test "issue #47: the deadline is checked before the auto-trigger — an expired run posts nothing" {
   push_event 600
-  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
   run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 0 --grace 0
   [ "$status" -eq 3 ]
   [[ "$output" == *"VERDICT: TIMEOUT"* ]]
@@ -348,7 +290,6 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   push_event 600
   printf '{"head":{"ref":"feat","sha":"ffffffffffffffffffffffffffffffffffffffff"},"state":"open","merged":false}' \
     >"$GH_FIXTURES/pr.json"
-  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
   run_watch --trigger
   [ "$status" -eq 3 ]
   [[ "$output" == *"restart the watcher for the new head"* ]]

@@ -4,7 +4,7 @@ description: Use when an open PR needs babysitting through the Codex review loop
 license: LICENSE.txt
 compatibility: Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; repositories that require a post-verdict manual dispatch additionally need authenticated GitHub Actions write (workflow-dispatch) access; requires a POSIX-style shell environment but no specific OS.
 metadata:
-  selfos.version: "1.0.0"
+  selfos.version: "1.0.1"
 ---
 
 # Watch a Codex PR review
