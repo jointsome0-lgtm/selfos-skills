@@ -247,6 +247,8 @@ def pytest_plugin_imports(node: ast.AST) -> list[str]:
         not isinstance(target, ast.Name) for target in targets
     ):
         return [PACKAGE]
+    if isinstance(value, ast.Constant) and value.value is None:
+        return []
     if isinstance(value, ast.Constant) and isinstance(value.value, str):
         return value.value.split(",")
     if isinstance(value, (ast.List, ast.Tuple, ast.Set)) and all(

@@ -67,7 +67,8 @@ Named deviations in the shipped copy. Earlier forms are in git history:
     Check literal `pytest_plugins` declarations; computed, augmented, and
     destructured declarations fail. Match modules by their package prefix,
     including dynamically importable names that are not Python identifiers.
-    Ignore annotations without values and split string plugin lists on commas.
+    Ignore annotations without values and literal `None` plugin declarations.
+    Split string plugin lists on commas.
 11. Escape paths and import names in diagnostics and count duplicate names
     with a counter. Format the copy with Ruff.
 

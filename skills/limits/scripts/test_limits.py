@@ -202,6 +202,7 @@ class LimitsFixtureTest(unittest.TestCase):
 
     def test_pytest_plugins(self):
         for value, bad in (
+            ("None", False),
             ("'pkg.testing'", False),
             ("'helper,pkg.internal'", True),
             ("'helper,pkg.testing'", False),
