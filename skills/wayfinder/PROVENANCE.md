@@ -23,7 +23,7 @@ modes are otherwise preserved):
    initially added explicit-only pairing) per issue #100 (2026-08-05): the
    skill is open to model invocation behind a prose start gate —
    confirm-first originally, relaxed to announce-and-proceed per issue
-   #126 (2026-08-18), with publication and Decision Log writes still
+   #126 (2026-08-18), with publication and repository writes still
    owner-gated inside the workflow.
 2. **Tracker-doc dependency replaced with self-contained GitHub
    conventions** — upstream defers tracker operations to an external
@@ -34,30 +34,19 @@ modes are otherwise preserved):
    [TRACKER.md](TRACKER.md); the local-markdown fallback is dropped and
    GitHub access is a declared compatibility requirement — an unreachable
    tracker stops the skill instead of degrading to a second store.
-3. **Decision store moved from tickets to the SDD Decision Log** —
-   upstream records each answer as a resolution comment, making the ticket
-   the decision's one home. Here a ticket resolves only when its decision
-   has landed in the repository's SDD Decision Log through the repo's
-   normal change flow (direct commit or pull request — the skill doesn't
-   mandate which); the resolution comment quotes the landed entry verbatim
-   and links the landing commit or pull request; the close comes only
-   after the entry lands; and the map's Decisions-so-far index points into
-   the repository, not at ticket comments. Each entry ends with the
-   ticket's `#123` reference, which the Decision Log grammar already
-   accepts. Rationale: issues are host data — not cloned, not backed up —
-   while the log is versioned, reviewed, and greppable offline.
-4. **Default destination named** — upstream leaves the destination fully
-   open. Here it defaults to an implementation-ready SDD scope, with the
-   finished map handing off to the `slice` skill for ticketing the build;
-   other destinations remain legitimate but are named as departures.
-5. **Skill invocations remapped to the catalog** — upstream invokes
-   `/grilling`, `/domain-modeling`, `/research`, and `/prototype` as
-   host-installed slash commands. Here the grilling contract and the SDD
-   conventions (Decision Log grammar and lint) are bundled via
-   `BUNDLE.json`; `research` and `prototype` are invoked as sibling
-   catalog skills declared in `compatibility`; domain-modeling is invoked
-   only when the host has such a skill installed, since this catalog does
-   not ship one.
+3. **Decisions linked to resulting commits** — the issue resolution records
+   the decision and reason. When it changes the repository, that change
+   lands first through the normal commit or PR flow; the commit explains
+   why and references the ticket. Planning-only decisions need no empty
+   commit. The map links resolutions; no separate Decision Log is required.
+4. **Default destination named** — approved implementation-ready scope,
+   handed to `slice` for ticketing the build. Other destinations remain
+   legitimate when the map names them.
+5. **Skill invocations narrowed** — grilling is bundled through
+   `BUNDLE.json`; prototype is a sibling skill. Research tickets use primary
+   sources directly and cite findings in the issue, without a separate
+   skill, findings branch, or file. Domain-modeling is optional when the
+   host provides it.
 6. **Outbound-text policy added** — everything written to the tracker
    follows the ecosystem's neutral-prose and public-data policy; task
    resolutions never record credentials or private data on a public
@@ -72,7 +61,6 @@ The self-contained dependency copies retain their own upstream pins, import
 dates, adaptation notes, and license notices:
 
 - `references/grilling/PROVENANCE.md`
-- `references/sdd-conventions/PROVENANCE.md`
 
 ## Upstream license notice
 

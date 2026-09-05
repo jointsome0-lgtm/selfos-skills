@@ -1,6 +1,5 @@
 {
   "dependencies": [
-    "grilling",
-    "sdd-conventions"
+    "grilling"
   ]
 }

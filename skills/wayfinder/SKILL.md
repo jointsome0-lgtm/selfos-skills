@@ -1,10 +1,10 @@
 ---
 name: wayfinder
-description: Use when a task is too big and foggy to even approach — charts it on GitHub as small, agent-sized decision tickets, worked one at a time into the SDD Decision Log until the way forward is clear.
+description: Use when a task is too big and foggy to even approach — charts it on GitHub as small, agent-sized decision tickets, resolved one at a time with reasons in the issue and any resulting commit.
 license: LICENSE.txt
-compatibility: Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the repository holding the SDD Decision Log, and Python 3.9+ for the bundled Decision Log lint. Research and prototype tickets require the sibling research and prototype skills installed; grilling tickets run on the bundled grilling contract. No OS constraint.
+compatibility: Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the target repository when an outcome changes it. Prototype tickets require the sibling prototype skill installed; grilling tickets run on the bundled grilling contract. No OS constraint.
 metadata:
-  selfos.version: "0.3.0"
+  selfos.version: "1.0.0"
 ---
 
 # Wayfinder
@@ -13,7 +13,7 @@ When a task matches, announce that this workflow is starting and
 proceed — the owner can interrupt at any point. Unattended runs may
 work through the read-only and draft stages but stop before any
 tracker mutation and at every inner confirmation point: no ticket is
-claimed, no decision lands in the Decision Log, and nothing publishes
+claimed, no repository change lands, and nothing publishes
 to the tracker without the owner.
 
 A loose idea has arrived — too big for one agent session, and wrapped in
@@ -26,9 +26,8 @@ time until the route is clear.
 
 The destination varies per effort, and naming it is the first act of
 charting — it shapes every ticket. Here it defaults to an
-**implementation-ready SDD scope**: spec sections sharp enough for the
-`slice` skill to ticket the build, so the chain runs wayfinder (fog →
-decisions → SDD) → slice (SDD → tracer-bullet issues) → implementation.
+**approved implementation-ready scope**: goals and decisions precise enough
+for `slice` to create vertical implementation issues.
 Other destinations stay legitimate — a decision to lock before planning
 starts, or a change made in place — but a departure from the default is
 named explicitly on the map.
@@ -55,20 +54,18 @@ never stand in for it.
 ## The map
 
 The map is a single GitHub issue, labelled `wayfinder:map`, on the
-repository whose Decision Log the effort's decisions land in. Its
+repository the effort belongs to. Its
 tickets are native sub-issues of the map; blocking uses native issue
 dependencies; the assignee is the claim. The conventions and verified
 commands live in [TRACKER.md](TRACKER.md). GitHub access is required
 (see `compatibility`): when the tracker is unreachable, stop and say so
 — never improvise a local substitute store.
 
-The map is an **index**, not a store. A decision lives in exactly one
-place — the repository's **SDD Decision Log** — because issues are host
-data: not cloned, not backed up, gone on migration or access loss,
-while the log is versioned, reviewed, and greppable offline. The ticket
-keeps the question, the discussion, the claim, and the blocking edges —
-disposable working state. The map never restates a decision; it gists
-it and points into the repo.
+The map indexes ticket resolutions. The issue records the decision and
+its reason. When a decision changes the repository, the resulting commit
+records why and links back to the issue. Code expresses current behavior;
+`GOALS.md`, when present, expresses future work. No separate decision-log
+file is required.
 
 Everything written to the tracker — map, tickets, comments — is neutral
 original prose under the repository's public-data policy: invented
@@ -83,8 +80,8 @@ are **not** listed — they are open sub-issues, found by query.
 ```markdown
 ## Destination
 
-<what reaching the end of this map looks like — by default the SDD
-sections this effort is making implementation-ready. One or two lines;
+<what reaching the end of this map looks like — by default the approved
+scope this effort is making implementation-ready. One or two lines;
 every session orients to it before choosing a ticket.>
 
 ## Notes
@@ -95,10 +92,9 @@ this effort>
 ## Decisions so far
 
 <!-- the index — one line per closed ticket: enough to judge relevance;
-the decision itself lives in the repository's Decision Log -->
+the decision and reason live in the linked issue resolution -->
 
-- [<closed ticket title>](link) — <one-line gist of the decision> —
-  [log](<link to the Decision Log section on the default branch>)
+- [<closed ticket title>](<resolution comment URL>) — <one-line gist>
 
 ## Not yet specified
 
@@ -135,8 +131,8 @@ the human sees what's takeable without opening the map. A ticket is
 **unblocked** when every ticket blocking it is closed; the **frontier**
 is the open, unblocked, unclaimed sub-issues — the edge of the known.
 
-The decision isn't part of the body — it's landed in the Decision Log
-on resolution (see [Work through the map](#work-through-the-map)).
+Record the decision in a resolution comment (see
+[Work through the map](#work-through-the-map)).
 Assets created while resolving a ticket are linked from the issue, not
 pasted in.
 
@@ -149,11 +145,10 @@ agent never stands in for the human's side of it (a grilling agent that
 answers its own questions has broken this).
 
 - **Research** (AFK): Reading documentation, third-party APIs, or local
-  resources to surface a fact a decision waits on. Resolved by a
-  background subagent per the sibling `research` skill: findings on a
-  throwaway `research/<name>` branch, a context pointer on the ticket,
-  and only the resulting decision graduating into the Decision Log. Use
-  when knowledge outside the current working directory is required.
+  resources to surface a fact a decision waits on. Read primary sources
+  and cite them in the ticket resolution. Resolve it directly or delegate
+  an independent lookup when the host supports it and the task permits it.
+  No separate findings file or research branch is required.
 - **Prototype** (HITL): Raise the fidelity of the discussion by making
   a cheap, rough, concrete artifact to react to via the sibling
   `prototype` skill; link the prototype as an asset. Use when "how
@@ -235,7 +230,7 @@ User invokes with a loose idea.
 
 1. **Name the destination.** Run the bundled grilling contract (and the
    host's domain-modeling skill when installed) to pin down what this
-   map is finding its way to — by default, which SDD scope it is making
+   map is finding its way to — by default, which approved scope it is making
    implementation-ready. The destination fixes the scope, so it's
    settled first.
 2. **Map the frontier.** Grill again, **breadth-first** this time: fan
@@ -253,17 +248,16 @@ User invokes with a loose idea.
    blocking edges in a **second pass** (issues need ids before they can
    reference each other). Once the edges are in place, release the
    claims, keeping only those on the unblocked research tickets step 5
-   is about to fire. Wiring sorts tickets into the frontier and the
+   is about to investigate. Wiring sorts tickets into the frontier and the
    blocked; everything you can't yet specify stays in **Not yet
    specified**.
-5. **Fire the research subagents.** For each **unblocked** `research`
-   ticket you just created — still claimed from step 4, so no
-   concurrent session duplicates the investigation — spin up a
-   background subagent per the `research` skill to resolve it in
-   parallel. A blocked research ticket waits for the frontier — fired
-   early, it would investigate against prerequisites that haven't been
-   decided yet.
-6. Stop — charting is one session's work; it hand-resolves nothing.
+5. **Investigate unblocked research tickets.** Keep each claimed while
+   resolving its question from primary sources. Independent lookups may
+   run in parallel when permitted; blocked tickets wait for their
+   prerequisites. Record cited findings in the resolution comment,
+   following the close ordering below.
+6. Stop after charting and the unblocked research; other tickets wait
+   for a work-through session.
 
 ### Work through the map
 
@@ -287,27 +281,17 @@ without one, you pick the next decision, not the user.
    host's domain-modeling skill when installed).
 4. **Land the decision, then close.** First check scope: if resolving
    revealed that this ticket sits beyond the destination, nothing lands
-   — rule it out of scope instead (step 5) so a scope boundary never
-   pollutes the log or Decisions-so-far. Otherwise the decision lands
-   in the
-   repository's Decision Log through the repo's normal change flow —
-   direct commit or pull request, whichever the repository's convention
-   is — as one dated entry carrying the rejected alternative and ending
-   with the ticket's reference (`#123`); grammar and lint are the
-   bundled [Decision Log
-   contract](references/sdd-conventions/conventions/DECISION-LOG.md).
-   Then post the **resolution comment**: the entry line quoted
-   verbatim, plus a link to the landing commit or pull request.
-   **Close** the ticket only after the entry has landed, and append its
-   line to the map's Decisions-so-far. A decision ticket without a
-   landed log entry is unresolved, however finished the discussion
-   looks. The exceptions are the tickets with nothing to decide: a
-   `task` ticket closes on a resolution comment recording what was done
-   and the resulting facts, and a `research` ticket whose question was
-   pure investigation closes on its findings and context pointer — in
-   either case no log entry and no line in Decisions-so-far. Any
-   decision a task or research run surfaces becomes its own ticket,
-   resolved through the log like every other. One more gate on the
+   — rule it out of scope instead (step 5). If the outcome changes code
+   or goals, land that authorized change through the repository's normal
+   process first; the commit explains why and references the ticket.
+   Then post a **resolution comment** with the confirmed decision,
+   reason, any rejected alternative that matters, and the landing
+   commit when there is one. Close the ticket
+   and index its resolution in Decisions-so-far. A planning-only
+   decision needs no empty commit or separate log file. A `task` or
+   pure `research` ticket closes on its results and sources, without
+   a line in Decisions-so-far. Any new decision it surfaces becomes
+   its own ticket. One more gate on the
    close: when the answer surfaces new tickets or fog, create and wire
    them (step 5) **before** closing this one — otherwise the map can
    momentarily show no open tickets and no fog, and a parallel session
@@ -321,7 +305,7 @@ without one, you pick the next decision, not the user.
    update or delete those tickets.
 
 When the map is done — no open tickets, no fog — the default hand-off
-is `slice`: the destination's SDD scope is implementation-ready, and
+is `slice`: the destination's approved scope is implementation-ready, and
 slicing it into tracer-bullet issues is a fresh session's work, not
 this skill's.
 

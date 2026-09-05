@@ -52,7 +52,7 @@ Each candidate is one `<article>`:
 - **Problem** — one sentence. What hurts.
 - **Solution** — one sentence. What changes.
 - **Wins** — bullets, ≤6 words each. e.g. "Tests hit one interface", "Pricing logic stops leaking", "Delete 4 shallow wrappers".
-- **Decision Log callout** (if applicable) — one line in an amber-tinted box, citing the contradicted entry.
+- **Prior-decision callout** (if applicable) — one line in an amber-tinted box, citing the relevant commit or issue.
 
 No paragraphs of explanation. If the diagram needs a paragraph to be understood, redraw the diagram.
 

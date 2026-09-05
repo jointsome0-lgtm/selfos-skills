@@ -74,11 +74,8 @@ The former domain packages (`sdd@selfos`, `design@selfos`, `decision@selfos`, `l
 | `improve-codebase-architecture` | Surface deepening candidates as an HTML report, then grill the pick | automatic or explicit (announce first) |
 | `limits` | Three-sources-of-truth model enforced as CI numbers: budget, map, goals bound to tests | automatic or explicit |
 | `prototype` | Answer one design question with a throwaway worktree prototype | automatic or explicit |
-| `research` | Background-subagent investigation captured as one cited Markdown file | automatic or explicit |
-| `sdd-conventions` | Portable SDD conventions plus sync and Decision Log lint scripts | automatic or explicit |
-| `slice` | Turn one implementation-ready SDD scope into vertical issues | automatic or explicit (announce first) |
+| `slice` | Turn one approved scope into vertical issues | automatic or explicit (announce first) |
 | `unslop` | Strip AI tells from prose and add a human voice, meaning preserved | automatic or explicit |
-| `wait-what` | Re-pitch the last message simply when it did not land | explicit only |
 | `watch` | Codex cloud PR push-review-fix loop | automatic or explicit |
 | `wayfinder` | Chart a foggy effort as a map of decision tickets until slice-ready | automatic or explicit (announce first) |
 
@@ -94,16 +91,13 @@ Compatibility describes hard runtime needs and conditional capabilities; descrip
 | `delegate-pr-loop-query` | `0.3.6` | Requires git, gh, network access, authenticated GitHub pull-request read access, and permission to create one file in the operating system's temporary directory. Repository write access is not used by the delegating run after artifact creation; the generated query may authorize it for the fresh run. The generated query directs the fresh run to the sibling `watch` skill, which must be installed in the delegated run's own environment. |
 | `grilling` | `0.2.2` | Requires read access to owner-scoped sources. No specific CLI or OS; network, write access, and external integrations are needed only when the chosen facts or an owner-confirmed outcome require them. |
 | `handoff` | `0.1.2` | Requires permission to create one file in the operating system's temporary directory. No specific CLI, OS, network access, repository write access, or external integration is required. |
-| `improve-codebase-architecture` | `0.3.0` | Requires read access to the target repository and its git history, Python 3.9+ for the bundled SDD helpers, a writable OS temp directory, and a local opener plus a browser for the report. The report page loads and executes Tailwind and Mermaid from public CDNs, so it needs network access — weigh that for private repositories. Repository write access is needed only to land owner-confirmed domain-model or Decision Log updates during the grilling loop. |
+| `improve-codebase-architecture` | `1.0.0` | Requires read access to the target repository and its git history, a writable OS temp directory, and a local opener plus a browser for the report. The report page loads and executes Tailwind and Mermaid from public CDNs, so it needs network access — weigh that for private repositories. Repository write access is needed only to land owner-confirmed changes during the grilling loop. |
 | `limits` | `0.2.6` | Requires Python 3.10+ and git for the bundled python scripts, and the checked repository's Python files must parse. OS-independent and offline, with no external integration. |
 | `prototype` | `0.1.1` | Requires the host project's own runtime and task runner to run the prototype, and git worktree support for the throwaway branch. Capturing the answer needs write access to the driving issue's tracker and push access to the repository remote; without a writable remote the prototype branch stays local and the pointer says so. No OS constraint; no other external integration. |
-| `research` | `0.1.1` | Requires a background subagent mechanism (without one, run the investigation inline), network access for web sources, and write access to the repository checkout to save findings — in a read-only checkout, write to the host's temporary directory and say where. Ticket-driven capture also needs git worktree support, tracker write access, and push access to the remote; without a writable remote the branch stays local and the pointer says so. No OS constraint; no other external integration. |
-| `sdd-conventions` | `1.0.1` | Requires Python 3.9+ for the standard-library helpers and write access to the target file when syncing. OS-independent and offline, with no external integration. |
-| `slice` | `0.3.0` | Requires Python 3.9+ for bundled SDD helpers, read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
+| `slice` | `1.0.0` | Requires read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
 | `unslop` | `0.1.0` | No specific CLI, OS, network access, repository write access, or external integration is required. |
-| `wait-what` | `0.1.1` | No specific CLI, OS, network access, repository write access, or external integration is required. |
 | `watch` | `1.1.0` | Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; repositories that require a post-verdict manual dispatch additionally need authenticated GitHub Actions write (workflow-dispatch) access; requires a POSIX-style shell environment but no specific OS. |
-| `wayfinder` | `0.3.0` | Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the repository holding the SDD Decision Log, and Python 3.9+ for the bundled Decision Log lint. Research and prototype tickets require the sibling research and prototype skills installed; grilling tickets run on the bundled grilling contract. No OS constraint. |
+| `wayfinder` | `1.0.0` | Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the target repository when an outcome changes it. Prototype tickets require the sibling prototype skill installed; grilling tickets run on the bundled grilling contract. No OS constraint. |
 <!-- END GENERATED COMPATIBILITY -->
 
 ## Repository layout
@@ -135,7 +129,7 @@ Every top-level skill is independently installable. Where one workflow composes 
 
 One intentionally host-specific field is permitted in canonical frontmatter: `disable-model-invocation: true` on explicit-only skills. Claude Code only enforces the invocation guard when it is a top-level field, other hosts ignore unknown fields, and the portable contract stays in each skill's prose ("Run this workflow only on an explicit request"). Validation allows exactly this field — paired with `metadata.selfos.explicit-only` — and rejects any other host-only frontmatter.
 
-One current skill uses the pairing: `wait-what`, a one-shot owner-invoked trigger whose whole point is that the owner fires it — a topical match must never activate it. The four workflow skills that previously carried it (`improve-codebase-architecture`, `slice`, `wayfinder`, and `grill-sdd` — the last since removed entirely, [issue #122](https://github.com/jointsome0-lgtm/selfos-skills/issues/122)) were deliberately opened to model invocation on 2026-08-05 ([issue #100](https://github.com/jointsome0-lgtm/selfos-skills/issues/100)): Claude Code hides explicit-only skills from the model entirely — the agent cannot even propose them when a task matches — while Codex ignores the field, so the hosts diverged anyway. This is an intentional departure from the "user-invoked in both harnesses or neither" convention; do not restore the flags on those skills to make the hosts symmetric. Each instead opens with an announce-and-proceed prose gate (relaxed from the original confirm-first gate on 2026-08-18, [issue #126](https://github.com/jointsome0-lgtm/selfos-skills/issues/126)): when a task matches, the agent announces the workflow and starts, and the owner can interrupt; unattended runs may work through the read-only and draft stages but stop at every inner confirmation point, so nothing publishes, lands, or merges without the owner.
+No current skill uses this explicit-only pairing. Workflow skills retain their individual start and publication rules; do not add host-specific invocation flags merely to make the hosts symmetric.
 
 ## Add or change a skill
 
@@ -162,7 +156,7 @@ python scripts/build_bundles.py --check
 python scripts/build_index.py --check
 ```
 
-The main CI additionally runs the canonical SDD helper tests, the watcher suite, ShellCheck, and the matrixed installation checks described above.
+The main CI additionally runs the limits checker tests, the watcher suite, ShellCheck, and the matrixed installation checks described above.
 
 ## Versioning and releases
 
