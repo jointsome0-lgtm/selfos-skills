@@ -4,7 +4,7 @@ description: Use when an open PR needs babysitting through the Codex review loop
 license: LICENSE.txt
 compatibility: Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; repositories that require a post-verdict manual dispatch additionally need authenticated GitHub Actions write (workflow-dispatch) access; requires a POSIX-style shell environment but no specific OS.
 metadata:
-  selfos.version: "1.1.0"
+  selfos.version: "2.0.0"
 ---
 
 # Watch a Codex PR review
@@ -38,7 +38,9 @@ Each fresh verdict with remaining blockers for the expected SHA consumes one fin
 
 If blockers remain after the last permitted round, begin no further implementation round. Optionally exhaust a finite budget early when two consecutive findings rounds fail to shrink the confirmed in-scope blockers.
 
-When stopping with blockers, if `delegate-pr-loop-query` is installed, use it to create the continuation artifact, referencing the PR findings and preserving non-recoverable context. Pass a budget only if the caller supplied it explicitly: the default three does not become a delegated budget. Otherwise report the remaining findings and state to the owner. Report the artifact path, model, and effort when one was created, then stop; never launch the delegated run.
+The current agent owns the PR through completion within these gates and the round budget. Wait for CI and review through the watcher and check commands; waiting alone is no reason to delegate the loop. Budget exhaustion means reporting the blocker, not transferring it to a new agent to restart the budget.
+
+Hand off only when the owner requests it or the current session cannot continue, for example because context or execution capacity is exhausted. Use the installed `handoff` skill when available; otherwise provide a compact continuation in the final response. Include the verified PR URL and full current HEAD SHA, goal, constraints, remaining work, and consumed and remaining review budget. Identify any local changes outside that HEAD without altering them; mark unavailable state as unverified. Keep sensitive data out and link existing review threads rather than copying a findings ledger. Handoff does not launch another agent or grant new rounds, permissions, or a model change.
 
 ## Post-verdict dispatch gate
 

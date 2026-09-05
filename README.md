@@ -68,7 +68,6 @@ The former domain packages (`sdd@selfos`, `design@selfos`, `decision@selfos`, `l
 | --- | --- | --- |
 | `codebase-design` | Deep-module vocabulary, seams, adapters, deletion test, testability | automatic or explicit |
 | `compose` | Lean outcome-first prompts for delegating to another model or agent | automatic or explicit |
-| `delegate-pr-loop-query` | Ready-to-run continuation query for an open PR review loop, targeting a model from compose's routing table | automatic or explicit |
 | `grilling` | Shared one-question-at-a-time owner decision primitive | automatic or explicit |
 | `handoff` | Compact privacy-safe context for a fresh agent in one temporary Markdown file | automatic or explicit |
 | `improve-codebase-architecture` | Surface deepening candidates as an HTML report, then grill the pick | automatic or explicit (announce first) |
@@ -88,7 +87,6 @@ Compatibility describes hard runtime needs and conditional capabilities; descrip
 | --- | --- | --- |
 | `codebase-design` | `0.1.3` | Host-neutral Markdown guidance; no required tools, OS constraints, network access, write access, or external integrations. |
 | `compose` | `0.4.1` | Host-neutral Markdown guidance; no required tools, OS constraints, write access, or external integrations. Network access is optional for refreshing linked provider guidance. |
-| `delegate-pr-loop-query` | `0.3.6` | Requires git, gh, network access, authenticated GitHub pull-request read access, and permission to create one file in the operating system's temporary directory. Repository write access is not used by the delegating run after artifact creation; the generated query may authorize it for the fresh run. The generated query directs the fresh run to the sibling `watch` skill, which must be installed in the delegated run's own environment. |
 | `grilling` | `0.2.2` | Requires read access to owner-scoped sources. No specific CLI or OS; network, write access, and external integrations are needed only when the chosen facts or an owner-confirmed outcome require them. |
 | `handoff` | `0.1.2` | Requires permission to create one file in the operating system's temporary directory. No specific CLI, OS, network access, repository write access, or external integration is required. |
 | `improve-codebase-architecture` | `1.0.0` | Requires read access to the target repository and its git history, a writable OS temp directory, and a local opener plus a browser for the report. The report page loads and executes Tailwind and Mermaid from public CDNs, so it needs network access — weigh that for private repositories. Repository write access is needed only to land owner-confirmed changes during the grilling loop. |
@@ -96,7 +94,7 @@ Compatibility describes hard runtime needs and conditional capabilities; descrip
 | `prototype` | `0.1.1` | Requires the host project's own runtime and task runner to run the prototype, and git worktree support for the throwaway branch. Capturing the answer needs write access to the driving issue's tracker and push access to the repository remote; without a writable remote the prototype branch stays local and the pointer says so. No OS constraint; no other external integration. |
 | `slice` | `1.0.0` | Requires read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
 | `unslop` | `0.1.0` | No specific CLI, OS, network access, repository write access, or external integration is required. |
-| `watch` | `1.1.0` | Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; repositories that require a post-verdict manual dispatch additionally need authenticated GitHub Actions write (workflow-dispatch) access; requires a POSIX-style shell environment but no specific OS. |
+| `watch` | `2.0.0` | Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; repositories that require a post-verdict manual dispatch additionally need authenticated GitHub Actions write (workflow-dispatch) access; requires a POSIX-style shell environment but no specific OS. |
 | `wayfinder` | `1.0.0` | Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the target repository when an outcome changes it. Prototype tickets require the sibling prototype skill installed; grilling tickets run on the bundled grilling contract. No OS constraint. |
 <!-- END GENERATED COMPATIBILITY -->
 
