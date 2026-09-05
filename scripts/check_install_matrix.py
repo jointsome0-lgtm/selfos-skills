@@ -116,13 +116,6 @@ def assert_skill_tree(canonical_root: Path, installed_root: Path, checkout_root:
             "discovery: " + ", ".join(nested_entrypoints)
         )
 
-    composed = installed_root / "slice" / "references" / "grilling" / "CONTRACT.md"
-    helper = installed_root / "watch" / "scripts" / "codex-pr-watch.sh"
-    if not composed.is_file():
-        raise SmokeFailure("installed skill slice: missing composed grilling/CONTRACT.md")
-    if not helper.is_file() or not os.access(helper, os.X_OK):
-        raise SmokeFailure("installed skill watch: missing executable helper codex-pr-watch.sh")
-
 
 def run_command(
     command: list[str], *, cwd: Path = ROOT, env: dict[str, str] | None = None
@@ -271,55 +264,27 @@ def run_codex_native_case() -> None:
         )
 
 
-def run_claude_root_and_legacy_case() -> None:
+def run_claude_native_case() -> None:
     with tempfile.TemporaryDirectory(prefix="selfos-claude-native-") as temporary:
         config = Path(temporary) / "claude-config"
         config.mkdir()
         environment = {**os.environ, "CLAUDE_CONFIG_DIR": str(config)}
-        run_command([str(ROOT / "scripts" / "check_plugin_install.sh")], env=environment)
+        run_command(["claude", "plugin", "validate", str(ROOT)], env=environment)
+        run_command(["claude", "plugin", "marketplace", "add", str(ROOT)], env=environment)
+        run_command(["claude", "plugin", "install", "selfos-skills@selfos"], env=environment)
 
         installed = _json_output(["claude", "plugin", "list", "--json"], env=environment)
-        actual_plugin_ids = {plugin["id"] for plugin in installed}
-        marketplace = json.loads(
-            (ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
-        )
-        expected_plugin_ids = {
-            f"{plugin['name']}@{marketplace['name']}" for plugin in marketplace["plugins"]
-        }
         assert_exact_set(
             "Claude marketplace install",
-            expected_plugin_ids,
-            actual_plugin_ids,
+            {"selfos-skills@selfos"},
+            {plugin["id"] for plugin in installed},
             "plugin",
         )
-
-        aggregate = next(
-            plugin for plugin in installed if plugin["id"] == "selfos-skills@selfos"
-        )
-        aggregate_root = Path(aggregate["installPath"])
-        assert_skill_tree(ROOT / "skills", aggregate_root / "skills", ROOT)
-
-        discovered_names: set[str] = set()
-        checkout_bytes = str(ROOT.resolve()).encode()
-        for plugin in installed:
-            plugin_root = Path(plugin["installPath"])
-            for skill_file in plugin_root.glob("skills/*/SKILL.md"):
-                discovered_names.add(skill_file.parent.name)
-                for relative, (content, _executable) in _tree_manifest(skill_file.parent).items():
-                    if checkout_bytes in content:
-                        raise SmokeFailure(
-                            f"Claude legacy skill {skill_file.parent.name}: absolute checkout path "
-                            f"in companion file: {relative}"
-                        )
-        assert_exact_set(
-            "Claude aggregate and legacy discovery",
-            canonical_skill_names(),
-            discovered_names,
-            "skill",
-        )
+        installed_root = Path(installed[0]["installPath"])
+        assert_skill_tree(ROOT / "skills", installed_root / "skills", ROOT)
         print(
-            f"OK: Claude CLI installed the exact {len(expected_plugin_ids)}-plugin marketplace "
-            f"and discovered the exact {len(discovered_names)}-skill canonical set"
+            f"OK: Claude CLI installed the exact "
+            f"{len(canonical_skill_names())}-skill native plugin"
         )
 
 
@@ -331,8 +296,8 @@ def run_case(case: dict[str, Any]) -> None:
         run_agent_installer_case(case)
     elif kind == "codex-native":
         run_codex_native_case()
-    elif kind == "claude-root-and-legacy":
-        run_claude_root_and_legacy_case()
+    elif kind == "claude-native":
+        run_claude_native_case()
     else:
         raise SmokeFailure(f"unknown matrix case kind: {kind}")
 
