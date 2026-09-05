@@ -1,8 +1,9 @@
 {
-  "version": "1.6.8",
+  "version": "1.9.14",
   "removals": [
     "2026-08-04: removed unused skills teach 0.1.1 and deepen 0.1.2 (issue #81)",
     "2026-08-18: removed grill-sdd 0.2.2 — thin wrapper; grilling + sdd-conventions cover it (issue #122)",
-    "2026-09-05: removed sdd-conventions 1.0.1, research 0.1.1, and wait-what 0.1.1"
+    "2026-09-05: removed sdd-conventions 1.0.1, research 0.1.1, and wait-what 0.1.1",
+    "2026-09-05: removed delegate-pr-loop-query 0.3.6"
   ]
 }
