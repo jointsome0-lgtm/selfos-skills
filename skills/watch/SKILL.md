@@ -4,41 +4,35 @@ description: Use when an open PR needs babysitting through the Codex review loop
 license: LICENSE.txt
 compatibility: Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; repositories that require a post-verdict manual dispatch additionally need authenticated GitHub Actions write (workflow-dispatch) access; requires a POSIX-style shell environment but no specific OS.
 metadata:
-  selfos.version: "0.5.1"
+  selfos.version: "1.0.0"
 ---
 
 # Watch a Codex PR review
 
-Run this workflow only on an explicit request. Babysit the current PR through Codex review rounds: wait for the verdict, apply fixes, push, and repeat within the caller's round budget.
+Run only on an explicit request. Wait for Codex review, fix or rebut findings within the caller's round budget, then satisfy CI and any authorized merge.
 
-On every push to an open PR, the Codex bot may react 👀, review, then post an `APPROVED` review state, react 👍, or post review findings. The bundled watcher encapsulates this protocol and can explicitly request a review when automatic triggering is absent.
+## Review loop
 
-## One round
+1. Commit and push the round's work. Run `scripts/codex-pr-watch.sh`, in the background when the host can surface completion. Pass the full expected commit SHA with `--sha`; use `--repo` and `--pr` when the checkout does not identify the target. See `--help` for defaults and other flags.
+2. Act on the exit code:
+   - **0 APPROVED:** a fresh bot 👍 was accepted. Continue to the post-verdict gate and merge conditions below.
+   - **2 FINDINGS:** read the review state, body, and every inline comment. An `APPROVED` review state for the expected SHA is a clean verdict; otherwise assess each finding on its merits. Fix valid findings and explicitly rebut false positives with evidence. Never silently drop a finding.
+   - **3 TIMEOUT:** follow the logged remediation for a moved head, missing trigger, or access failure. A pre-cutoff verdict needs manual freshness verification. If a trigger was posted, the head stayed fixed, and no verdict followed, report the integration problem and stop.
+   - **4 PR_NOT_OPEN:** report that the PR was closed or merged and stop.
+   - **1 ERROR:** resolve the reported usage or lookup failure before retrying.
+3. For fixes, use one ordinary commit per findings round and no force-pushes. Push and repeat while budget remains. If every finding was rebutted and the SHA stayed unchanged, re-run with `--trigger` to request a fresh review.
 
-1. Ensure the round's work is committed and pushed to the PR branch.
-2. Run `scripts/codex-pr-watch.sh` in the background when the host can surface completion, otherwise in the foreground. Defaults: current repository, current branch's PR, expected head from `git rev-parse HEAD`, 30-second polling, 25-minute timeout. See `--help` for `--pr`, `--repo`, `--trigger`, `--no-trigger`, and other flags.
-3. Act on the exit code:
-   - **0 APPROVED** — the watcher found a fresh 👍 reaction; report the clean verdict and finish the loop per the post-verdict guardrail.
-   - **2 REVIEW** — inspect the reported review state, body, and every `path:line` comment. An `APPROVED` review state is a clean verdict only when the reported review targets the expected HEAD; a review for a different HEAD never completes the round regardless of its state — restart the watcher for the current head instead. Otherwise treat the review as findings: fix each finding or explicitly rebut it; never silently drop one. Commit, push, and start another round. When every finding is rebutted and the head did not change, use `--trigger` so the old same-head review is not accepted again.
-   - **3 TIMEOUT** — read the log. If the PR head moved, restart the watcher for the new head — even after a posted trigger, the bot reviews the current head, which a watcher pinned to the old one ignores. If the watcher posted `@codex review`, the head did not move, and no verdict followed, report a likely integration problem. Otherwise follow the logged remediation: fix write access and re-run with `--trigger`, or verify a pre-cutoff `APPROVED` review state or 👍 reaction manually.
-   - **4 PR_NOT_OPEN** — the PR was merged or closed; stop and report.
+The watcher ignores reviews for other SHAs. It anchors freshness to the push or explicit trigger, so a late start is valid. After a head change, restart for the new head; an earlier verdict never authorizes merging the new one. Poll through the watcher, never by scraping the PR page.
 
-## Round budget
+## Round budget and handoff
 
-Accept the optional caller argument `round-budget=<positive integer | unlimited>`. The budget belongs to the caller, not the PR-review protocol. With no argument, use `round-budget=3`; three is the owner's default risk profile, not a universal guardrail. `unlimited` requires an explicit caller opt-in and is never inferred from caller identity, model, harness, quota, or execution mode.
+Accept `round-budget=<positive integer | unlimited>`, defaulting to `3`. Only an explicit caller choice enables `unlimited`; never infer it from the model, harness, identity, or quota.
 
-A round is one pushed or explicitly triggered review attempt ending in a fresh verdict for the expected HEAD. A clean verdict (`APPROVED` review state or 👍 reaction) succeeds; findings consume one finite-budget round; a timeout retains the retry and remediation behavior above and consumes no findings round.
+Each fresh findings verdict for the expected SHA consumes one finite-budget round. Timeouts consume none. A clean verdict, including on the final permitted round, proceeds to CI and any authorized merge. With `unlimited`, continue until a clean verdict, a closed or merged PR, exhausted timeout remediation, or an owner-level decision.
 
-With a finite budget, continue the existing review/fix loop while budget remains, judging every finding on its merits and keeping one ordinary commit per findings round. A clean verdict (`APPROVED` review state or 👍 reaction) on or before the final permitted round completes normally without handoff. When the last permitted round returns findings:
+After the last permitted findings verdict, begin no further implementation round. Optionally exhaust a finite budget early when two consecutive findings rounds fail to shrink the confirmed in-scope findings.
 
-1. Do not begin another implementation round.
-2. If the sibling `delegate-pr-loop-query` skill is available, generate its query artifact with the session's important non-recoverable context. Keep all current findings recoverable by referencing the PR and its review history, then report the artifact path, selected model, and effort. Carry a budget into the generated query only when the caller explicitly supplied one; otherwise the query ships with that skill's `<owner-sets-at-load>` budget placeholder for the owner to fill when loading it. Never substitute `unlimited`, and the implicit default of three does not become a delegated cap.
-3. If that skill is unavailable, summarize recurring findings and the current state and hand the decision to the owner.
-4. In either case, stop. Never launch the delegated agent; launching it is the owner's action in their own terminal.
-
-Optionally treat the finite budget as exhausted early when two consecutive findings rounds fail to shrink the set of confirmed in-scope findings, then follow the same exhaustion steps.
-
-With explicit `round-budget=unlimited`, continue beyond a fifth findings round and leave the review loop only for a clean verdict (`APPROVED` review state or 👍 reaction) — which proceeds into the post-verdict guardrail, not a stop — a closed or merged PR, exhausted timeout handling, or a required owner-level decision.
+If `delegate-pr-loop-query` is installed, use it to create the continuation artifact, referencing the PR findings and preserving non-recoverable context. Pass a budget only if the caller supplied it explicitly: the default three does not become a delegated budget. Otherwise report the remaining findings and state to the owner. Report the artifact path, model, and effort when one was created, then stop; never launch the delegated run.
 
 ## Post-verdict dispatch gate
 
@@ -54,12 +48,10 @@ Evaluate whether the gate applies against the exact verdict head, after each cle
 
 The gate does not change the merge step: the merge still passes `--match-head-commit <verdict-head>`, which is the same head the dispatch ran on. That flag guards only the PR head, so record the PR's base ref name and base commit when the policy is read and re-check both immediately before merging: if either changed — the base advanced, or the PR was retargeted to another branch — every earlier policy conclusion is stale, including a "no dispatch applies" exemption, and even when the policy text is unchanged the new base may carry a different gate implementation. Re-evaluate the policy from the current base and satisfy every applicable gate afresh from that revision before merging. When the caller states that the repository's standing low-risk lane applies to the verdict head — for example a docs-only change the policy exempts — no dispatch is required and the preflight plus clean verdict remains sufficient.
 
-## Guardrails
+## CI and merge
 
-- Judge findings on the merits. Disagreement is allowed; ignoring is not.
-- Use one ordinary commit per round and no force-pushes.
-- Preserve fresh-verdict and expected-HEAD checks, heed stale-head warnings, and use `--trigger` for a same-HEAD re-review after rebutting every finding.
-- The loop ends at merge, not at the verdict: after a clean verdict, satisfy the post-verdict dispatch gate above when one applies to the verdict head, then wait for CI with `gh pr checks <PR> --watch` (never a custom poll loop); a `no checks reported` failure counts as a passing CI phase once confirmed to mean the repository runs no checks for this PR, not checks that have not registered yet — and never while a dispatch gate is active. Then merge — only when the caller has explicitly requested or pre-authorized merging (a standing policy counts), and by their merge method — as a direct merge passing `--match-head-commit <verdict-head>`, never `--auto`: checks are already green, and the atomic head guard does not extend to a delayed merge. A head mismatch means the verdict went stale — restart the watcher for the current head. Where a required merge queue makes a direct guarded merge impossible, report the clean verdict and green checks and leave merging to the caller. Carry the watched repository into both commands with `--repo`. Red checks: report them; remediation stays with the caller. Without merge authorization: report and stop.
-- Poll politely; do not manually scrape the PR page.
-- A late start is fine because freshness is anchored to the push or explicit trigger, not watcher launch time.
-- If the owner explicitly chooses to merge early, preserve unaddressed findings in a focused issue after showing and confirming the payload. Budget exhaustion followed by delegation is not an early merge and must not create a duplicate issue for findings already preserved in the PR and referenced by the query.
+After the clean verdict and all applicable dispatch gates, wait with `gh pr checks <PR> --repo <repo> --watch`. A `no checks reported` failure passes this phase only after confirming that this PR has no checks, rather than checks that have not registered; it never satisfies an active dispatch gate. Report red checks and stop; remediation belongs to the caller.
+
+Merge only with explicit or standing caller authorization, using their merge method and `--match-head-commit <verdict-head>`. Use a direct merge, never `--auto`: the head guard does not protect a delayed merge. Carry `--repo` into the merge command. Recheck the base policy as required above; if the PR head moved, restart review for that head. If a required merge queue prevents direct guarded merge, or merging is not authorized, report the clean verdict and green checks and stop.
+
+If the owner chooses an early merge with unresolved findings, show and confirm one focused issue payload before publishing it. Budget exhaustion and delegation alone do not justify duplicating findings already recorded in the PR.

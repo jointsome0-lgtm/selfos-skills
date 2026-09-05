@@ -17,15 +17,7 @@ setup() {
 path=""
 for a in "$@"; do case "$a" in repos/*) path="$a" ;; esac; done
 case "$path" in
-  */pulls/*/reviews*)
-    # reviews.json.2, when present, is served from the second call on — lets a
-    # test add a review between polls (e.g. one draining in after a trigger)
-    if [[ -f "$GH_FIXTURES/reviews.json.2" && -f "$GH_FIXTURES/.reviews_served" ]]; then
-      cat "$GH_FIXTURES/reviews.json.2"
-    else
-      : >"$GH_FIXTURES/.reviews_served"
-      cat "$GH_FIXTURES/reviews.json"
-    fi ;;
+  */pulls/*/reviews*)    cat "$GH_FIXTURES/reviews.json" ;;
   */pulls/*/comments*)   cat "$GH_FIXTURES/comments.json" ;;
   */issues/*/reactions*)
     # reactions.json.2, when present, is served from the second call on —
@@ -137,66 +129,15 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [ "$status" -eq 3 ]
 }
 
-@test "a previous head's review stays ignored while the new round is visibly running" {
-  push_event 120
-  review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-  printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"eyes","created_at":"%s"}]' \
-    "$(iso 30)" >"$GH_FIXTURES/reactions.json"
-  run_watch
-  [ "$status" -eq 3 ]
-}
-
-@test "a fresh stale-head review with no round running is surfaced once the startup grace expires" {
+@test "a different-head review never completes the watched round" {
   push_event 120
   review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
   echo '[]' >"$GH_FIXTURES/comments.json"
-  export CODEX_PR_WATCH_GAP_GRACE=2
-  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 8
-  [ "$status" -eq 2 ]
-  [[ "$output" == *"VERDICT: FINDINGS"* ]]
-  [[ "$output" == *"WARNING: reviewed commit"* ]]
-  [[ "$output" == *"Found a bug."* ]]
-}
-
-@test "issue #50: the startup guard is wall-clock — at --interval 1 a fresh stale-head review stays silent through GAP_GRACE" {
-  push_event 120
-  review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-  echo '[]' >"$GH_FIXTURES/comments.json"
-  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5
+  run_watch --no-trigger
   [ "$status" -eq 3 ]
   [[ "$output" == *"VERDICT: TIMEOUT"* ]]
-}
-
-@test "commit-date fallback: a fresh other-head review is not surfaced (no round boundary)" {
-  printf '{"commit":{"committer":{"date":"%s"}}}' "$(iso 600)" >"$GH_FIXTURES/commit.json"
-  review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5
-  [ "$status" -eq 3 ]
-  [[ "$output" == *"no push event found"* ]]
-}
-
-@test "👀-removed verdict gap: an other-head review is not surfaced before the grace expires" {
-  push_event 120
-  review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-  printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"eyes","created_at":"%s"}]' \
-    "$(iso 30)" >"$GH_FIXTURES/reactions.json"
-  ( sleep 3; echo '[]' >"$GH_FIXTURES/reactions.json" ) &
-  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 7
-  [ "$status" -eq 3 ]
-  [[ "$output" == *"verdict imminent"* ]]
-}
-
-@test "a round observed reviewing the pre-push head: its review is surfaced once the grace expires" {
-  push_event 120
-  review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-  echo '[]' >"$GH_FIXTURES/comments.json"
-  printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"eyes","created_at":"%s"}]' \
-    "$(iso 30)" >"$GH_FIXTURES/reactions.json"
-  ( sleep 2; echo '[]' >"$GH_FIXTURES/reactions.json" ) &
-  export CODEX_PR_WATCH_GAP_GRACE=3
-  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 30
-  [ "$status" -eq 2 ]
-  [[ "$output" == *"WARNING: reviewed commit"* ]]
+  [[ "$output" != *"VERDICT: FINDINGS"* ]]
+  [[ "$output" != *"VERDICT: APPROVED"* ]]
 }
 
 @test "no push event: reactions keep the conservative start − 90 s cutoff" {
@@ -242,21 +183,13 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [[ "$output" == *"VERDICT: PR_NOT_OPEN"* ]]
 }
 
-@test "--trigger post failure is no round boundary: a fresh other-head review is not surfaced" {
+@test "a failed explicit trigger is reported without inventing a verdict" {
   push_event 600
-  review -5 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5 --trigger
+  run_watch --trigger
   [ "$status" -eq 3 ]
   [[ "$output" == *"failed to post the trigger comment"* ]]
-}
-
-@test "a posted --trigger requests this head's own review: an other-head review is not surfaced" {
-  push_event 600
-  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
-  review -5 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5 --trigger
-  [ "$status" -eq 3 ]
-  [[ "$output" == *"posted '@codex review' trigger"* ]]
+  [[ "$output" != *"VERDICT: APPROVED"* ]]
+  [[ "$output" != *"VERDICT: FINDINGS"* ]]
 }
 
 @test "--trigger: the cutoff anchors to the trigger comment, not the earlier push" {
@@ -374,29 +307,17 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [[ "$output" != *"posted '@codex review'"* ]]
 }
 
-@test "issue #47: a posted auto-trigger is no step-2b boundary — an other-head review draining in after the trigger is not surfaced" {
-  push_event 600
-  printf '{"created_at":"%s"}' "$(iso 5)" >"$GH_FIXTURES/trigger.json"
-  printf '[{"id":42,"user":{"login":"chatgpt-codex-connector[bot]"},"commit_id":"%s","submitted_at":"%s","state":"COMMENTED","html_url":"https://x/r/42","body":"Found a bug."}]' \
-    "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" "$(iso 1)" >"$GH_FIXTURES/reviews.json.2"
-  export CODEX_PR_WATCH_GAP_GRACE=0
-  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 5 --grace 0
-  [ "$status" -eq 3 ]
-  [[ "$output" == *"posted '@codex review' trigger comment"* ]]
-  [[ "$output" != *"VERDICT: FINDINGS"* ]]
-}
-
-@test "issue #47: an other-head review already pending at trigger time defers the auto-trigger — step 2b surfaces it instead" {
+@test "a different-head review does not prevent requesting the expected head's review" {
   push_event 600
   review 60 "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-  echo '[]' >"$GH_FIXTURES/comments.json"
-  printf '{"created_at":"%s"}' "$(iso 0)" >"$GH_FIXTURES/trigger.json"
-  export CODEX_PR_WATCH_GAP_GRACE=2
-  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 8 --grace 0
-  [ "$status" -eq 2 ]
-  [[ "$output" == *"postponing the auto-trigger"* ]]
-  [[ "$output" == *"WARNING: reviewed commit"* ]]
-  [[ "$output" != *"posted '@codex review'"* ]]
+  printf '{"created_at":"%s"}' "$(iso 5)" >"$GH_FIXTURES/trigger.json"
+  printf '[{"user":{"login":"chatgpt-codex-connector[bot]"},"content":"+1","created_at":"%s"}]' \
+    "$(iso 2)" >"$GH_FIXTURES/reactions.json.2"
+  run_watch --grace 0
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"posted '@codex review' trigger comment"* ]]
+  [[ "$output" == *"VERDICT: APPROVED"* ]]
+  [[ "$output" != *"VERDICT: FINDINGS"* ]]
 }
 
 @test "issue #47: a pre-cutoff 👍 discovered after a failed first reactions read still suppresses the auto-trigger" {
