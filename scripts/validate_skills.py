@@ -146,26 +146,6 @@ def validate_catalog() -> tuple[list[Skill], list[str]]:
         elif len(skill.body.splitlines()) > 500:
             errors.append(f"{relative}: SKILL.md body must stay under 500 lines")
 
-        explicit = skill.metadata.get("selfos.explicit-only")
-        if explicit is not None and explicit.casefold() not in {"true", "false"}:
-            errors.append(f"{relative}: selfos.explicit-only must be the string 'true' or 'false'")
-        disable = skill.fields.get("disable-model-invocation")
-        if disable is not None:
-            if disable.strip().casefold() != "true":
-                errors.append(
-                    f"{relative}: disable-model-invocation must be 'true' when present"
-                )
-            if not skill.explicit_only:
-                errors.append(
-                    f"{relative}: disable-model-invocation requires"
-                    " metadata selfos.explicit-only 'true'"
-                )
-        elif skill.explicit_only:
-            errors.append(
-                f"{relative}: explicit-only skills must set top-level"
-                " disable-model-invocation 'true' so Claude hosts enforce the guard"
-            )
-
         tree_errors = symlink_errors(skill.root)
         errors.extend(tree_errors)
         if tree_errors:

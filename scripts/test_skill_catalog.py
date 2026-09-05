@@ -94,21 +94,6 @@ class SkillCatalogParserTest(unittest.TestCase):
         self.assertNotIn("argument-hint", ALLOWED_FIELDS)
         self.assertIn("argument-hint", set(skill.fields) - ALLOWED_FIELDS)
 
-    def test_disable_model_invocation_is_the_documented_exception(self) -> None:
-        path = self.write_skill(
-            "Runs an invented workflow. Use when testing host neutrality.",
-            "compatibility: No runtime requirements.\n"
-            "disable-model-invocation: true\n",
-        )
-
-        skill, errors = parse_skill(path)
-
-        self.assertEqual(errors, [])
-        self.assertIsNotNone(skill)
-        assert skill is not None
-        self.assertIn("disable-model-invocation", ALLOWED_FIELDS)
-        self.assertNotIn("disable-model-invocation", set(skill.fields) - ALLOWED_FIELDS)
-
     def test_version_is_namespaced_metadata_not_a_top_level_extension(self) -> None:
         path = self.write_skill(
             "Runs an invented workflow. Use when testing canonical versions.",

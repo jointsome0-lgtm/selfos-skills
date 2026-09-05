@@ -127,10 +127,6 @@ Every top-level skill is independently installable. Where one workflow composes 
 
 `python scripts/build_bundles.py` deterministically copies each complete canonical source folder under `references/<dependency>/`, renames the copied entrypoint `SKILL.md` to `CONTRACT.md` (rewriting same-directory links to it) so hosts that discover skills by recursive filename scan catalog only canonical skills, stamps every copy with a `GENERATED.md` marker so it self-identifies as a build artifact, and maintains a managed `linguist-generated` block in `.gitattributes` so regenerated trees fold away from authored changes in review diffs. Contributors edit only canonical sources — never the generated copies — and CI runs `python scripts/build_bundles.py --check`, which fails with actionable diagnostics on drift, stale trees, dependency cycles, nested composition, missing dependencies, and path-escaping names. Installed skills therefore stay standalone: at runtime they need neither network access nor sibling installations nor host-specific plugin dependency semantics.
 
-One intentionally host-specific field is permitted in canonical frontmatter: `disable-model-invocation: true` on explicit-only skills. Claude Code only enforces the invocation guard when it is a top-level field, other hosts ignore unknown fields, and the portable contract stays in each skill's prose ("Run this workflow only on an explicit request"). Validation allows exactly this field — paired with `metadata.selfos.explicit-only` — and rejects any other host-only frontmatter.
-
-No current skill uses this explicit-only pairing. Workflow skills retain their individual start and publication rules; do not add host-specific invocation flags merely to make the hosts symmetric.
-
 ## Add or change a skill
 
 A canonical skill follows the Agent Skills specification:

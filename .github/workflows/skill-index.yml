@@ -2,6 +2,7 @@ name: Validate portable Agent Skills
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
