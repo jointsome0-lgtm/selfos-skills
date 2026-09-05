@@ -48,7 +48,9 @@ Named deviations in the shipped copy. Earlier forms are in git history:
    the protected package root, including dotted package arguments. Reject
    relative static imports within that package conservatively.
    Match the package's path segments beneath any source root.
+   Check members imported from a parent of a dotted protected package.
 9. Recognize the three dynamic loaders through aliases declared in imports.
+   Include both builtins and importlib exports of `__import__`.
    Star imports bind the known loader names conservatively.
    Treat those aliases conservatively across the file, without resolving
    shadowing or reassignment. Require direct calls; report stored or passed
@@ -57,6 +59,7 @@ Named deviations in the shipped copy. Earlier forms are in git history:
     relative `import_module` calls with literal packages. Treat `__import__`
     as exposing the root unless its `fromlist` is statically nonempty, and
     require its `level` to be omitted or literal zero.
+    Evaluate only literal fromlists; computed entries expose the root conservatively.
     Check literal `pytest_plugins` declarations; computed, augmented, and
     destructured declarations fail. Match modules by their package prefix,
     including dynamically importable names that are not Python identifiers.

@@ -128,6 +128,10 @@ class LimitsFixtureTest(unittest.TestCase):
             ('__import__("pkg.testing")', 1),
             ('__import__("pkg.testing", fromlist=["fake"])', 0),
             ('__import__("pkg.testing", fromlist=parts)', 1),
+            ('__import__("pkg.testing", fromlist=[*()])', 1),
+            ('__import__("pkg.testing", fromlist={**{}})', 1),
+            ('__import__("pkg.testing", fromlist=[part])', 1),
+            ('__import__("pkg.testing", fromlist=("fake",))', 0),
             ('__import__("internal", globals(), locals(), ["x"], 2)', 1),
             ('__import__("internal", level=level)', 1),
             ('__import__("pkg.testing", fromlist=["fake"], level=0)', 0),
@@ -138,6 +142,12 @@ class LimitsFixtureTest(unittest.TestCase):
             ('from pytest import *\nimportorskip("pkg.internal")', 1),
             ('import importlib\nimportlib.import_module("pkg.internal-name")', 1),
             ('from builtins import __import__ as load\nload("pkg.testing")', 1),
+            ('from importlib import __import__ as load\nload("pkg.internal")', 1),
+            ('import importlib\nimportlib.__import__("pkg.internal")', 1),
+            (
+                'from importlib import __import__ as load\nload("pkg.testing", fromlist=["fake"])',
+                0,
+            ),
             ('import pytest as p\np.importorskip("pkg.internal")', 1),
             ('from pytest import importorskip as skip\nskip(modname="pkg.testing")', 0),
             ("import importlib\nimportlib.import_module(target)", 1),
@@ -169,15 +179,22 @@ class LimitsFixtureTest(unittest.TestCase):
                 self.check("test loader reference: 'tests/test_works.py':2")
 
     def test_dotted_package_imports(self):
-        self.write(
-            "tests/test_works.py",
-            "import pkg.sub.testing\n"
-            "import pkg.sub.testing as allowed\n"
-            '__import__("pkg.sub.testing")\n'
-            '__import__("pkg.sub.testing", fromlist=["fake"])\n' + TEST,
+        cases = (
+            ("import pkg.sub.testing", 1),
+            ("import pkg.sub.testing as allowed", 0),
+            ('__import__("pkg.sub.testing")', 1),
+            ('__import__("pkg.sub.testing", fromlist=["fake"])', 0),
+            ("from pkg import sub", 1),
+            ("from pkg import sub as protected", 1),
+            ("from pkg import *", 1),
+            ("from pkg import unrelated", 0),
+            ("from pkg.sub.testing import fake", 0),
         )
-        output = self.check("test import:", package="pkg.sub")
-        self.assertEqual(output.count("test import:"), 2)
+        for source, count in cases:
+            with self.subTest(source=source):
+                self.write("tests/test_works.py", source + "\n" + TEST)
+                output = self.check(package="pkg.sub", code=int(bool(count)))
+                self.assertEqual(output.count("test import:"), count, output)
 
     def test_pytest_plugins(self):
         for value, bad in (

@@ -33,7 +33,7 @@ TEST_NAME = r"(?:test_[^/]*|[^/]*_test)\.py"
 TEST = rf"(?:[^/.][^/]*/)*{TEST_NAME}"
 LOADER_MODULES = {
     "builtins": {"__import__"},
-    "importlib": {"import_module"},
+    "importlib": {"import_module", "__import__"},
     "pytest": {"importorskip"},
 }
 RE = {
@@ -167,6 +167,11 @@ def imported(
     if isinstance(node, ast.ImportFrom):
         if node.level and package_relative:
             return [PACKAGE]
+        if PACKAGE.startswith(f"{node.module}."):
+            return [
+                PACKAGE if a.name == "*" else f"{node.module}.{a.name}"
+                for a in node.names
+            ]
         return [node.module or ""]
     return [
         name
@@ -185,14 +190,10 @@ def dynamic_import(node: ast.Call, func: str) -> list[str]:
         name = call_argument(node, 0, "name")
         fromlist = call_argument(node, 3, "fromlist")
         if isinstance(name, ast.Constant) and isinstance(name.value, str):
-            nonempty = (
-                isinstance(fromlist, ast.Constant)
-                and bool(fromlist.value)
-                or isinstance(fromlist, (ast.List, ast.Tuple, ast.Set))
-                and bool(fromlist.elts)
-                or isinstance(fromlist, ast.Dict)
-                and bool(fromlist.keys)
-            )
+            try:
+                nonempty = fromlist is not None and bool(ast.literal_eval(fromlist))
+            except (ValueError, TypeError):
+                nonempty = False
             return [name.value if nonempty else bare_import(name.value)]
         return [PACKAGE]
     if func == "import_module":
