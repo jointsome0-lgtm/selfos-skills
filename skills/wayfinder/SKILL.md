@@ -4,7 +4,7 @@ description: Use when a task is too big and foggy to even approach — charts it
 license: LICENSE.txt
 compatibility: Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the target repository when an outcome changes it. Prototype tickets require the sibling prototype skill installed; grilling tickets run on the bundled grilling contract. No OS constraint.
 metadata:
-  selfos.version: "1.0.0"
+  selfos.version: "2.0.0"
 ---
 
 # Wayfinder
@@ -74,8 +74,8 @@ agent state.
 
 ### The map body
 
-The whole map at low resolution, loaded once per session. Open tickets
-are **not** listed — they are open sub-issues, found by query.
+The whole map at low resolution, reloaded before choosing each ticket.
+Open tickets are **not** listed — they are open sub-issues, found by query.
 
 ```markdown
 ## Destination
@@ -221,8 +221,10 @@ a step on it.
 
 ## Invocation
 
-Two modes. Either way, **never resolve more than one ticket per
-session** — with the exception of research tickets.
+Continue the agreed work while a useful next step is available. Pause
+when an owner decision or confirmation is needed, a real blocker prevents
+progress, or the agreed goal is complete. Charting, resolving successive
+tickets, and moving to slicing do not themselves require a new session.
 
 ### Chart the map
 
@@ -237,8 +239,8 @@ User invokes with a loose idea.
    out across the whole space rather than deep on any one thread,
    surfacing the open decisions and the first steps takeable now. **If
    this surfaces no fog** — the way to the destination is already
-   clear, the whole journey small enough for one session — you don't
-   need a map. Stop and ask the user how they'd like to proceed.
+   clear — skip map creation and continue the already-authorized next
+   step. If the agreed goal is complete, report the result.
 3. **Create the map** (label `wayfinder:map`): Destination and Notes
    filled in, Decisions-so-far empty, the fog sketched into **Not yet
    specified**.
@@ -256,8 +258,8 @@ User invokes with a loose idea.
    run in parallel when permitted; blocked tickets wait for their
    prerequisites. Record cited findings in the resolution comment,
    following the close ordering below.
-6. Stop after charting and the unblocked research; other tickets wait
-   for a work-through session.
+6. Continue with **Work through the map** in this session, selecting
+   the next unblocked ticket within the agreed scope.
 
 ### Work through the map
 
@@ -304,10 +306,14 @@ without one, you pick the next decision, not the user.
    the route. If the decision invalidates other parts of the map,
    update or delete those tickets.
 
-When the map is done — no open tickets, no fog — the default hand-off
-is `slice`: the destination's approved scope is implementation-ready, and
-slicing it into tracer-bullet issues is a fresh session's work, not
-this skill's.
+If agreed work remains after resolving a ticket, repeat from step 1 to
+reload the map and select from its current frontier. Apply the same claim,
+decision, and publication rules to each ticket.
+
+When the map is done — no open tickets, no fog — the destination's approved
+scope is implementation-ready. If the agreed work includes slicing,
+continue with `slice` in this session under its publication rules.
+Otherwise report the completed planning outcome.
 
 The user may run unblocked tickets in parallel, so expect other
 sessions to be editing the tracker concurrently. Map-body edits are

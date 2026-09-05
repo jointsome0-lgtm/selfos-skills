@@ -12,8 +12,7 @@
 | Status | **adapted** |
 
 Named semantic deviations (the map/ticket model, fog of war, out-of-scope
-rules, ticket types, one-ticket-per-session cadence, and both invocation
-modes are otherwise preserved):
+rules, ticket types, and both invocation modes are otherwise preserved):
 
 1. **Catalog placement and portable metadata added** — the upstream skill
    is placed at canonical `skills/wayfinder/`; its description is rewritten
@@ -54,6 +53,12 @@ modes are otherwise preserved):
 7. **Host-specific upstream config not imported** — upstream's
    `agents/openai.yaml` host configuration file is omitted; invocation
    posture is carried by the announce-and-proceed prose gate instead.
+8. **Session boundaries removed** — charting, successive decision tickets,
+   and an authorized transition to `slice` can continue in one session.
+   A clear route skips map creation. Reload the map before choosing the
+   next ticket; existing claims, owner decisions, publication gates, and
+   scope still govern the work. Stop for a needed owner decision or
+   confirmation, a real blocker, or completion of the agreed goal.
 
 ## Bundled reference provenance
 
