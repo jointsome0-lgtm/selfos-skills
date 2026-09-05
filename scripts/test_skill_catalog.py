@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 import shutil
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from build_index import (
     README_COMPATIBILITY_END,
@@ -25,6 +27,8 @@ from skill_catalog import (
     version_errors,
 )
 from build_bundles import copy_tree_atomically
+import validate_skills as validator
+from validate_skills import validate_claude_adapter
 
 
 class SkillCatalogParserTest(unittest.TestCase):
@@ -302,6 +306,111 @@ class AdapterManifestGenerationTest(unittest.TestCase):
 
         self.assertIsNone(rendered)
         self.assertTrue(any("exactly one" in error for error in errors))
+
+
+class ClaudeAdapterValidationTest(unittest.TestCase):
+    def valid_manifest(self) -> dict:
+        return {
+            "name": "selfos-skills",
+            "version": "1.0.0",
+            "description": "Invented aggregate.",
+        }
+
+    def valid_marketplace(self) -> dict:
+        return {
+            "name": "selfos",
+            "owner": {"name": "Invented"},
+            "plugins": [
+                {
+                    "name": "selfos-skills",
+                    "source": "./",
+                    "description": "Invented aggregate.",
+                }
+            ],
+        }
+
+    def test_valid_aggregate_adapter_passes_through_catalog_validator(self) -> None:
+        root = Path(tempfile.mkdtemp(prefix="adapter-validation-test."))
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        manifests = {
+            ".claude-plugin/plugin.json": {
+                **self.valid_manifest(),
+                "version": "0.0.0",
+            },
+            ".claude-plugin/marketplace.json": self.valid_marketplace(),
+            ".codex-plugin/plugin.json": {
+                "name": "selfos-skills",
+                "version": "0.0.0",
+                "skills": "./skills/",
+            },
+            ".agents/plugins/marketplace.json": {
+                "plugins": [
+                    {
+                        "name": "selfos-skills",
+                        "source": {"source": "local", "path": "./"},
+                    }
+                ]
+            },
+        }
+        for relative, content in manifests.items():
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(content), encoding="utf-8")
+
+        with mock.patch.object(validator, "ROOT", root):
+            errors = validator.validate_adapters([])
+            invalid_marketplace = self.valid_marketplace()
+            invalid_marketplace.pop("owner")
+            (root / ".claude-plugin" / "marketplace.json").write_text(
+                json.dumps(invalid_marketplace), encoding="utf-8"
+            )
+            invalid_errors = validator.validate_adapters([])
+
+        self.assertEqual(errors, [])
+        self.assertTrue(any("owner must be an object" in error for error in invalid_errors))
+
+    def test_required_aggregate_metadata_is_validated(self) -> None:
+        manifest = self.valid_manifest()
+        marketplace = self.valid_marketplace()
+        manifest["description"] = "Invented\naggregate."
+        marketplace["owner"] = {}
+        marketplace["plugins"][0]["description"] = ""
+
+        errors = validate_claude_adapter(manifest, marketplace)
+
+        self.assertTrue(any("description" in error and "control" in error for error in errors))
+        self.assertTrue(any("owner" in error and "non-empty" in error for error in errors))
+        self.assertTrue(any("plugins[0]" in error and "non-empty" in error for error in errors))
+
+    def test_extra_marketplace_entry_is_rejected(self) -> None:
+        marketplace = self.valid_marketplace()
+        marketplace["plugins"].append(
+            {
+                "name": "invented-extra",
+                "source": "./plugins/invented-extra",
+                "description": "Invented extra.",
+            }
+        )
+
+        errors = validate_claude_adapter(self.valid_manifest(), marketplace)
+
+        self.assertTrue(any("exactly one selfos-skills entry" in error for error in errors))
+
+    def test_aggregate_entry_name_is_validated(self) -> None:
+        marketplace = self.valid_marketplace()
+        marketplace["plugins"][0]["name"] = "invented-extra"
+
+        errors = validate_claude_adapter(self.valid_manifest(), marketplace)
+
+        self.assertTrue(any("name must be 'selfos-skills'" in error for error in errors))
+
+    def test_aggregate_entry_source_is_validated(self) -> None:
+        marketplace = self.valid_marketplace()
+        marketplace["plugins"][0]["source"] = "./plugins/invented-extra"
+
+        errors = validate_claude_adapter(self.valid_manifest(), marketplace)
+
+        self.assertTrue(any("source must be './'" in error for error in errors))
 
 
 class VendoredTreeSafetyTest(unittest.TestCase):

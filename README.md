@@ -160,7 +160,7 @@ python scripts/build_bundles.py --check
 python scripts/build_index.py --check
 ```
 
-The main CI additionally runs the canonical SDD helper tests, the watcher suite, ShellCheck, the static adapter validator, and the matrixed installation checks described above.
+The main CI additionally runs the canonical SDD helper tests, the watcher suite, ShellCheck, and the matrixed installation checks described above.
 
 ## Versioning and releases
 
@@ -176,7 +176,6 @@ Every canonical skill bump gets a tag on the validated merge commit using the ex
 
 - Skill behavior changes
 - Packaging-only changes
-- Legacy-adapter changes
 
 Because releases follow merges of skill changes, a release batch that changes nothing installable should not exist: it has no new derived version and therefore nothing to release.
 
