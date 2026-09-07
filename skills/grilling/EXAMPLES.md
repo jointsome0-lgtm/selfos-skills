@@ -11,9 +11,13 @@ The tree so far has three decisions with no unsettled prerequisites, so the firs
 >
 > ➡️ Grammar stage — the tests already group that way.
 >
+> ---
+>
 > ❓ **Q2 — Legacy flag**: Keep the `--compat` flag through the split?
 >
 > ➡️ Drop it — nothing in this repository references it.
+>
+> ---
 >
 > ❓ **Q3 — Migration**: Land the split in one PR or as a sequence?
 >

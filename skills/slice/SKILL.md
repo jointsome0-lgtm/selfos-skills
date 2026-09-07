@@ -4,7 +4,7 @@ description: Use when an approved scope needs cutting into small, agent-ready Gi
 license: LICENSE.txt
 compatibility: Requires read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint.
 metadata:
-  selfos.version: "1.0.0"
+  selfos.version: "1.0.1"
 ---
 
 # Slice an approved scope

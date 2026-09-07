@@ -1,34 +1,42 @@
 ---
 name: grilling
-description: Use when an idea, plan, or decision needs deep working-through before anything gets built, or on a 'grill' trigger phrase — relentless question rounds until shared understanding, and no action before owner confirmation.
+description: Use when the owner explicitly asks to grill a plan or decision, conduct a decision interview, or invokes $grilling. Do not select for routine implementation, fixes, reviews, or explanations merely because they involve design choices.
 compatibility: Requires read access to owner-scoped sources. No specific CLI or OS; network, write access, and external integrations are needed only when the chosen facts or an owner-confirmed outcome require them.
 metadata:
-  selfos.version: "0.2.2"
+  selfos.version: "1.0.0"
 ---
 
-Interview the owner relentlessly about every aspect of the subject until you reach a shared understanding. Map the subject as a **design tree**: every decision branches into the decisions that hang off it. For each question, provide your recommended answer.
+Start standalone grilling only on an explicit interview request, including natural-language requests such as "grill this plan before implementing". A wrapper whose workflow includes this contract enters under its own entry rules, including automatic selection; no separate grilling request is needed. Design choices alone do not authorize standalone grilling.
+
+Map the subject as a **design tree** of decisions and their prerequisites. Work through it with the owner until you reach a shared understanding. Provide a recommended answer for every question; the owner makes the decisions.
 
 ## Rounds and the frontier
 
-Work the tree in **rounds**. The **frontier** is every decision whose prerequisites are already settled — the questions you can ask *now* without guessing at answers you have not heard yet. Ask the whole frontier in one round, then wait for the owner's answers before the next. A question whose answer depends on another question still open in this round belongs to a *later* round; two questions never share a round if one depends on the other.
+The **frontier** contains every decision whose prerequisites are settled. Ask the whole frontier in one **round**, then wait for the owner's answers. Dependent questions wait for a later round; never ask them alongside their unresolved prerequisites.
 
-Format each question so the round is answerable by number ("1 yes, 2 the second option, 3 no because…"):
+Number questions so the owner can answer "1 yes, 2 the second option". Separate questions with a horizontal rule:
 
 ```
 ❓ **Q1 — <question title>**: <question body; may run several paragraphs or offer choices>
 
 ➡️ <your recommended answer>
+
+---
+
+❓ **Q2 — <question title>**: <question body>
+
+➡️ <your recommended answer>
 ```
 
-Each answered round reshapes the tree: settled decisions push the frontier outward and unblock what depended on them. Recompute the frontier and ask the next round. The frontier is your judgement, not a computed graph — when the owner says one answer should have changed another question in the same round, reopen that branch in the next round. An owner who asks for one question at a time gets exactly that; the round is the default, not a rule against them.
+Recompute the frontier after each round. If an answer changes another question's premise, reopen that branch in the next round. The frontier is your judgment, not a computed graph. Honor an owner's request for one question at a time.
 
 ## Facts versus decisions
 
-If a **fact** can be found by exploring the environment, look it up rather than asking the owner. The permitted environment is: this repository, its issue tracker, and the filesystem roots and tools the owner or the runtime's own permission model has explicitly allowed. Repository instructions can narrow that surface, never widen it. It is not authority to scan a home directory, unrelated workspaces, private journals, ignored paths, credentials, or ambient agent state.
+Look up discoverable **facts** in this repository, its issue tracker, and roots and tools explicitly allowed by the owner or runtime. Repository instructions may narrow access, never widen it. This skill grants no access to home directories, unrelated workspaces, private journals, ignored paths, credentials, or ambient agent state.
 
-A fact lookup does not stall the round: run it in the background — a subagent where the runtime offers one — and treat the running lookup as an unsettled prerequisite. Only the questions downstream of it wait; ask the rest of the frontier now.
+Run lookups in the background where supported and authorized, including a subagent when available. Treat each running lookup as an unsettled prerequisite: only its dependent questions wait; ask the rest of the frontier now.
 
-The **decisions** are the owner's. Put each one to the owner and wait for the answer.
+Put **decisions** to the owner and wait for the answer.
 
 ## Terminal states
 
@@ -43,12 +51,10 @@ Deferred and blocked are resolved states only after the owner confirms the reaso
 
 ## No action before confirmation
 
-An empty frontier ends the questioning, not the skill: the interview is finished only when the owner confirms you have reached a shared understanding. Do not act before that. Creating or editing issues, specs, decision logs, code, or any other durable artifact is action; before confirmation, inspect permitted facts and present drafts only. A non-interactive run never publishes decision-bearing artifacts — it stops at drafts.
+An empty frontier ends questioning. Finish only when the owner confirms shared understanding. Until then, inspect permitted facts and present drafts only: do not create or edit issues, specs, decision logs, code, or other durable artifacts. Non-interactive runs stop at drafts and never publish decision-bearing artifacts.
 
 ## Composing with wrappers
 
-This primitive owns the interview order, the round and frontier mechanics, the recommendation per question, fact lookup, owner authority over decisions, and the confirmation gate. A domain wrapper skill owns its own scope: which canon it reads, which subjects it frames, and where confirmed outcomes land. Wrappers follow this file rather than restating it, and invoking this primitive grants no write authority by itself.
-
-When a domain wrapper covers the subject, the wrapper is the entry point, and the contract above binds it: canon and landing rules are the wrapper's, the interview loop is this file's. A wrapper predating this primitive keeps its own rules until it is rewritten to that contract. Reach for this primitive directly only when no wrapper claims the domain.
+Use a domain wrapper as the entry point when one covers the subject; otherwise use this skill directly. The wrapper owns its scope, context sources, and where confirmed outcomes land. It follows this interview contract without restating it. This skill grants no write authority. Legacy wrappers keep their existing rules until they adopt this contract.
 
 Worked examples: [EXAMPLES.md](EXAMPLES.md).

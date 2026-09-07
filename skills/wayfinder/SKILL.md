@@ -4,7 +4,7 @@ description: Use when a task is too big and foggy to even approach — charts it
 license: LICENSE.txt
 compatibility: Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the target repository when an outcome changes it. Prototype tickets require the sibling prototype skill installed; grilling tickets run on the bundled grilling contract. No OS constraint.
 metadata:
-  selfos.version: "2.0.0"
+  selfos.version: "2.0.1"
 ---
 
 # Wayfinder
