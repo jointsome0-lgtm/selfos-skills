@@ -125,7 +125,7 @@ resolve_head() {
       checkout_repo=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null) || return 1
       [[ -n "$checkout_repo" ]] || return 1
     fi
-    if [[ "${checkout_repo,,}" == "${REPO,,}" ]]; then
+    if [[ "$(tr '[:upper:]' '[:lower:]' <<<"$checkout_repo")" == "$(tr '[:upper:]' '[:lower:]' <<<"$REPO")" ]]; then
       printf '%s\n' "$local_head"
       return
     fi
@@ -151,7 +151,7 @@ deadline=$(( start_epoch + TIMEOUT ))
 
 # A push can reach GitHub before its PR API reflects the new head. Do not
 # read a verdict or request a review of the previous head during that lag.
-head_waited=0
+head_waited=0 head_lag=0
 while :; do
   prjson=$(api "repos/$REPO/pulls/$PR") || prjson=""
   cur_head=$(jq -r '.head.sha // empty' <<<"$prjson" 2>/dev/null) || cur_head=""
@@ -171,6 +171,7 @@ while :; do
   fi
   [[ $head_waited -eq 0 ]] && log "waiting for GitHub to report expected head ${SHA:0:10}"
   head_waited=1
+  [[ -n "$cur_head" ]] && head_lag=1
   remaining=$(( deadline - now ))
   sleep "$(( INTERVAL < remaining ? INTERVAL : remaining ))"
 done
@@ -188,6 +189,11 @@ post_trigger() {
 # script start and the comment post must not satisfy the new round's cutoff
 TRIGGER_ISO=""
 if [[ $TRIGGER -eq 1 ]]; then
+  if (( $(date +%s) >= deadline )); then
+    echo "VERDICT: TIMEOUT"
+    echo "The timeout expired before a review could be requested; no trigger was posted."
+    exit 3
+  fi
   post_trigger
   if [[ -n "$TRIGGER_ISO" ]]; then
     log "posted '@codex review' trigger comment at $TRIGGER_ISO"
@@ -258,7 +264,7 @@ else
       log "WARNING: cannot resolve a push event or commit date for ${SHA:0:10} — falling back to start-anchored cutoffs"
     fi
     SINCE=$(date -u -d '90 seconds ago' +%Y-%m-%dT%H:%M:%SZ)
-    if [[ $head_waited -eq 1 ]]; then
+    if [[ $head_lag -eq 1 ]]; then
       # A leftover approval observed while the API caught up cannot be
       # attributed to this head without a push event. Commit-tied reviews
       # retain their commit-date cutoff.

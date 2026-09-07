@@ -117,9 +117,27 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
 @test "an explicit trigger waits for the expected head to reach GitHub" {
   cp "$GH_FIXTURES/pr.json" "$GH_FIXTURES/pr.json.2"
   jq '.head.sha = "ffffffffffffffffffffffffffffffffffffffff"' "$GH_FIXTURES/pr.json.2" >"$GH_FIXTURES/pr.json"
-  run_watch --trigger
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 4 --trigger
   [ "$status" -eq 3 ]
   [ "$(cat "$GH_FIXTURES/head-at-trigger")" = "$SHA" ]
+}
+
+@test "an unreadable startup response does not invalidate a delivered approval" {
+  printf '{"commit":{"committer":{"date":"%s"}}}' "$(iso 600)" >"$GH_FIXTURES/commit.json"
+  thumb 30
+  mv "$GH_FIXTURES/pr.json" "$GH_FIXTURES/pr.json.2"
+  run_watch --no-trigger
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"VERDICT: APPROVED"* ]]
+}
+
+@test "a head that arrives at the deadline cannot start an unwatched review" {
+  cp "$GH_FIXTURES/pr.json" "$GH_FIXTURES/pr.json.2"
+  jq '.head.sha = "ffffffffffffffffffffffffffffffffffffffff"' "$GH_FIXTURES/pr.json.2" >"$GH_FIXTURES/pr.json"
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 1 --trigger
+  [ "$status" -eq 3 ]
+  [ ! -e "$GH_FIXTURES/head-at-trigger" ]
+  [[ "$output" != *"check the Codex integration"* ]]
 }
 
 @test "an explicit remote repository does not use an unrelated checkout's HEAD" {
