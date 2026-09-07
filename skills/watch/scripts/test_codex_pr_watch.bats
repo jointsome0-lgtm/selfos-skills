@@ -15,6 +15,7 @@ setup() {
   cat >"$BATS_TEST_TMPDIR/bin/gh" <<'STUB'
 #!/usr/bin/env bash
 if [[ "$1 $2" == "repo view" ]]; then
+  if [[ -n "${GH_REPO:-}" ]]; then printf '%s\n' "$GH_REPO"; exit; fi
   cat "$GH_FIXTURES/checkout-repo"; exit
 elif [[ "$1 $2" == "pr view" ]]; then
   echo lookup >>"$GH_FIXTURES/head-lookups"
@@ -100,6 +101,7 @@ review() { # seconds-ago commit-id — bot review tied to a commit
 run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 2 "$@"; }
 
 @test "same-repo --repo uses local HEAD while the API still reports the previous round" {
+  export GH_REPO=elsewhere/project
   printf '{"commit":{"committer":{"date":"%s"}}}' "$(iso 600)" >"$GH_FIXTURES/commit.json"
   thumb 1
   review 30 "$SHA"
@@ -122,11 +124,27 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
   [ "$(cat "$GH_FIXTURES/head-at-trigger")" = "$SHA" ]
 }
 
-@test "an unreadable startup response does not invalidate a delivered approval" {
+@test "a long unreadable startup response does not invalidate a delivered approval" {
+  export WATCH_REAL_DATE
+  WATCH_REAL_DATE=$(command -v date)
+  cat >"$BATS_TEST_TMPDIR/bin/date" <<'STUB'
+#!/usr/bin/env bash
+# Model a two-minute API outage without making the test sleep through it.
+# Explicit date parsing stays real; current and relative times advance.
+if [[ -f "$GH_FIXTURES/.pr_served" ]]; then
+  case "$*" in
+    '+%s') exec "$WATCH_REAL_DATE" -d '120 seconds' +%s ;;
+    '-u +%Y-%m-%dT%H:%M:%SZ') exec "$WATCH_REAL_DATE" -u -d '120 seconds' +%Y-%m-%dT%H:%M:%SZ ;;
+    '-u -d 90 seconds ago +%Y-%m-%dT%H:%M:%SZ') exec "$WATCH_REAL_DATE" -u -d '30 seconds' +%Y-%m-%dT%H:%M:%SZ ;;
+  esac
+fi
+exec "$WATCH_REAL_DATE" "$@"
+STUB
+  chmod +x "$BATS_TEST_TMPDIR/bin/date"
   printf '{"commit":{"committer":{"date":"%s"}}}' "$(iso 600)" >"$GH_FIXTURES/commit.json"
   thumb 30
   mv "$GH_FIXTURES/pr.json" "$GH_FIXTURES/pr.json.2"
-  run_watch --no-trigger
+  run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 124 --no-trigger
   [ "$status" -eq 0 ]
   [[ "$output" == *"VERDICT: APPROVED"* ]]
 }
@@ -141,12 +159,16 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
 }
 
 @test "an explicit remote repository does not use an unrelated checkout's HEAD" {
+  export GH_REPO=o/r
   echo elsewhere/project >"$GH_FIXTURES/checkout-repo"
   echo ffffffffffffffffffffffffffffffffffffffff >"$GH_FIXTURES/local-head"
   push_event 120
   review 60 "$SHA"
   echo '[]' >"$GH_FIXTURES/comments.json"
   run "$WATCH" --repo o/r --pr 7 --interval 1 --timeout 2 --no-trigger
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"Reviewed commit: $SHA"* ]]
+  run "$WATCH" --pr 7 --interval 1 --timeout 2 --no-trigger
   [ "$status" -eq 2 ]
   [[ "$output" == *"Reviewed commit: $SHA"* ]]
 }

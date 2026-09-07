@@ -34,7 +34,7 @@
 set -uo pipefail
 
 REPO="" PR="" SHA="" SINCE="" BOT="codex"
-INTERVAL=30 TIMEOUT=1500 TRIGGER=0 NO_TRIGGER=0 GRACE=120 SINCE_FLAG=0 REPO_FLAG=0
+INTERVAL=30 TIMEOUT=1500 TRIGGER=0 NO_TRIGGER=0 GRACE=120 SINCE_FLAG=0
 usage() {
   cat <<'EOF'
 Usage: codex-pr-watch.sh [options]
@@ -71,7 +71,7 @@ EOF
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --pr)       PR="$2"; shift 2 ;;
-    --repo)     REPO="$2"; REPO_FLAG=1; shift 2 ;;
+    --repo)     REPO="$2"; shift 2 ;;
     --sha)      SHA="$2"; shift 2 ;;
     --since)    SINCE="$2"; SINCE_FLAG=1; shift 2 ;;
     --bot)      BOT="$2"; shift 2 ;;
@@ -120,11 +120,11 @@ resolve_head() {
   local local_head checkout_repo
   local_head=$(git rev-parse HEAD 2>/dev/null) || local_head=""
   if [[ -n "$local_head" ]]; then
-    checkout_repo="$REPO"
-    if [[ $REPO_FLAG -eq 1 ]]; then
-      checkout_repo=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null) || return 1
-      [[ -n "$checkout_repo" ]] || return 1
-    fi
+    checkout_repo=$(
+      unset GH_REPO
+      gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null
+    ) || return 1
+    [[ -n "$checkout_repo" ]] || return 1
     if [[ "$(tr '[:upper:]' '[:lower:]' <<<"$checkout_repo")" == "$(tr '[:upper:]' '[:lower:]' <<<"$REPO")" ]]; then
       printf '%s\n' "$local_head"
       return
@@ -263,7 +263,7 @@ else
       RSINCE="$START_ISO"
       log "WARNING: cannot resolve a push event or commit date for ${SHA:0:10} — falling back to start-anchored cutoffs"
     fi
-    SINCE=$(date -u -d '90 seconds ago' +%Y-%m-%dT%H:%M:%SZ)
+    SINCE=$(date -u -d "@$(( start_epoch - 90 ))" +%Y-%m-%dT%H:%M:%SZ)
     if [[ $head_lag -eq 1 ]]; then
       # A leftover approval observed while the API caught up cannot be
       # attributed to this head without a push event. Commit-tied reviews
