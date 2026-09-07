@@ -10,7 +10,8 @@
 # trigger comment for an explicit re-review; --since overrides both.
 # Reviews must match the expected commit_id and postdate the round cutoff.
 # Without a push event, reviews use the commit date while reactions use
-# start minus 90 seconds because reactions carry no commit_id. A fresh
+# start minus 90 seconds because reactions carry no commit_id. After an
+# observed API head lag, reactions must follow the head catching up. A fresh
 # thumbs-up is accepted only after eyes disappear and the live head matches.
 #
 # Auto-trigger (issue #47): in repos where a push does not start a review by
@@ -45,11 +46,13 @@ expected SHA (exit 2, review body + inline comments printed to stdout).
 Options:
   --pr N             PR number         (default: the current branch's PR)
   --repo OWNER/NAME  repository        (default: the current directory's repo)
-  --sha SHA          expected head     (default: local git HEAD, else PR head)
+  --sha SHA          expected head     (default: local git HEAD for the same
+                     repository, else PR head; lookup retries once)
   --since ISO8601Z   count events (reviews and reactions) after this instant
                      (default: the push of the expected head; if no push event
                       is found, reviews — its committer date − 60 s, reactions —
-                      start − 90 s; with --trigger: script start)
+                      start − 90 s, or head catch-up after API lag;
+                      with --trigger: the trigger comment's timestamp)
   --bot REGEX        reviewer login regex, case-insensitive (default: codex)
   --interval SEC     poll interval     (default: 30)
   --timeout SEC      give up after     (default: 1500)
@@ -113,17 +116,65 @@ if [[ -z "$PR" ]]; then
 fi
 [[ -n "$PR" ]] || { echo "no PR for the current branch; pass --pr N" >&2; exit 1; }
 
-if [[ -z "$SHA" && $REPO_FLAG -eq 0 ]]; then
-  # the freshest truth about what was just pushed is the local HEAD
-  SHA=$(git rev-parse HEAD 2>/dev/null) || true
-fi
+resolve_head() {
+  local local_head checkout_repo
+  local_head=$(git rev-parse HEAD 2>/dev/null) || local_head=""
+  if [[ -n "$local_head" ]]; then
+    checkout_repo="$REPO"
+    if [[ $REPO_FLAG -eq 1 ]]; then
+      checkout_repo=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null) || return 1
+      [[ -n "$checkout_repo" ]] || return 1
+    fi
+    if [[ "${checkout_repo,,}" == "${REPO,,}" ]]; then
+      printf '%s\n' "$local_head"
+      return
+    fi
+  fi
+  gh pr view "$PR" -R "$REPO" --json headRefOid -q .headRefOid 2>/dev/null
+}
+
 if [[ -z "$SHA" ]]; then
-  SHA=$(gh pr view "$PR" -R "$REPO" --json headRefOid -q .headRefOid 2>/dev/null) || true
+  for attempt in 1 2; do
+    SHA=$(resolve_head) || SHA=""
+    [[ -n "$SHA" ]] && break
+    if [[ $attempt -eq 1 ]]; then
+      log "note: expected-head lookup failed; retrying once in 2s"
+      sleep 2
+    fi
+  done
 fi
 [[ -n "$SHA" ]] || { echo "cannot resolve the expected head SHA; pass --sha" >&2; exit 1; }
 
 START_ISO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 start_epoch=$(date +%s)
+deadline=$(( start_epoch + TIMEOUT ))
+
+# A push can reach GitHub before its PR API reflects the new head. Do not
+# read a verdict or request a review of the previous head during that lag.
+head_waited=0
+while :; do
+  prjson=$(api "repos/$REPO/pulls/$PR") || prjson=""
+  cur_head=$(jq -r '.head.sha // empty' <<<"$prjson" 2>/dev/null) || cur_head=""
+  [[ "$cur_head" == "$SHA" ]] && break
+  state=$(jq -r '.state // empty' <<<"$prjson" 2>/dev/null) || state=""
+  if [[ "$state" == "closed" ]]; then
+    echo "VERDICT: PR_NOT_OPEN"
+    echo "PR $REPO#$PR is closed or merged; its head is not the expected $SHA."
+    exit 4
+  fi
+  now=$(date +%s)
+  if (( now >= deadline )); then
+    echo "VERDICT: TIMEOUT"
+    echo "GitHub did not report expected head $SHA within ${TIMEOUT}s; no review was requested."
+    echo "Confirm the push and PR target before restarting; reported head: ${cur_head:-unavailable}."
+    exit 3
+  fi
+  [[ $head_waited -eq 0 ]] && log "waiting for GitHub to report expected head ${SHA:0:10}"
+  head_waited=1
+  remaining=$(( deadline - now ))
+  sleep "$(( INTERVAL < remaining ? INTERVAL : remaining ))"
+done
+head_ready_iso=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 # post_trigger → sets TRIGGER_ISO to the comment's server-side timestamp
 # (empty on failure)
@@ -207,6 +258,13 @@ else
       log "WARNING: cannot resolve a push event or commit date for ${SHA:0:10} — falling back to start-anchored cutoffs"
     fi
     SINCE=$(date -u -d '90 seconds ago' +%Y-%m-%dT%H:%M:%SZ)
+    if [[ $head_waited -eq 1 ]]; then
+      # A leftover approval observed while the API caught up cannot be
+      # attributed to this head without a push event. Commit-tied reviews
+      # retain their commit-date cutoff.
+      SINCE="$head_ready_iso"
+      log "note: API head caught up without a push event; reactions must follow $SINCE"
+    fi
     fallback_anchor=1
     trigger_after=$(( start_epoch + GRACE ))
   fi
@@ -245,7 +303,6 @@ report_review() {
 }
 
 # --- poll loop ----------------------------------------------------------------
-deadline=$(( start_epoch + TIMEOUT ))
 eyes_seen=0
 stale_checked=0   # pre-cutoff-👍 scan done (waits for a readable reactions list)
 poll=0

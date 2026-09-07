@@ -14,10 +14,25 @@ setup() {
   # fixture file fails the call, which the watcher treats as a soft error
   cat >"$BATS_TEST_TMPDIR/bin/gh" <<'STUB'
 #!/usr/bin/env bash
+if [[ "$1 $2" == "repo view" ]]; then
+  cat "$GH_FIXTURES/checkout-repo"; exit
+elif [[ "$1 $2" == "pr view" ]]; then
+  echo lookup >>"$GH_FIXTURES/head-lookups"
+  if [[ -f "$GH_FIXTURES/head-lookup-retry" && $(wc -l <"$GH_FIXTURES/head-lookups") -eq 1 ]]; then
+    exit 1
+  fi
+  jq -r '.head.sha // empty' "$GH_FIXTURES/pr.json"; exit
+fi
 path=""
 for a in "$@"; do case "$a" in repos/*) path="$a" ;; esac; done
 case "$path" in
-  */pulls/*/reviews*)    cat "$GH_FIXTURES/reviews.json" ;;
+  */pulls/*/reviews*)
+    if [[ -f "$GH_FIXTURES/reviews.json.2" && -f "$GH_FIXTURES/.reviews_served" ]]; then
+      cat "$GH_FIXTURES/reviews.json.2"
+    else
+      : >"$GH_FIXTURES/.reviews_served"
+      cat "$GH_FIXTURES/reviews.json"
+    fi ;;
   */pulls/*/comments*)   cat "$GH_FIXTURES/comments.json" ;;
   */issues/*/reactions*)
     # reactions.json.2, when present, is served from the second call on —
@@ -28,7 +43,9 @@ case "$path" in
       : >"$GH_FIXTURES/.reactions_served"
       cat "$GH_FIXTURES/reactions.json"
     fi ;;
-  */issues/*/comments*)  cat "$GH_FIXTURES/trigger.json" ;;
+  */issues/*/comments*)
+    cat "$GH_FIXTURES/.last-head" >"$GH_FIXTURES/head-at-trigger" 2>/dev/null || true
+    cat "$GH_FIXTURES/trigger.json" ;;
   */events*)
     if [[ " $* " == *" --paginate "* ]]; then
       cat "$GH_FIXTURES/events.json"
@@ -36,13 +53,26 @@ case "$path" in
       jq -s '.[0]' "$GH_FIXTURES/events.json"
     fi ;;
   */commits/*)           cat "$GH_FIXTURES/commit.json" ;;
-  */pulls/*)             cat "$GH_FIXTURES/pr.json" ;;
+  */pulls/*)
+    fixture="$GH_FIXTURES/pr.json"
+    if [[ -f "$fixture.2" && -f "$GH_FIXTURES/.pr_served" ]]; then fixture="$fixture.2"; fi
+    : >"$GH_FIXTURES/.pr_served"
+    jq -r '.head.sha // empty' "$fixture" >"$GH_FIXTURES/.last-head"
+    cat "$fixture" ;;
   *) echo "stub gh: unmatched call: $*" >&2; exit 1 ;;
 esac
 STUB
   chmod +x "$BATS_TEST_TMPDIR/bin/gh"
+  cat >"$BATS_TEST_TMPDIR/bin/git" <<'STUB'
+#!/usr/bin/env bash
+[[ "$*" == "rev-parse HEAD" ]] || exit 1
+cat "$GH_FIXTURES/local-head"
+STUB
+  chmod +x "$BATS_TEST_TMPDIR/bin/git"
   PATH="$BATS_TEST_TMPDIR/bin:$PATH"
 
+  echo o/r >"$GH_FIXTURES/checkout-repo"
+  echo "$SHA" >"$GH_FIXTURES/local-head"
   printf '{"head":{"ref":"feat","sha":"%s"},"state":"open","merged":false}' "$SHA" >"$GH_FIXTURES/pr.json"
   echo '[]' >"$GH_FIXTURES/events.json"
   echo '[]' >"$GH_FIXTURES/reviews.json"
@@ -69,11 +99,67 @@ review() { # seconds-ago commit-id — bot review tied to a commit
 
 run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout 2 "$@"; }
 
+@test "same-repo --repo uses local HEAD while the API still reports the previous round" {
+  printf '{"commit":{"committer":{"date":"%s"}}}' "$(iso 600)" >"$GH_FIXTURES/commit.json"
+  thumb 1
+  review 30 "$SHA"
+  mv "$GH_FIXTURES/reviews.json" "$GH_FIXTURES/reviews.json.2"
+  review 60 ffffffffffffffffffffffffffffffffffffffff
+  echo '[]' >"$GH_FIXTURES/comments.json"
+  cp "$GH_FIXTURES/pr.json" "$GH_FIXTURES/pr.json.2"
+  jq '.head.sha = "ffffffffffffffffffffffffffffffffffffffff"' "$GH_FIXTURES/pr.json.2" >"$GH_FIXTURES/pr.json"
+  run "$WATCH" --repo o/r --pr 7 --interval 1 --timeout 6 --no-trigger
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"Reviewed commit: $SHA"* ]]
+  [[ "$output" != *"Reviewed commit: ffffffffff"* ]]
+}
+
+@test "an explicit trigger waits for the expected head to reach GitHub" {
+  cp "$GH_FIXTURES/pr.json" "$GH_FIXTURES/pr.json.2"
+  jq '.head.sha = "ffffffffffffffffffffffffffffffffffffffff"' "$GH_FIXTURES/pr.json.2" >"$GH_FIXTURES/pr.json"
+  run_watch --trigger
+  [ "$status" -eq 3 ]
+  [ "$(cat "$GH_FIXTURES/head-at-trigger")" = "$SHA" ]
+}
+
+@test "an explicit remote repository does not use an unrelated checkout's HEAD" {
+  echo elsewhere/project >"$GH_FIXTURES/checkout-repo"
+  echo ffffffffffffffffffffffffffffffffffffffff >"$GH_FIXTURES/local-head"
+  push_event 120
+  review 60 "$SHA"
+  echo '[]' >"$GH_FIXTURES/comments.json"
+  run "$WATCH" --repo o/r --pr 7 --interval 1 --timeout 2 --no-trigger
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"Reviewed commit: $SHA"* ]]
+}
+
+@test "one transient expected-head lookup failure is retried" {
+  echo elsewhere/project >"$GH_FIXTURES/checkout-repo"
+  touch "$GH_FIXTURES/head-lookup-retry"
+  push_event 120
+  review 60 "$SHA"
+  echo '[]' >"$GH_FIXTURES/comments.json"
+  run "$WATCH" --repo o/r --pr 7 --interval 1 --timeout 2 --no-trigger
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"Reviewed commit: $SHA"* ]]
+  [ "$(wc -l <"$GH_FIXTURES/head-lookups")" -eq 2 ]
+}
+
+@test "an unresolved expected head stops after one retry without requesting review" {
+  echo elsewhere/project >"$GH_FIXTURES/checkout-repo"
+  echo '{}' >"$GH_FIXTURES/pr.json"
+  run "$WATCH" --repo o/r --pr 7 --interval 1 --timeout 2 --trigger
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"cannot resolve the expected head SHA"* ]]
+  [ "$(wc -l <"$GH_FIXTURES/head-lookups")" -eq 2 ]
+  [ ! -e "$GH_FIXTURES/head-at-trigger" ]
+}
+
 @test "fresh 👍 does not approve after the PR head moves" {
   push_event 120
   thumb 60
   printf '{"head":{"ref":"feat","sha":"ffffffffffffffffffffffffffffffffffffffff"},"state":"open","merged":false}' \
-    >"$GH_FIXTURES/pr.json"
+    >"$GH_FIXTURES/pr.json.2"
   run_watch
   [ "$status" -eq 3 ]
   [[ "$output" == *"ignoring fresh 👍 — the PR head moved"* ]]
@@ -226,19 +312,19 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
 @test "issue #47: a newer push moved the PR head → auto-trigger skipped (this watcher is pinned to the old head)" {
   push_event 600
   printf '{"head":{"ref":"feat","sha":"ffffffffffffffffffffffffffffffffffffffff"},"state":"open","merged":false}' \
-    >"$GH_FIXTURES/pr.json"
+    >"$GH_FIXTURES/pr.json.2"
   run_watch --grace 0
   [ "$status" -eq 3 ]
   [[ "$output" == *"the PR head moved"* ]]
   [[ "$output" != *"posted '@codex review'"* ]]
 }
 
-@test "issue #47: an unreadable PR head postpones the auto-trigger instead of posting blind" {
+@test "issue #47: an unreadable PR head cannot request a review" {
   push_event 600
   rm -f "$GH_FIXTURES/pr.json"   # every pulls/N read fails
   run_watch --grace 0
   [ "$status" -eq 3 ]
-  [[ "$output" == *"postponing the auto-trigger"* ]]
+  [[ "$output" == *"VERDICT: TIMEOUT"* ]]
   [[ "$output" != *"posted '@codex review'"* ]]
 }
 
@@ -289,7 +375,7 @@ run_watch() { run "$WATCH" --repo o/r --pr 7 --sha "$SHA" --interval 1 --timeout
 @test "issue #47: TIMEOUT after a posted trigger names a moved PR head instead of blaming the integration" {
   push_event 600
   printf '{"head":{"ref":"feat","sha":"ffffffffffffffffffffffffffffffffffffffff"},"state":"open","merged":false}' \
-    >"$GH_FIXTURES/pr.json"
+    >"$GH_FIXTURES/pr.json.2"
   run_watch --trigger
   [ "$status" -eq 3 ]
   [[ "$output" == *"restart the watcher for the new head"* ]]
