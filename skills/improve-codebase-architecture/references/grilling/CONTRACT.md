@@ -6,7 +6,7 @@ metadata:
   selfos.version: "1.0.0"
 ---
 
-Start on an explicit interview request, including natural-language requests such as "grill this plan before implementing". An explicitly requested wrapper whose workflow includes this contract may use it without a second `$grilling` invocation. A design choice in otherwise authorized work is not an interview request.
+Start standalone grilling only on an explicit interview request, including natural-language requests such as "grill this plan before implementing". A wrapper whose workflow includes this contract enters under its own entry rules, including automatic selection; no separate grilling request is needed. Design choices alone do not authorize standalone grilling.
 
 Map the subject as a **design tree** of decisions and their prerequisites. Work through it with the owner until you reach a shared understanding. Provide a recommended answer for every question; the owner makes the decisions.
 

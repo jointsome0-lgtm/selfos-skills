@@ -15,7 +15,7 @@
 
 The local text is compressed while retaining upstream's rounds, dependency frontier, numbered questions with recommendations, background fact lookup, owner decisions, and confirmation gate. Local deviations:
 
-1. **Explicit entry** — an owner request to grill or conduct a decision interview is required, including natural-language requests. Routine implementation, fixes, reviews, and explanations do not activate the interview because they involve design choices. Explicitly requested wrappers can use the contract without a second invocation.
+1. **Explicit standalone entry** — an owner request to grill or conduct a decision interview is required, including natural-language requests. Routine implementation, fixes, reviews, and explanations do not select standalone grilling because they involve design choices. Wrappers use the contract under their own entry rules, including automatic selection, without a separate grilling request.
 2. **Bounded fact lookup** — upstream's unrestricted "environment (filesystem, tools, etc.)" is limited to explicitly permitted surfaces (owner- or runtime-authorized; repository instructions can narrow the surface, never widen it); home directories, unrelated workspaces, private journals, ignored paths, credentials, and ambient agent state are excluded.
 3. **Terminal states** — accepted / rejected / deferred-with-trigger / blocked-by-missing-fact are spelled out; deferred and blocked require an owner-confirmed reason and trigger.
 4. **Action gate made concrete** — durable artifacts are enumerated (issues, specs, decision logs, code); drafts only before confirmation; non-interactive runs never publish.

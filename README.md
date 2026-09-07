@@ -68,7 +68,7 @@ The former domain packages (`sdd@selfos`, `design@selfos`, `decision@selfos`, `l
 | --- | --- | --- |
 | `codebase-design` | Deep-module vocabulary, seams, adapters, deletion test, testability | automatic or explicit |
 | `compose` | Lean outcome-first prompts for delegating to another model or agent | automatic or explicit |
-| `grilling` | Owner decision interview in rounds | explicit interview request, or an explicitly requested wrapper |
+| `grilling` | Owner decision interview in rounds | explicit standalone request, or a wrapper's documented workflow |
 | `handoff` | Compact privacy-safe context for a fresh agent in one temporary Markdown file | automatic or explicit |
 | `improve-codebase-architecture` | Surface deepening candidates as an HTML report, then grill the pick | automatic or explicit (announce first) |
 | `limits` | Three-sources-of-truth model enforced as CI numbers: budget, map, goals bound to tests | automatic or explicit |
