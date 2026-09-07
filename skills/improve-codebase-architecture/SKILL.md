@@ -4,7 +4,7 @@ description: Use when a codebase feels harder to change than it should and the f
 license: LICENSE.txt
 compatibility: Requires read access to the target repository and its git history, a writable OS temp directory, and a local opener plus a browser for the report. The report page loads and executes Tailwind and Mermaid from public CDNs, so it needs network access — weigh that for private repositories. Repository write access is needed only to land owner-confirmed changes during the grilling loop.
 metadata:
-  selfos.version: "1.0.0"
+  selfos.version: "1.0.1"
 ---
 
 # Improve Codebase Architecture
