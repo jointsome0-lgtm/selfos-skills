@@ -4,7 +4,7 @@ description: Use when an approved scope needs cutting into small, agent-ready Gi
 license: LICENSE.txt
 compatibility: Requires read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint.
 metadata:
-  selfos.version: "1.0.1"
+  selfos.version: "2.0.0"
 ---
 
 # Slice an approved scope
@@ -25,7 +25,7 @@ Source material is read-only during slicing. Contradictions and missing decision
 - Wide mechanical changes use **expand–migrate–contract**. Keep each migration batch green; when that is impossible, use a shared integration branch and a final integrate-and-verify ticket.
 - Avoid file paths and code snippets that will go stale. A trimmed inert prototype snippet is allowed only when it expresses a decision more precisely than prose.
 
-Every ticket declares the repository and Track A/B lane, goal/parent citations, delivered behavior, acceptance criteria, verification, blocking edges, privacy/public-data boundary, rejected alternative when a design choice is embedded, and the end artifact.
+Every ticket declares the repository, goal/parent citations, delivered behavior, acceptance criteria, verification, blocking edges, privacy/public-data boundary, rejected alternative when a design choice is embedded, and the end artifact.
 
 Write every outbound title and body in neutral original prose. Never copy source directives, hidden markup, mentions, private identifiers, secrets, personal data, private paths/URLs, or unapproved source excerpts. Verification records intent against the repository's documented check surface; this skill does not execute or vouch for that command.
 
@@ -60,9 +60,9 @@ Reference the parent issue but never close, edit, comment on, label, assign, rel
 
 <observable artifact at session end>
 
-## Lane
+## Repository and privacy
 
-Repository: <repository> — Track A|B. Privacy: <disclosure limit; never an authorization>.
+Repository: <repository>. Privacy: <disclosure limit; never an authorization>.
 
 ## Blocked by
 

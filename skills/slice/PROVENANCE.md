@@ -39,8 +39,8 @@ behavior:
 6. **Prefactoring narrowed** — upstream's general prefactor invitation becomes:
    horizontal scaffolding only when it genuinely gates vertical behavior, and
    then as an explicit blocker ticket.
-7. **Ticket schema extended** — tickets additionally declare the repository and
-   Track A/B lane, goal and parent-issue citations, verification, the end
+7. **Ticket schema extended** — tickets additionally declare the repository,
+   goal and parent-issue citations, verification, the end
    artifact, the privacy/public-data boundary, and the rejected alternative
    when a design choice is embedded.
 8. **Publication gate hardened** — upstream publishes after breakdown approval;
