@@ -121,7 +121,9 @@ adaptation changes delivery, library choice, interaction, and measurement:
 5. **Token-budget results are part of the report** — measured usage and the
    configured budget identify their method, scope, and snapshot. Missing
    budgets and unavailable counts are explicit; a bytes-divided-by-four
-   fallback is labelled an estimate.
+   fallback is labelled an estimate. Project-provided counters require
+   filesystem and network isolation with the source checkout read-only;
+   otherwise use the static estimate without executing project code.
 
 ## Bundled reference provenance
 

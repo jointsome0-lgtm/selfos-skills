@@ -4,7 +4,7 @@ description: Use when a codebase feels harder to change than it should and the f
 license: LICENSE.txt
 compatibility: Requires read access to the target repository and its git history and a writable OS temp directory. Verification and automatic preview need a browser context that blocks outbound network access; otherwise return the report path. The finished HTML works offline. Acquiring libraries and verifying release dates may need network access; downloaded build tools require filesystem and network isolation. Repository write access is needed only to land owner-confirmed changes during the grilling loop.
 metadata:
-  selfos.version: "2.0.0"
+  selfos.version: "2.0.1"
 ---
 
 # Improve Codebase Architecture

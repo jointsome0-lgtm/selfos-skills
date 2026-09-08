@@ -18,6 +18,8 @@ Useful interactions include highlighting a call path, expanding dependencies, fi
 
 Use the project's configured token budget and counting rules. Prefer its existing read-only measurement. Record the command or calculation, included paths and exclusions, and whether the result describes a commit, the index, or the working tree. Include tests when the project's rules count them. Do not install a checker, change a budget, or modify CI to produce the report.
 
+Repository-provided counters are executable code. Run them only with networking disabled, read access limited to allowed repository paths and required runtimes, and writes confined to the isolated temporary workspace. Exclude user files and keep the source checkout read-only. If the host cannot enforce this isolation, or the counter requires broader access, use the static byte estimate below and state why the project counter was not run.
+
 Show the measured tokens, budget, percentage used, and remaining room or excess. A partial scan must remain labelled partial and must not imply that the full repository fits its budget. Read-scope exclusions still apply when measuring.
 
 If there is no configured budget, show **Budget not configured**. If no project counter exists, a labelled estimate of `ceil(total bytes / 4)` over the allowed tracked files is acceptable. State its scope and exclusions; do not invent a budget or present that estimate as tokenizer output. If measurement cannot be obtained, show **Token usage unavailable** and the reason.
