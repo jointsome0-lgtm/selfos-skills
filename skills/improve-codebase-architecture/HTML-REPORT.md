@@ -1,125 +1,59 @@
-# HTML Report Format
+# HTML report
 
-The architectural review is rendered as a single self-contained HTML file in the OS temp directory. Tailwind and Mermaid both come from CDNs. Mermaid handles graph-shaped diagrams reliably; hand-built divs and inline SVG handle the more editorial visuals (mass diagrams, cross-sections). Mix the two — don't lean on Mermaid for everything, it'll start to look generic.
+Deliver one HTML file that opens locally without a server or internet access. Include its JavaScript, CSS, fonts, images, shaders, and other assets in the file. Build-time downloads do not authorize runtime requests or sending repository content to an external service.
 
-## Scaffold
+## Libraries and interaction
 
-```html
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>Architecture review — {{repo name}}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script type="module">
-      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
-      mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "strict" });
-    </script>
-    <style>
-      /* small custom layer for things Tailwind doesn't cover cleanly:
-         dashed seam lines, hand-drawn-feeling arrow heads, etc. */
-      .seam { stroke-dasharray: 4 4; }
-      .leak { stroke: #dc2626; }
-      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
-    </style>
-  </head>
-  <body class="bg-stone-50 text-slate-900 font-sans">
-    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
-      <header>...</header>
-      <section id="candidates" class="space-y-10">...</section>
-      <section id="top-recommendation">...</section>
-    </main>
-  </body>
-</html>
-```
+Choose any suitable rendering approach or library. CSS, SVG, Canvas, WebGL, WebGPU, Mermaid, and frontend frameworks are options, not a required stack. A separate artifact-builder skill is optional when available.
 
-Keep Mermaid at `securityLevel: "strict"` and never relax it: diagram labels are interpolated from repository-derived names, which are untrusted data, so HTML in labels must stay encoded and click actions disabled. Escape repo-derived text before interpolating it into diagram sources or markup.
+Use stable library releases published at least **30 days before the report build**. Verify the publication date of the selected version through the publisher's release metadata or package registry, and pin the resolved versions during the build. The age of the project itself does not establish the age of a release. If a version's date cannot be verified, choose another eligible release or use browser-native APIs. Keep version and date evidence with the temporary build files. Avoid unpinned version aliases and runtime CDN imports.
 
-## Header
+Acquire dependencies without executing package lifecycle hooks, before staging repository-derived data. Execute downloaded build tools or plugins only with networking disabled and filesystem access limited to the temporary workspace and required runtimes, excluding the source checkout and user files. If the host cannot enforce this isolation, use browser-native APIs or prebuilt browser bundles acquired as inert files and executed only in the restricted preview context.
 
-Repo name, date, and a compact legend: solid box = module, dashed line = seam, red arrow = leakage, thick dark box = deep module. No introduction paragraph — straight into the candidates.
+Keep repository-derived names, paths, and excerpts as data. Escape them for their markup, diagram, or embedded-data context; never evaluate them as code. If using Mermaid, retain `securityLevel: "strict"` and disabled diagram click actions.
 
-## Candidate card
+Useful interactions include highlighting a call path, expanding dependencies, filtering a large graph, and moving between before and after states. Animation should explain a change or relationship. Give the reader stable views and a way to pause motion; honor reduced-motion preferences. Keep the findings and comparison readable when a GPU API is unavailable.
 
-The diagrams carry the weight. Prose is sparse, plain, and uses the glossary terms (from the bundled [design vocabulary](references/codebase-design/CONTRACT.md)) without ceremony.
+## Token budget
 
-Each candidate is one `<article>`:
+Use the project's configured token budget and counting rules. Prefer its existing read-only measurement. Record the command or calculation, included paths and exclusions, and whether the result describes a commit, the index, or the working tree. Include tests when the project's rules count them. Do not install a checker, change a budget, or modify CI to produce the report.
 
-- **Title** — short, names the deepening (e.g. "Collapse the Order intake pipeline").
-- **Badge row** — recommendation strength (`Strong` = emerald, `Worth exploring` = amber, `Speculative` = slate), plus a tag for the dependency category (`in-process`, `local-substitutable`, `ports & adapters`, `mock`).
-- **Files** — monospaced list, `font-mono text-sm`.
-- **Before / After diagram** — the centrepiece. Two columns, side by side. See patterns below.
-- **Problem** — one sentence. What hurts.
-- **Solution** — one sentence. What changes.
-- **Wins** — bullets, ≤6 words each. e.g. "Tests hit one interface", "Pricing logic stops leaking", "Delete 4 shallow wrappers".
-- **Prior-decision callout** (if applicable) — one line in an amber-tinted box, citing the relevant commit or issue.
+Repository-provided counters are executable code. Run them only with networking disabled, read access limited to allowed repository paths and required runtimes, and writes confined to the isolated temporary workspace. Exclude user files and keep the source checkout read-only. If the host cannot enforce this isolation, or the counter requires broader access, use the static byte estimate below and state why the project counter was not run.
 
-No paragraphs of explanation. If the diagram needs a paragraph to be understood, redraw the diagram.
+Show the measured tokens, budget, percentage used, and remaining room or excess. A partial scan must remain labelled partial and must not imply that the full repository fits its budget. Read-scope exclusions still apply when measuring.
 
-## Diagram patterns
+If there is no configured budget, show **Budget not configured**. If no project counter exists, a labelled estimate of `ceil(total bytes / 4)` over the allowed tracked files is acceptable. State its scope and exclusions; do not invent a budget or present that estimate as tokenizer output. If measurement cannot be obtained, show **Token usage unavailable** and the reason.
 
-Pick the pattern that fits the candidate. Mix them. Don't make every diagram look the same — variety is part of the point.
+Express size-based recommendations in tokens rather than lines. A proposed change is an estimate or range until implemented and measured; do not present an imagined after-count as a measured result.
 
-### Mermaid graph (the workhorse for dependencies / call flow)
+## Report structure
 
-Use a Mermaid `flowchart` or `graph` when the point is "X calls Y calls Z, and look at the mess." Wrap it in a Tailwind-styled card so it doesn't feel parachuted in. Style with classDef to colour leakage edges red and the deep module dark. Sequence diagrams work well for "before: 6 round-trips; after: 1."
+Include UTF-8 and viewport declarations. Use semantic sections and choose the layout for the material.
 
-```html
-<div class="rounded-lg border border-slate-200 bg-white p-4">
-  <pre class="mermaid">
-    flowchart LR
-      A[OrderHandler] --> B[OrderValidator]
-      B --> C[OrderRepo]
-      C -.leak.-> D[PricingClient]
-      classDef leak stroke:#dc2626,stroke-width:2px;
-      class C,D leak
-  </pre>
-</div>
-```
+Place a restrictive Content Security Policy before scripts or styles. Block external connections and resource loads, frames, form submissions, and base-URL changes; allow only the embedded scripts, styles, and required data/blob assets. Keep outbound networking blocked during verification and automatic preview even with this policy. Record attempted external requests and treat any attempt as a failed check, including requests that the policy blocks.
 
-### Hand-built boxes-and-arrows (when Mermaid's layout fights you)
+The header identifies the repository, date, reviewed revision, token-budget result, and a compact diagram legend. For example, solid boxes can mark modules and dashed arrows can mark seams. State the meaning used in this report.
 
-Modules as `<div>`s with borders and labels. Arrows as inline SVG `<line>` or `<path>` elements positioned absolutely over a relative container. Reach for this when you want the "after" diagram to feel like one thick-bordered deep module with greyed-out internals — Mermaid won't render that with the right weight.
+Each candidate contains:
 
-### Cross-section (good for layered shallowness)
+- A short title naming the proposed deepening.
+- The affected files or modules.
+- The observed problem and a plain-language proposed solution.
+- Benefits in terms of locality, leverage, and observable tests.
+- Comparable before and after views.
+- A recommendation strength of `Strong`, `Worth exploring`, or `Speculative`.
+- A commit or issue reference when the proposal would reopen an earlier decision.
 
-Stack horizontal bands (`h-12 border-l-4`) to show layers a call passes through. Before: 6 thin layers each doing nothing. After: 1 thick band labelled with the consolidated responsibility.
+Use the project's domain terminology and the bundled [design vocabulary](references/codebase-design/CONTRACT.md). Keep prose concise and connect every visual to the finding it explains. Finish with a top recommendation, its reason, and a link to its candidate.
 
-### Mass diagram (good for "interface as wide as implementation")
+## Visual patterns
 
-Two rectangles per module — one for interface surface area, one for implementation. Before: interface rectangle is nearly as tall as the implementation rectangle (shallow). After: interface rectangle is short, implementation rectangle is tall (deep).
+Choose patterns that make the architecture easier to inspect. These are examples:
 
-### Call-graph collapse
+- A dependency or call graph can highlight the chain affected by a change.
+- A sequence diagram can compare calls or round trips.
+- A cross-section can collapse several shallow modules into one deep module.
+- A mass diagram can compare interface size with implementation size. Label the measure used; it is not automatically a token count.
+- A before/after transition can show moved responsibilities while keeping module identities clear.
 
-Before: a tree of function calls rendered as nested boxes. After: the same tree collapsed into one box, with the now-internal calls shown faded inside it.
-
-## Style guidance
-
-- Lean editorial, not corporate-dashboard. Generous whitespace. Serif optional for headings (`font-serif` works well with stone/slate).
-- Colour sparingly: one accent (emerald or indigo) plus red for leakage and amber for warnings.
-- Keep diagrams ~320px tall so before/after sits comfortably side by side without scrolling.
-- Use `text-xs uppercase tracking-wider` for module labels inside diagrams — they should read as schematic, not as UI.
-- The only scripts are the Tailwind CDN and the Mermaid ESM import. The report is otherwise static — no app code, no interactivity beyond Mermaid's own rendering.
-
-## Top recommendation section
-
-One larger card. Candidate name, one sentence on why, anchor link to its card. That's it.
-
-## Tone
-
-Plain English, concise — but the architectural nouns and verbs come straight from the bundled [design vocabulary](references/codebase-design/CONTRACT.md). Concision is not an excuse to drift.
-
-**Use exactly:** module, interface, implementation, depth, deep, shallow, seam, adapter, leverage, locality.
-
-**Never substitute:** component, service, unit (for module) · API, signature (for interface) · boundary (for seam) · layer, wrapper (for module, when you mean module).
-
-**Phrasings that fit the style:**
-
-- "Order intake module is shallow — interface nearly matches the implementation."
-- "Pricing leaks across the seam."
-- "Deepen: one interface, one place to test."
-- "Two adapters justify the seam: HTTP in prod, in-memory in tests."
-
-**Wins bullets** name the gain in glossary terms: *"locality: bugs concentrate in one module"*, *"leverage: one interface, N call sites"*, *"interface shrinks; implementation absorbs the wrappers"*. Don't write *"easier to maintain"* or *"cleaner code"* — those terms aren't in the glossary and don't earn their place.
-
-No hedging, no throat-clearing, no "it's worth noting that…". If a sentence could be a bullet, make it a bullet. If a bullet could be cut, cut it. If a term isn't in the bundled design vocabulary, reach for one that is before inventing a new one.
+Use space and colour to distinguish the important relationships. Keep controls keyboard-accessible and labels readable. Verify the result offline at the intended viewing size, including the main interaction and its resting state. The report remains advisory: controls inspect the proposal and never apply repository changes.

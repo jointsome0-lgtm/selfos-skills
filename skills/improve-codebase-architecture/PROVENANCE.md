@@ -18,7 +18,7 @@ otherwise preserved:
 1. **Catalog placement and portable metadata added** — the upstream skill is
    placed at canonical `skills/improve-codebase-architecture/`; its
    description is rewritten in third person with a "Use when" clause, and
-   local license, compatibility (naming the CDN network requirement),
+   local license, compatibility,
    and `metadata.selfos.version` fields are added. Upstream's
    `disable-model-invocation: true` is dropped (with the initially added
    `selfos.explicit-only` pairing) per issue #100 (2026-08-05): the skill is
@@ -44,8 +44,9 @@ otherwise preserved:
    harness has them and sequential focused passes otherwise, removing
    harness-specific "Agent tool" wording.
 6. **Recommendation-only scope capsule added** — new prose with no upstream
-   counterpart: exploration and the report are read-only (the report file in
-   the OS temp directory is the only written artifact); candidates are
+   counterpart: the target repository stays read-only during exploration
+   and reporting; report construction may write only in an isolated OS
+   temporary workspace, including build files and dependencies. Candidates are
    recommendations and implementation requires a separate explicit user
    request; grilling-loop side effects land only as owner-confirmed
    changes that honor the target repository's
@@ -59,14 +60,15 @@ otherwise preserved:
    name; the adaptation uses the host runtime's canonical temp-directory
    facility, an unguessable `<timestamp>-<random>` name with exclusive
    creation and owner-only permissions where supported, and an
-   outside-the-repository check before opening (same rules as the `handoff`
-   skill's temporary-file contract). Opening the report is additionally an
-   owner-confirmed step (issue #126): the page loads CDN scripts into a
-   document full of repository detail, so upstream's automatic open is
-   dropped.
-9. **Windows opener corrected** — upstream advertises `start <path>`, which
-   treats a quoted space-containing path as the window title; the adaptation
-   uses `start "" "<path>"`.
+   outside-the-repository check before writing, following the `handoff`
+   skill's temporary-file contract. The CDN opening-confirmation gate added
+   in issue #126 is removed with offline delivery. An interactive report
+   request covers its local preview; unattended runs return the path and
+   stop for the owner's choice.
+9. **Automatic preview uses a restricted browser context** — upstream's
+   ordinary local openers cannot enforce offline execution. Verification and
+   automatic preview block outbound networking and record attempted requests.
+   When the host cannot enforce this, return the path and verification limits.
 10. **Hot-spot scan made file-aware** — upstream infers hot spots from
     `git log --oneline` subjects; the adaptation aggregates changed paths
     from `git log --name-only`/`--stat` so churn, not commit-message
@@ -75,6 +77,18 @@ otherwise preserved:
     upstream counterpart: the target repository's recognized instruction
     files are loaded before any history or code scan, and their read-scope
     rules bind throughout exploration, not only when landing edits.
+12. **Rendering is chosen for the explanation** — the required Tailwind and
+    Mermaid CDN stack is replaced by a self-contained local HTML contract.
+    Libraries, WebGL/WebGPU, interaction, and animation are allowed. Selected
+    stable library releases must be at least 30 days old at build time, with
+    publication dates checked and versions pinned. The report is checked
+    with outbound networking blocked before presentation. Downloaded build
+    code requires filesystem and network isolation; without it, use native
+    browser APIs or inert prebuilt browser bundles.
+13. **Token-budget reporting added** — report the project's configured budget,
+    usage, counting method, scope, and snapshot. Missing policy or unavailable
+    measurements remain explicit. Size estimates do not become measured
+    savings, and reporting does not install a checker or change project policy.
 
 ## skills/improve-codebase-architecture/HTML-REPORT.md
 
@@ -87,18 +101,29 @@ otherwise preserved:
 | License | MIT (notice below) |
 | Status | **adapted** |
 
-Named semantic deviations — the scaffold, card contract, diagram patterns,
-style guidance, and tone rules are otherwise verbatim upstream text:
+The candidate structure and visual patterns derive from upstream. The local
+adaptation changes delivery, library choice, interaction, and measurement:
 
 1. **Prior-decision callout** — the card cites the relevant commit or issue
    instead of requiring an ADR format.
 2. **`/codebase-design` skill references become bundled-reference links** —
-   the three mentions of the `/codebase-design` skill point at
+   references to the `/codebase-design` skill point at
    `references/codebase-design/CONTRACT.md`.
-3. **Mermaid locked to strict security mode** — upstream's scaffold sets
-   `securityLevel: "loose"`; the adaptation sets `strict` and adds a rule to
-   escape repository-derived text before interpolating it into diagrams,
-   because diagram labels come from untrusted repository data.
+3. **Repository text remains data** — Mermaid retains strict security mode
+   when used. The escaping rule also covers other renderers, markup, and
+   embedded data.
+4. **The fixed scaffold and static-only restriction are removed** — the
+   reference describes a local HTML artifact with included code and assets,
+   freely chosen libraries subject to the 30-day release-age rule, and useful
+   interaction. It adds isolated builds, a restrictive Content Security Policy,
+   verification and preview with outbound networking blocked, motion controls,
+   and readable findings when a GPU API is unavailable.
+5. **Token-budget results are part of the report** — measured usage and the
+   configured budget identify their method, scope, and snapshot. Missing
+   budgets and unavailable counts are explicit; a bytes-divided-by-four
+   fallback is labelled an estimate. Project-provided counters require
+   filesystem and network isolation with the source checkout read-only;
+   otherwise use the static estimate without executing project code.
 
 ## Bundled reference provenance
 
