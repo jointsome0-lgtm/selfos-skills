@@ -4,7 +4,7 @@ description: Use when a task is too big and foggy to even approach — charts it
 license: LICENSE.txt
 compatibility: Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the target repository when an outcome changes it. Prototype tickets require the sibling prototype skill installed; grilling tickets run on the bundled grilling contract. No OS constraint.
 metadata:
-  selfos.version: "2.0.1"
+  selfos.version: "2.0.2"
 ---
 
 # Wayfinder
@@ -16,101 +16,75 @@ tracker mutation and at every inner confirmation point: no ticket is
 claimed, no repository change lands, and nothing publishes
 to the tracker without the owner.
 
-A loose idea has arrived — too big for one agent session, and wrapped in
-fog: the way from here to the **destination** isn't visible yet.
-Wayfinding is about finding that way, not charging at the destination.
-This skill charts the way as a **shared map** on the repository's GitHub
-tracker, then works its **decision tickets** — questions whose
-resolution is a decision, not slices of a build to execute — one at a
-time until the route is clear.
-
-The destination varies per effort, and naming it is the first act of
-charting — it shapes every ticket. Here it defaults to an
-**approved implementation-ready scope**: goals and decisions precise enough
-for `slice` to create vertical implementation issues.
-Other destinations stay legitimate — a decision to lock before planning
-starts, or a change made in place — but a departure from the default is
-named explicitly on the map.
+Chart a large, unclear effort as a GitHub **map** of **decision tickets**.
+Resolve them one at a time until the route to the **destination** is clear.
+Define the destination first. By default it is an **approved
+implementation-ready scope** for `slice` to turn into vertical implementation
+issues. Name any different destination explicitly on the map.
 
 ## Plan, don't do
 
-Wayfinder is **planning** by default: each ticket resolves a decision,
-and the map is done when the way is clear — nothing left to decide
-before someone goes and does the thing. The pull to just do the work is
-usually the signal you've reached the edge of the map and it's time to
-hand off — by default, to `slice`. An effort can override this in its
-**Notes** — carrying execution into the map itself — but absent that,
-produce decisions, not deliverables.
+Wayfinder plans by default: tickets settle decisions, and the map ends when
+nothing remains to decide before implementation. Include execution in the
+map only when its **Notes** override that default.
 
 ## Refer by name
 
-Every map and ticket is an issue, so it has a **name** — its title. In
-everything the human reads — narration, the map's Decisions-so-far —
-refer to it by that name, never by a bare id, number, or slug. A wall of
-`#42, #43, #44` is illegible; names read at a glance. The id and URL
-don't vanish — a name wraps its link — but they ride _inside_ the name,
-never stand in for it.
+In everything the human reads, refer to each issue by its linked title,
+never by a bare number, id, or slug.
 
 ## The map
 
-The map is a single GitHub issue, labelled `wayfinder:map`, on the
-repository the effort belongs to. Its
-tickets are native sub-issues of the map; blocking uses native issue
-dependencies; the assignee is the claim. The conventions and verified
-commands live in [TRACKER.md](TRACKER.md). GitHub access is required
-(see `compatibility`): when the tracker is unreachable, stop and say so
-— never improvise a local substitute store.
+The map is one GitHub issue labelled `wayfinder:map` in the effort's
+repository. Tickets are native sub-issues; blocking uses native dependencies,
+and assignees represent claims. See [TRACKER.md](TRACKER.md) for conventions
+and commands. If GitHub is unreachable, stop and report it; do not substitute
+a local store.
 
-The map indexes ticket resolutions. The issue records the decision and
-its reason. When a decision changes the repository, the resulting commit
-records why and links back to the issue. Code expresses current behavior;
-`GOALS.md`, when present, expresses future work. No separate decision-log
-file is required.
+The map indexes resolutions. Each issue records its decision and reason;
+any resulting commit explains why and links to that issue. Code expresses
+current behavior; `GOALS.md`, when present, expresses future work. No separate
+decision-log file is required.
 
-Everything written to the tracker — map, tickets, comments — is neutral
-original prose under the repository's public-data policy: invented
-examples only; no personal data, credentials, private paths, or local
-agent state.
+Write maps, tickets, and comments in neutral original prose under the
+repository's public-data policy. Use invented examples; include no personal
+data, credentials, private paths, or local agent state.
 
 ### The map body
 
-The whole map at low resolution, reloaded before choosing each ticket.
-Open tickets are **not** listed — they are open sub-issues, found by query.
+Reload the map before choosing each ticket. Query open sub-issues instead
+of listing them in the body.
 
 ```markdown
 ## Destination
 
-<what reaching the end of this map looks like — by default the approved
-scope this effort is making implementation-ready. One or two lines;
-every session orients to it before choosing a ticket.>
+<approved scope this map will make implementation-ready, or another stated
+destination; one or two lines; orient to it before choosing a ticket>
 
 ## Notes
 
-<domain; skills every session should consult; standing preferences for
-this effort>
+<domain; skills every session should consult; standing preferences;
+any execution override>
 
 ## Decisions so far
 
-<!-- the index — one line per closed ticket: enough to judge relevance;
-the decision and reason live in the linked issue resolution -->
+<!-- One line per closed decision ticket; the reason lives in its resolution. -->
 
 - [<closed ticket title>](<resolution comment URL>) — <one-line gist>
 
 ## Not yet specified
 
-<!-- see "Fog of war": in-scope fog you can't ticket yet; graduates as
-the frontier advances -->
+<!-- In-scope questions too unclear to ticket yet; see "Fog of war". -->
 
 ## Out of scope
 
-<!-- see "Out of scope": work ruled beyond the destination; closed,
-never graduates -->
+<!-- Work beyond the destination; see "Out of scope". -->
 ```
 
 ### Tickets
 
-Each ticket is a **sub-issue** of the map; the issue id is its
-identity. Its body is the question, sized to one agent session:
+Each ticket is a native sub-issue identified by its issue id. Its body is a
+question sized to one agent session:
 
 ```markdown
 ## Question
@@ -118,106 +92,60 @@ identity. Its body is the question, sized to one agent session:
 <the decision or investigation this ticket resolves>
 ```
 
-Each ticket carries a `wayfinder:<type>` label — one of `research`,
-`prototype`, `grilling`, `task` (see [Ticket types](#ticket-types)).
+Apply one `wayfinder:<type>` label: `research`, `prototype`, `grilling`, or
+`task`. See [Ticket types](#ticket-types).
 
-A session **claims** a ticket by assigning it to the dev driving the
-map, **first**, before any work, so concurrent sessions skip it. That
-assignee _is_ the claim: an open, unassigned ticket is unclaimed.
+Claim a ticket before work by assigning it to the developer driving the map.
+An open, unassigned ticket is unclaimed. A ticket is **unblocked** when all
+its blockers are closed. The **frontier** is the open, unblocked, unclaimed
+sub-issues.
 
-Blocking uses GitHub's **native** dependency relationship — essential
-because it renders the frontier _visually_ in the tracker's own UI, so
-the human sees what's takeable without opening the map. A ticket is
-**unblocked** when every ticket blocking it is closed; the **frontier**
-is the open, unblocked, unclaimed sub-issues — the edge of the known.
-
-Record the decision in a resolution comment (see
-[Work through the map](#work-through-the-map)).
-Assets created while resolving a ticket are linked from the issue, not
-pasted in.
+Record results in a resolution comment under
+[Work through the map](#work-through-the-map). Link assets from the issue
+instead of pasting them in.
 
 ## Ticket types
 
-Every ticket is either **HITL** — human in the loop, worked _with_ a
-human who speaks for themselves — or **AFK**, driven by the agent
-alone. A HITL ticket only resolves through that live exchange; the
-agent never stands in for the human's side of it (a grilling agent that
-answers its own questions has broken this).
+**HITL** tickets require a live exchange with a human; never answer on their
+behalf. **AFK** tickets are driven by the agent alone.
 
-- **Research** (AFK): Reading documentation, third-party APIs, or local
-  resources to surface a fact a decision waits on. Read primary sources
-  and cite them in the ticket resolution. Resolve it directly or delegate
-  an independent lookup when the host supports it and the task permits it.
-  No separate findings file or research branch is required.
-- **Prototype** (HITL): Raise the fidelity of the discussion by making
-  a cheap, rough, concrete artifact to react to via the sibling
-  `prototype` skill; link the prototype as an asset. Use when "how
-  should it look" or "how should it behave" is the key question.
-- **Grilling** (HITL): Conversation. The default case. Always run the
-  bundled [grilling contract](references/grilling/CONTRACT.md), and invoke
-  the host's domain-modeling skill when one is installed.
-- **Task** (HITL or AFK): Manual work that must happen before a
-  _decision_ can be made — nothing to decide, prototype, or research,
-  but the discussion is blocked until it's done. Signing up for a
-  service so its API can be judged, provisioning access, moving data so
-  its shape can be seen. This is the one type that _does_ rather than
-  decides — and it earns its place by unblocking a decision, not by
-  delivering the destination. The agent drives it alone where it can
-  (AFK); otherwise it hands the human a precise checklist (HITL).
-  Resolved when the work is done; the resolution records what was done
-  and any resulting facts later tickets depend on — never credentials
-  or private data on a public tracker.
+- **Research** is AFK: find a fact a decision needs. Read primary sources and
+  cite them in the resolution. Resolve directly or delegate an independent
+  lookup when the host supports it and the task permits it. No separate
+  findings file or research branch is required.
+- **Prototype** is HITL: use the sibling `prototype` skill to make a cheap,
+  rough artifact when appearance or behavior is the question. Link the
+  prototype as an asset.
+- **Grilling** is HITL and the default: follow the bundled
+  [grilling contract](references/grilling/CONTRACT.md) and invoke the host's
+  domain-modeling skill when installed.
+- **Task** is HITL or AFK: do prerequisite work that blocks a decision when
+  there is nothing to decide, prototype, or research. It earns its place by
+  unblocking that decision, not by delivering the destination. The agent
+  drives it where possible; otherwise give the human a precise checklist.
+  Resolve when the work is done, recording what was done and facts later
+  tickets need. Never record credentials or private data on a public tracker.
 
 ## Fog of war
 
-The map is _deliberately_ incomplete: don't chart what you can't yet
-see. Beyond the live tickets lies the **fog of war** — the dim view of
-decisions and investigations you can tell are coming but can't yet pin
-down, because they hang on questions still open. Resolving a ticket
-clears the fog ahead of it, graduating whatever's now specifiable into
-fresh tickets — one at a time, until the way to the destination is
-clear and no tickets remain.
+**Fog** consists of in-scope questions you cannot yet phrase precisely;
+record it in **Not yet specified**. If you can state a question, create a
+ticket even if it is blocked or you cannot yet answer it. Do not pre-slice
+unclear areas into tickets.
 
-The map's **Not yet specified** section is where that dim view is
-written down: the suspected question, the area to revisit later. It's
-the undiscovered frontier _toward_ the destination — everything here is
-in scope, just not sharp enough to ticket. Write as loosely or as fully
-as the view allows; it doubles as a signpost for collaborators reading
-where the effort is headed.
-
-**Fog or ticket?** The test is whether you can state the question
-precisely now — _not_ whether you can answer it now.
-
-- **Ticket when** the question is already sharp — even if it's blocked
-  and you can't act on it yet.
-- **Not yet specified when** you can't yet phrase it that sharply.
-  Don't pre-slice the fog into ticket-sized pieces: it's coarser than a
-  ticket, and one patch may graduate into several tickets, or none,
-  once the frontier reaches it.
-
-**Not yet specified** excludes what's already decided (Decisions so
-far), what's already a live ticket, and what's out of scope.
+This section excludes decisions already made, live tickets, and out-of-scope
+work. As resolutions clarify it, replace each newly specifiable patch with
+tickets. One patch may produce several tickets or none.
 
 ## Out of scope
 
-Fog only ever gathers _toward_ the destination. The destination fixes
-the scope, so work beyond it is **out of scope** — it isn't fog, and it
-doesn't belong in **Not yet specified**. It gets its own **Out of
-scope** section on the map: work you've consciously ruled out of _this_
-effort. Scope, not sharpness, lands it here.
+**Out of scope** holds work beyond this map's destination. It never graduates
+into this map's tickets. Revisit it only under a redrawn destination in a
+fresh effort.
 
-Out-of-scope work never graduates — the frontier stops at the
-destination — so it returns only if the destination is redrawn, and
-then as a fresh effort, not a resumption.
-
-Ruling something out of scope is a scoping act, not a step on the
-route. When a ticket that already exists turns out to sit past the
-destination — mis-scoped in while charting, or exposed by a resolution
-— **close it** (a closed ticket is unambiguously off the frontier) and
-leave one line in the **Out of scope** section: the gist plus why it's
-out of scope, linking the closed ticket. It stays out of **Decisions so
-far**, which records the route actually walked — a scope boundary isn't
-a step on it.
+If a ticket proves out of scope, close it and record one line here with its
+gist, reason, and link. Exclude it from **Decisions so far**, which indexes
+decisions on the route.
 
 ## Invocation
 
