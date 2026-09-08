@@ -8,6 +8,8 @@ Choose any suitable rendering approach or library. CSS, SVG, Canvas, WebGL, WebG
 
 Use stable library releases published at least **30 days before the report build**. Verify the publication date of the selected version through the publisher's release metadata or package registry, and pin the resolved versions during the build. The age of the project itself does not establish the age of a release. If a version's date cannot be verified, choose another eligible release or use browser-native APIs. Keep version and date evidence with the temporary build files. Avoid unpinned version aliases and runtime CDN imports.
 
+Acquire dependencies without executing package lifecycle hooks, before staging repository-derived data. Execute downloaded build tools or plugins only with networking disabled and filesystem access limited to the temporary workspace and required runtimes, excluding the source checkout and user files. If the host cannot enforce this isolation, use browser-native APIs or prebuilt browser bundles acquired as inert files and executed only in the restricted preview context.
+
 Keep repository-derived names, paths, and excerpts as data. Escape them for their markup, diagram, or embedded-data context; never evaluate them as code. If using Mermaid, retain `securityLevel: "strict"` and disabled diagram click actions.
 
 Useful interactions include highlighting a call path, expanding dependencies, filtering a large graph, and moving between before and after states. Animation should explain a change or relationship. Give the reader stable views and a way to pause motion; honor reduced-motion preferences. Keep the findings and comparison readable when a GPU API is unavailable.
@@ -25,6 +27,8 @@ Express size-based recommendations in tokens rather than lines. A proposed chang
 ## Report structure
 
 Include UTF-8 and viewport declarations. Use semantic sections and choose the layout for the material.
+
+Place a restrictive Content Security Policy before scripts or styles. Block external connections and resource loads, frames, form submissions, and base-URL changes; allow only the embedded scripts, styles, and required data/blob assets. Keep outbound networking blocked during verification and automatic preview even with this policy. Record attempted external requests and treat any attempt as a failed check, including requests that the policy blocks.
 
 The header identifies the repository, date, reviewed revision, token-budget result, and a compact diagram legend. For example, solid boxes can mark modules and dashed arrows can mark seams. State the meaning used in this report.
 

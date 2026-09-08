@@ -2,9 +2,9 @@
 name: improve-codebase-architecture
 description: Use when a codebase feels harder to change than it should and the friction needs locating — scans git-history hot spots and deletion-test candidates into a visual HTML report, then grills through whichever candidate the owner picks.
 license: LICENSE.txt
-compatibility: Requires read access to the target repository and its git history, a writable OS temp directory, and a browser or local opener to preview the report. The finished HTML works offline. Acquiring libraries and verifying release dates may need network access; the chosen stack may need build tools. Repository write access is needed only to land owner-confirmed changes during the grilling loop.
+compatibility: Requires read access to the target repository and its git history and a writable OS temp directory. Verification and automatic preview need a browser context that blocks outbound network access; otherwise return the report path. The finished HTML works offline. Acquiring libraries and verifying release dates may need network access; downloaded build tools require filesystem and network isolation. Repository write access is needed only to land owner-confirmed changes during the grilling loop.
 metadata:
-  selfos.version: "1.1.0"
+  selfos.version: "2.0.0"
 ---
 
 # Improve Codebase Architecture
@@ -47,7 +47,7 @@ Resolve the OS temporary directory through the host runtime. Before writing, che
 
 Choose technologies and libraries for the explanation, including WebGL or WebGPU when useful. Use interaction and animation to reveal dependencies, trace calls, or compare a proposed change. Follow [HTML-REPORT.md](HTML-REPORT.md) for the 30-day minimum library-release age, self-contained delivery, and token-budget measurement. The finished report must work locally without a server or external requests, with its scripts, styles, and assets included.
 
-Check the report offline and exercise its main interactions before presenting it. In an interactive session, provide the absolute path and preview the local report with the available browser or opener. The report request covers this preview; no separate opening confirmation is needed. Standard openers are `xdg-open <path>` on Linux, `open <path>` on macOS, and `start "" "<path>"` on Windows. If no preview is available, or the run is unattended, return the path for the owner to open.
+Check the report and exercise its main interactions in a browser context that blocks outbound network access and records attempted requests. Use the same restriction for automatic preview; an offline test does not authorize opening the report in a normally networked browser. In an interactive session, provide the absolute path and preview in that context without another confirmation. If the host cannot enforce the restriction, or the run is unattended, return the path and state which verification or preview was unavailable.
 
 Show the project's measured token usage against its configured budget, identifying the counting method, scope, and snapshot. If the budget or measurement is unavailable, say so. Respect the read-scope rules when measuring; label a partial count. Each candidate gets a **before/after visualisation**.
 

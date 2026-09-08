@@ -65,9 +65,10 @@ otherwise preserved:
    in issue #126 is removed with offline delivery. An interactive report
    request covers its local preview; unattended runs return the path and
    stop for the owner's choice.
-9. **Windows opener corrected** — upstream advertises `start <path>`, which
-   treats a quoted space-containing path as the window title; the adaptation
-   uses `start "" "<path>"`.
+9. **Automatic preview uses a restricted browser context** — upstream's
+   ordinary local openers cannot enforce offline execution. Verification and
+   automatic preview block outbound networking and record attempted requests.
+   When the host cannot enforce this, return the path and verification limits.
 10. **Hot-spot scan made file-aware** — upstream infers hot spots from
     `git log --oneline` subjects; the adaptation aggregates changed paths
     from `git log --name-only`/`--stat` so churn, not commit-message
@@ -81,7 +82,9 @@ otherwise preserved:
     Libraries, WebGL/WebGPU, interaction, and animation are allowed. Selected
     stable library releases must be at least 30 days old at build time, with
     publication dates checked and versions pinned. The report is checked
-    offline before presentation.
+    with outbound networking blocked before presentation. Downloaded build
+    code requires filesystem and network isolation; without it, use native
+    browser APIs or inert prebuilt browser bundles.
 13. **Token-budget reporting added** — report the project's configured budget,
     usage, counting method, scope, and snapshot. Missing policy or unavailable
     measurements remain explicit. Size estimates do not become measured
@@ -112,8 +115,9 @@ adaptation changes delivery, library choice, interaction, and measurement:
 4. **The fixed scaffold and static-only restriction are removed** — the
    reference describes a local HTML artifact with included code and assets,
    freely chosen libraries subject to the 30-day release-age rule, and useful
-   interaction. It adds offline verification, motion controls, and readable
-   findings when a GPU API is unavailable.
+   interaction. It adds isolated builds, a restrictive Content Security Policy,
+   verification and preview with outbound networking blocked, motion controls,
+   and readable findings when a GPU API is unavailable.
 5. **Token-budget results are part of the report** — measured usage and the
    configured budget identify their method, scope, and snapshot. Missing
    budgets and unavailable counts are explicit; a bytes-divided-by-four
