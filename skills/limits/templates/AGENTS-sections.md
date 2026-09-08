@@ -23,9 +23,8 @@ reason it is the way it is lives there, not in a file.
 files are separate steps in the same workflow.
 
 - Budget: the whole repository fits in 70k tokens (bytes ÷ 4), counting
-  every tracked file except `LICENSE` and lock files. There are no generated
-  or vendored files; the first one that appears is excluded in the same PR,
-  with its reason in the commit. A PR that crosses the budget fails. The
+  every tracked file except `LICENSE` and lock files. The copied checker
+  counts against this budget. A PR that crosses the budget fails. The
   other 30k of a 100k window are the task, the diff, tool output and the
   answer. The number is never raised in the PR that needs it. A boundary
   becomes a separate repository only after a concrete second subsystem
