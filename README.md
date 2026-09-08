@@ -95,7 +95,7 @@ Compatibility describes hard runtime needs and conditional capabilities; descrip
 | `slice` | `2.0.0` | Requires read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
 | `unslop` | `0.1.0` | No specific CLI, OS, network access, repository write access, or external integration is required. |
 | `watch` | `2.1.0` | Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; repositories that require a post-verdict manual dispatch additionally need authenticated GitHub Actions write (workflow-dispatch) access; requires a POSIX-style shell environment but no specific OS. |
-| `wayfinder` | `2.0.1` | Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the target repository when an outcome changes it. Prototype tickets require the sibling prototype skill installed; grilling tickets run on the bundled grilling contract. No OS constraint. |
+| `wayfinder` | `2.0.2` | Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the target repository when an outcome changes it. Prototype tickets require the sibling prototype skill installed; grilling tickets run on the bundled grilling contract. No OS constraint. |
 <!-- END GENERATED COMPATIBILITY -->
 
 ## Repository layout
