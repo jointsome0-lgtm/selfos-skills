@@ -19,7 +19,7 @@ regenerated trees away from authored changes.
 
 The build is deterministic — rerunning it on unchanged sources changes
 nothing — and --check reports every drifted, missing, or stale artifact
-without modifying the worktree. Cycles, missing dependencies, nested
+without modifying the worktree. Missing dependencies, nested
 composition, and path-escaping names fail with actionable diagnostics.
 """
 
@@ -91,37 +91,6 @@ def load_bundles(skills: list[Skill]) -> tuple[dict[str, tuple[str, ...]], list[
     return bundles, errors
 
 
-def cycle_errors(bundles: dict[str, tuple[str, ...]]) -> list[str]:
-    errors: list[str] = []
-    reported: set[frozenset[str]] = set()
-    state: dict[str, int] = {}
-    stack: list[str] = []
-
-    def visit(node: str) -> None:
-        state[node] = 1
-        stack.append(node)
-        for dependency in bundles.get(node, ()):
-            if state.get(dependency) == 1:
-                cycle = stack[stack.index(dependency) :] + [dependency]
-                key = frozenset(cycle)
-                if key not in reported:
-                    reported.add(key)
-                    errors.append(
-                        "dependency cycle: "
-                        + " -> ".join(cycle)
-                        + f"; break it by removing one edge from a {BUNDLE_MANIFEST_NAME}"
-                    )
-            elif state.get(dependency) != 2 and dependency in bundles:
-                visit(dependency)
-        stack.pop()
-        state[node] = 2
-
-    for name in sorted(bundles):
-        if state.get(name) != 2:
-            visit(name)
-    return errors
-
-
 def graph_errors(
     bundles: dict[str, tuple[str, ...]], known: dict[str, Skill]
 ) -> list[str]:
@@ -144,7 +113,6 @@ def graph_errors(
                     "bundles must stay flat — inline what it needs or restructure so "
                     f"{dependency!r} has no {BUNDLE_MANIFEST_NAME}"
                 )
-    errors.extend(cycle_errors(bundles))
     return errors
 
 

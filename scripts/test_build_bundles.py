@@ -138,16 +138,6 @@ class BundleGraphTest(unittest.TestCase):
             any("is itself a composed skill" in error and "flat" in error for error in errors)
         )
 
-    def test_cycle_is_reported_with_its_chain(self) -> None:
-        known = {name: self.invented_skill(name) for name in ("alpha", "beta")}
-
-        errors = graph_errors({"alpha": ("beta",), "beta": ("alpha",)}, known)
-
-        self.assertTrue(
-            any("dependency cycle: alpha -> beta -> alpha" in error for error in errors),
-            errors,
-        )
-
 
 class BundleBuildTest(unittest.TestCase):
     def setUp(self) -> None:

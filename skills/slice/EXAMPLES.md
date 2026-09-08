@@ -12,7 +12,7 @@ The issue and linked commit fix storage as flat files. Current code and tests co
 2. Normalize the captured record, blocked by capture; verify the canonical output.
 3. Render the normalized record, blocked by normalization; verify the displayed fields.
 
-Each draft includes the parent, delivered behavior, acceptance criteria, verification, repository and lane, privacy boundary, blockers, and end artifact. Publish blockers first only after the owner confirms the exact final payloads and destination. The parent is referenced, not modified.
+Each draft includes the parent, delivered behavior, acceptance criteria, verification, repository, privacy boundary, blockers, and end artifact. Publish blockers first only after the owner confirms the exact final payloads and destination. The parent is referenced, not modified.
 
 ## Missing decisions remain explicit
 
