@@ -1,10 +1,10 @@
 ---
 name: limits-core
-description: Use when adopting or reviewing a persistent agent working kernel with bounded active context, deferred work and recoverable history. Reuses existing memory files and checks size at session entry or after context compaction. Does not run maintenance on every turn or enforce code-repository limits.
+description: Use when setting up or reviewing a persistent agent working kernel with ready defaults, bounded active context, deferred work and recoverable history. Reuses existing memory files and checks size at session entry or after context compaction. Does not run maintenance on every turn or enforce code-repository limits.
 license: LICENSE.txt
 compatibility: Host-neutral instructions. The optional read-only checker needs Python 3.10+ and read access to selected UTF-8 files. No Git, network, external service or OS-specific runtime is required by the checker. Updating memory needs the workspace's existing write permissions.
 metadata:
-  selfos.version: "0.1.0"
+  selfos.version: "0.2.2"
 ---
 
 # Limits core
@@ -13,17 +13,19 @@ Keep a small working kernel that lets an agent continue the right task with the 
 
 This skill owns memory selection, continuation and review cadence. Existing workspace instructions govern permissions, publication and version control. It runs independently of `limits`, which checks code repositories, and `handoff`, which creates a temporary transfer document.
 
-## Adopt once
+## Set up with defaults
 
-Read the workspace's current memory instructions and identify the files already serving these roles:
+For a request such as "Set up limits-core here with the defaults", follow [the default setup](references/adoption.md) and complete the ordinary setup choices without asking the owner to select paths, numbers or commands. Creating a setup follows a setup request; ordinary use continues an existing setup. Preserve the workspace's explicit settings and fill only missing choices from the preset.
+
+Read the workspace's memory instructions and identify the files already serving these roles:
 
 - Always read: direction, active agreements, the current assignment, the next decision and any unresolved answer needed now. Include short pointers to completed results whose absence would invite repeating work.
 - Read on demand: deferred obligations and supporting material. Each deferred item needs its state, the condition for returning to it and a usable source reference. Active restrictions and answers needed now stay in the always-read context.
-- History: original evidence and past decisions, reached through references. Use the workspace's existing durable storage. Git is one option when already in use.
+- History: original evidence and past decisions, reached through references. Use the workspace's existing durable storage. The presence of a Git repository alone does not establish that memory is saved there.
 
-These are roles, not required filenames or separate documents. Reuse existing files and avoid duplicating their contents. Choose a combined active character target and, if needed, a separate deferred target. Record the selected files, targets and checker command in the existing workspace instructions. A 33% margin is a starting default, not a universal capacity recommendation. Do not raise a target merely to silence a review signal.
+These are roles, not required filenames or separate documents. Reuse existing files and settings without duplicating or renaming them. The preset creates one small kernel only when no memory exists; a deferred file is added only when it has material to hold. Store the adopted mapping and checker settings in the workspace's effective agent instructions. On repeat setup, reuse that record and fill missing settings instead of appending another copy.
 
-[The adoption example](references/adoption.md) shows invented paths and sizes. Replace them with the workspace's actual mapping; do not create the example files just to match its shape.
+Verify the setup with one check. Report `review_due` without compressing existing memory during adoption. Correct a mapping error and verify the correction; if a required runtime or source cannot be established, report what remains unverified. The preset numbers are adjustable starting values, not capacity recommendations. Do not raise a target merely to silence a review signal.
 
 ## Continue and update
 
