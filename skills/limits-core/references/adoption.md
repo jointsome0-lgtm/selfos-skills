@@ -35,7 +35,7 @@ If no substantive assignment is known, Current can say "No assignment recorded";
 
 ## Record the setup once
 
-Merge one settings block into the instruction file the current host actually reads. Find the record that refers to limits-core and reuse it by its meaning and contents. A complete preset record has the active file list, positive target, margin, checker location or resolution rule, working directory and cadence, plus either deferred files with a target or an explicit "none yet". For a retained custom checker, the record is complete when it names that checker's command, files, working directory and documented cadence; do not add preset targets or a margin to it. Repair missing settings in place. If no instruction file exists, create the workspace entrypoint supported by the current host, such as `AGENTS.md` where supported. Keep unrelated instructions intact and follow existing pointers between host entrypoints. If several hosts are being configured, point their entrypoints to one shared settings record instead of copying the settings.
+Merge one settings block into the instruction file the current host actually reads. Find the record that refers to limits-core and reuse it by its meaning and contents. A complete preset record has the active file list, positive target, margin, checker location or resolution rule, working directory and cadence, plus either deferred files with a target or an explicit "none yet". For a retained custom checker, the record is complete when it names that checker's command, files, working directory and documented cadence; do not add preset targets or a margin to it. Both records must name a recoverable history source or state explicitly that history is not established. Repair missing settings in place. If no instruction file exists, create the workspace entrypoint supported by the current host, such as `AGENTS.md` where supported. Keep unrelated instructions intact and follow existing pointers between host entrypoints. If several hosts are being configured, point their entrypoints to one shared settings record instead of copying the settings.
 
 For the new one-file layout, use this block:
 
@@ -45,7 +45,7 @@ For the new one-file layout, use this block:
 At session entry or after context compaction, read memory/KERNEL.md and use the installed limits-core skill. Update the current facts and task state there during work.
 
 Always read: memory/KERNEL.md.
-Deferred: none yet. When material first needs deferring, create memory/DEFERRED.md and add --deferred memory/DEFERRED.md --deferred-target 2400 to the checker arguments. Consult that file before choosing new work or returning to the deferred topic.
+Deferred: none yet. When material first needs deferring, create memory/DEFERRED.md, replace "none yet" with that file and its target of 2400 characters, and add --deferred memory/DEFERRED.md --deferred-target 2400 to the checker arguments. Consult that file before choosing new work or returning to the deferred topic.
 History: not established. Preserve a recoverable prior version before the first review rewrites memory.
 Checker working directory, relative to the workspace root: .
 Checker arguments: --active memory/KERNEL.md --target 6000 --margin-percent 33
@@ -65,6 +65,6 @@ Record all three files' roles and replace the new-layout history line with the e
 
 ## Verify and report
 
-Run the recorded check from its recorded working directory. `ok` confirms the size check works. `review_due` also confirms the check works and signals a later review; do not compress during setup. Correct an input or argument error and check the corrected setup. If Python 3.10+ or the installed skill directory cannot be located, preserve the mapping and report verification as not performed.
+Run the recorded check from its recorded working directory. `ok` confirms the size check works. `review_due` also confirms the check works and signals a later review; do not compress during setup. Correct an input or argument error and check the corrected setup. The bundled checker requires Python 3.10+ and the installed script; a retained custom checker uses its own runtime and prerequisites. If a required dependency of the selected checker cannot be located, preserve the mapping and report verification as not performed.
 
 Tell the owner which files and defaults were adopted, which existing choices were retained, and the actual check result. No watcher or host compaction hook is installed. A successful size check does not establish preservation of meaning or history.
