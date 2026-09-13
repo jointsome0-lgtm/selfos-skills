@@ -4,7 +4,7 @@ description: Use when setting up or reviewing a persistent agent working kernel 
 license: LICENSE.txt
 compatibility: Host-neutral instructions. The optional read-only checker needs Python 3.10+ and read access to selected UTF-8 files. No Git, network, external service or OS-specific runtime is required by the checker. Updating memory needs the workspace's existing write permissions.
 metadata:
-  selfos.version: "0.2.0"
+  selfos.version: "0.2.1"
 ---
 
 # Limits core
