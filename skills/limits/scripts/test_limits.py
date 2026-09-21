@@ -120,9 +120,45 @@ class LimitsFixtureTest(unittest.TestCase):
         baseline = int(re.search(r"budget: (\d+) of", self.check())[1])
         (self.root / "image.bin").write_bytes(b"GIF89a\x00" + b"x" * 10_000)
         (self.root / "opaque.bin").write_bytes(b"\xff" * 10_000)
+        (self.root / "unfinished.bin").write_bytes(b"prefix\xe2\x82")
         self.write("empty.txt", "")
         output = self.check(budget=baseline)
-        self.assertIn("2 binary files excluded", output)
+        self.assertIn("3 binary files excluded", output)
+
+    @unittest.skipUnless(
+        sys.platform == "linux", "requires Linux address-space accounting"
+    )
+    def test_large_binary_is_excluded_with_bounded_memory(self):
+        with (self.root / "large.bin").open("wb") as stream:
+            block = b"a" * (1024 * 1024)
+            for _ in range(128):
+                stream.write(block)
+            stream.write(b"\xff")
+        self.git("add", "-A")
+        launcher = """
+import os, pathlib, resource, runpy, sys, tiktoken
+tiktoken.get_encoding("o200k_base")
+size = int(pathlib.Path("/proc/self/statm").read_text().split()[0])
+limit = size * os.sysconf("SC_PAGE_SIZE") + 48 * 1024 * 1024
+resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+sys.argv = [sys.argv[1], "pkg"]
+runpy.run_path(sys.argv[0], run_name="__main__")
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", launcher, str(SCRIPT)],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("1 binary files excluded", result.stdout)
+
+    def test_utf8_split_between_chunks_remains_text(self):
+        self.write("payload.txt", "." * 65_535 + "你\n")
+        output = self.check()
+        self.assertIn("0 binary files excluded", output)
 
     def test_budget_preserves_license_and_lock_exclusions(self):
         baseline = int(re.search(r"budget: (\d+) of", self.check())[1])

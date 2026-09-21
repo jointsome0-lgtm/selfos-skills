@@ -1,4 +1,5 @@
 import ast
+import codecs
 import collections
 import io
 import os
@@ -66,6 +67,15 @@ def git(*args: str) -> list[str]:
     )
 
 
+def blob_chunks(process, object_id: str):
+    process.stdin.write(f"{object_id}\n".encode("ascii"))
+    process.stdin.flush()
+    size = int(process.stdout.readline().split()[2])
+    for offset in range(0, size, 65_536):
+        yield process.stdout.read(min(65_536, size - offset))
+    process.stdout.read(1)
+
+
 def text_budget(objects: list[str], encoding) -> tuple[int, int]:
     tokens = 0
     binary = 0
@@ -76,19 +86,23 @@ def text_budget(objects: list[str], encoding) -> tuple[int, int]:
         stdout=subprocess.PIPE,
     ) as process:
         for object_id in objects:
-            process.stdin.write(f"{object_id}\n".encode("ascii"))
-            process.stdin.flush()
-            header = process.stdout.readline().split()
-            data = process.stdout.read(int(header[2]))
-            process.stdout.read(1)
-            if b"\0" in data:
-                binary += 1
-                continue
+            decoder = codecs.getincrementaldecoder("utf-8")()
+            is_binary = False
+            for data in blob_chunks(process, object_id):
+                is_binary = is_binary or b"\0" in data
+                if not is_binary:
+                    try:
+                        decoder.decode(data)
+                    except UnicodeDecodeError:
+                        is_binary = True
             try:
-                text = data.decode("utf-8")
+                decoder.decode(b"", final=True)
             except UnicodeDecodeError:
+                is_binary = True
+            if is_binary:
                 binary += 1
                 continue
+            text = b"".join(blob_chunks(process, object_id)).decode("utf-8")
             tokens += len(encoding.encode_ordinary(text))
         process.stdin.close()
     if process.returncode:

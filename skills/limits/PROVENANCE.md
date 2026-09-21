@@ -26,8 +26,10 @@ Named deviations in the shipped copy. Earlier forms are in git history:
    Markdown as UTF-8 and Python through its tokenizer, including BOMs.
 3. Read tracked paths, modes, and blob IDs from one Git index listing.
    Stream staged blobs through one `git cat-file --batch` process, so
-   checkout transformations do not change the budget. Count each UTF-8
-   text with `tiktoken` 0.14.0 and `o200k_base`, preserving whitespace and
+   checkout transformations do not change the budget. Classify blobs in
+   bounded chunks without retaining their contents, then read text blobs
+   again for tokenization. Count each UTF-8 text with `tiktoken` 0.14.0
+   and `o200k_base`, preserving whitespace and
    treating special-token strings as ordinary text. Exclude and report
    binary blobs (NUL bytes or invalid UTF-8); exclude `npm-shrinkwrap.json`
    with the other lock files. Tokenizer data needs a one-time cache setup;
