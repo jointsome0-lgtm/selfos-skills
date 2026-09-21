@@ -88,6 +88,48 @@ class LimitsFixtureTest(unittest.TestCase):
         self.check("usage:", package=None, code=2)
         self.check("limit 1", budget=1)
 
+    def test_missing_tokenizer_does_not_fall_back_to_estimate(self):
+        result = subprocess.run(
+            [sys.executable, "-I", "-S", str(SCRIPT), "pkg"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("Install tiktoken==0.14.0", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertNotIn("budget:", result.stdout)
+
+    def test_budget_uses_o200k_base_text_tokens(self):
+        baseline = int(re.search(r"budget: (\d+) of", self.check())[1])
+        for text, added in (
+            ("hello world" * 100, 200),
+            ("你好，世界！" * 40, 160),
+            ("<|endoftext|>", 7),
+        ):
+            with self.subTest(text=text[:20]):
+                self.write("payload.txt", text)
+                total = baseline + added
+                self.check(budget=total)
+                self.check(
+                    f"budget: {total} tokens, limit {total - 1}", budget=total - 1
+                )
+
+    def test_binary_blobs_do_not_use_text_budget(self):
+        baseline = int(re.search(r"budget: (\d+) of", self.check())[1])
+        (self.root / "image.bin").write_bytes(b"GIF89a\x00" + b"x" * 10_000)
+        (self.root / "opaque.bin").write_bytes(b"\xff" * 10_000)
+        self.write("empty.txt", "")
+        output = self.check(budget=baseline)
+        self.assertIn("2 binary files excluded", output)
+
+    def test_budget_preserves_license_and_lock_exclusions(self):
+        baseline = int(re.search(r"budget: (\d+) of", self.check())[1])
+        for name in ("LICENSE", "uv.lock", "package-lock.json", "npm-shrinkwrap.json"):
+            self.write(name, "large text " * 10_000)
+        self.check(budget=baseline)
+
     def test_budget_counts_staged_blobs(self):
         self.write("payload.txt", "small\n")
         budget = re.search(r"budget: (\d+) of", self.check())[1]

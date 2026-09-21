@@ -18,6 +18,7 @@ ROOT = pathlib.Path(
 PACKAGE = sys.argv[1] if len(sys.argv) > 1 else ""
 TESTING = f"{PACKAGE}.testing"
 BUDGET_TOKENS = int(sys.argv[2]) if len(sys.argv) > 2 else 70_000
+TOKEN_ENCODING = "o200k_base"
 MAP_LINE_CHARS = 250
 ALLOWED_MARKDOWN = {"GOALS.md", "AGENTS.md", "README.md", "CLAUDE.md"}
 LOCKS = {
@@ -65,22 +66,34 @@ def git(*args: str) -> list[str]:
     )
 
 
-def blob_sizes(objects: list[str]) -> list[int]:
-    if not objects:
-        return []
-    return [
-        int(size)
-        for size in subprocess.run(
-            ["git", "cat-file", "--batch-check=%(objectsize)"],
-            cwd=ROOT,
-            input="".join(f"{object_id}\n" for object_id in objects),
-            capture_output=True,
-            check=True,
-            text=True,
-        )
-        .stdout.strip()
-        .splitlines()
-    ]
+def text_budget(objects: list[str], encoding) -> tuple[int, int]:
+    tokens = 0
+    binary = 0
+    with subprocess.Popen(
+        ["git", "cat-file", "--batch"],
+        cwd=ROOT,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+    ) as process:
+        for object_id in objects:
+            process.stdin.write(f"{object_id}\n".encode("ascii"))
+            process.stdin.flush()
+            header = process.stdout.readline().split()
+            data = process.stdout.read(int(header[2]))
+            process.stdout.read(1)
+            if b"\0" in data:
+                binary += 1
+                continue
+            try:
+                text = data.decode("utf-8")
+            except UnicodeDecodeError:
+                binary += 1
+                continue
+            tokens += len(encoding.encode_ordinary(text))
+        process.stdin.close()
+    if process.returncode:
+        raise subprocess.CalledProcessError(process.returncode, process.args)
+    return tokens, binary
 
 
 def compare(
@@ -400,6 +413,18 @@ def main() -> int:
     if not PACKAGE:
         print("usage: python limits.py <package> [budget-tokens]")
         return 2
+    try:
+        import tiktoken
+
+        encoding = tiktoken.get_encoding(TOKEN_ENCODING)
+    except (ImportError, OSError, ValueError) as error:
+        print(f"tokenizer: {error}", file=sys.stderr)
+        print(
+            "Install tiktoken==0.14.0 and initialize "
+            "tiktoken.get_encoding('o200k_base') online before offline use.",
+            file=sys.stderr,
+        )
+        return 2
     entries = git("ls-files", "-s")
     index = {}
     for entry in entries:
@@ -419,7 +444,7 @@ def main() -> int:
         and f.name not in LOCKS
         and f.suffix != ".lock"
     ]
-    tokens = (sum(blob_sizes([index[f][1] for f in counted])) + 3) // 4
+    tokens, binary = text_budget([index[f][1] for f in counted], encoding)
     errors = (
         []
         if tokens <= BUDGET_TOKENS
@@ -480,7 +505,8 @@ def main() -> int:
         )
     print(
         *errors,
-        f"budget: {tokens} of {BUDGET_TOKENS} tokens",
+        f"budget: {tokens} of {BUDGET_TOKENS} tokens "
+        f"({TOKEN_ENCODING}; {binary} binary files excluded)",
         f"limits: {len(errors)} problems",
         sep="\n",
     )

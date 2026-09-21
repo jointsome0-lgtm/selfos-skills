@@ -22,9 +22,12 @@ reason it is the way it is lives there, not in a file.
 `scripts/limits.py` handles the repository limits. Ruff and the named test
 files are separate steps in the same workflow.
 
-- Budget: the whole repository fits in 70k tokens (bytes ÷ 4), counting
-  every tracked file except `LICENSE` and lock files. The copied checker
-  counts against this budget. A PR that crosses the budget fails. The
+- Budget: the repository's tracked UTF-8 text fits in 70k `o200k_base`
+  tokens, counted with `tiktoken` from the Git index. Tests, documentation,
+  comments, whitespace, and the copied checker count. `LICENSE`, lock files,
+  and binary blobs (NUL bytes or invalid UTF-8) do not; the checker reports
+  how many binary files it excludes. Submodule contents are outside this
+  repository. A PR that crosses the budget fails. The
   other 30k of a 100k window are the task, the diff, tool output and the
   answer. The number is never raised in the PR that needs it. A boundary
   becomes a separate repository only after a concrete second subsystem

@@ -24,9 +24,14 @@ Named deviations in the shipped copy. Earlier forms are in git history:
 2. Use repository-relative POSIX paths and filesystem decoding for Git
    output. Preserve unusual path bytes and trailing characters. Read
    Markdown as UTF-8 and Python through its tokenizer, including BOMs.
-3. Read tracked paths, modes, and blob IDs from one Git index listing. Sum
-   staged blob sizes in one batch call so checkout transformations do not
-   change the budget. Exclude `npm-shrinkwrap.json` with the other lock files.
+3. Read tracked paths, modes, and blob IDs from one Git index listing.
+   Stream staged blobs through one `git cat-file --batch` process, so
+   checkout transformations do not change the budget. Count each UTF-8
+   text with `tiktoken` 0.14.0 and `o200k_base`, preserving whitespace and
+   treating special-token strings as ordinary text. Exclude and report
+   binary blobs (NUL bytes or invalid UTF-8); exclude `npm-shrinkwrap.json`
+   with the other lock files. Tokenizer data needs a one-time cache setup;
+   token counting then stays local and offline.
 4. Report tracked symlinks without reading them. Exclude symlinks and
    submodules from source inspection. Report missing or submodule
    `README.md` and `GOALS.md` inputs before attempting their reads.
