@@ -24,9 +24,19 @@ Named deviations in the shipped copy. Earlier forms are in git history:
 2. Use repository-relative POSIX paths and filesystem decoding for Git
    output. Preserve unusual path bytes and trailing characters. Read
    Markdown as UTF-8 and Python through its tokenizer, including BOMs.
-3. Read tracked paths, modes, and blob IDs from one Git index listing. Sum
-   staged blob sizes in one batch call so checkout transformations do not
-   change the budget. Exclude `npm-shrinkwrap.json` with the other lock files.
+3. Read tracked paths, modes, and blob IDs from one Git index listing.
+   Stream staged blobs through one `git cat-file --batch` process, so
+   checkout transformations do not change the budget. Classify blobs in
+   bounded chunks without retaining their contents. Divide the validated
+   text byte count by the encoding's largest token byte width to obtain a
+   lower bound. If it already exceeds the budget, report it as a lower
+   bound and stop before tokenization or source inspection. Otherwise,
+   read text blobs again and count each with `tiktoken` 0.14.0 and
+   `o200k_base`, preserving whitespace and treating special-token strings
+   as ordinary text. Exclude and report
+   binary blobs (NUL bytes or invalid UTF-8); exclude `npm-shrinkwrap.json`
+   with the other lock files. Tokenizer data needs a one-time cache setup;
+   token counting then stays local and offline.
 4. Report tracked symlinks without reading them. Exclude symlinks and
    submodules from source inspection. Report missing or submodule
    `README.md` and `GOALS.md` inputs before attempting their reads.
@@ -85,8 +95,11 @@ Named deviations in the shipped copy. Earlier forms are in git history:
 
 The templates generalize project names and goals to placeholders, describe
 the checked syntax, and separate the checker from the Ruff and named-test
-steps. Workflow action references are pinned to immutable commits at the
-named releases. Adopters configure the interpreter for their project's syntax.
+steps. They distinguish implementation size, the task's working set, and
+the repository total; the executable budget still covers all tracked text
+with the exclusions listed above. Workflow action references are pinned to
+immutable commits at the named releases. Adopters configure the interpreter
+for their project's syntax.
 
 ## Downstream license notice
 

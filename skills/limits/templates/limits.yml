@@ -17,6 +17,10 @@ jobs:
         with:
           # Set this to the project's Python version, at least 3.10.
           python-version: "3.12"
+      - name: Prepare the limits tokenizer
+        run: |
+          python -m pip install tiktoken==0.14.0
+          python -c "import tiktoken; tiktoken.get_encoding('o200k_base')"
       - run: python scripts/limits.py <package>
       # The other two limiters live outside limits.py. pytest names the test
       # files that must be green, so a goal test can stay red while the code
