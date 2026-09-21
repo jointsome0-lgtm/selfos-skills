@@ -125,15 +125,7 @@ class LimitsFixtureTest(unittest.TestCase):
         output = self.check(budget=baseline)
         self.assertIn("3 binary files excluded", output)
 
-    @unittest.skipUnless(
-        sys.platform == "linux", "requires Linux address-space accounting"
-    )
-    def test_large_binary_is_excluded_with_bounded_memory(self):
-        with (self.root / "large.bin").open("wb") as stream:
-            block = b"a" * (1024 * 1024)
-            for _ in range(128):
-                stream.write(block)
-            stream.write(b"\xff")
+    def run_with_memory_limit(self):
         self.git("add", "-A")
         launcher = """
 import os, pathlib, resource, runpy, sys, tiktoken
@@ -152,8 +144,42 @@ runpy.run_path(sys.argv[0], run_name="__main__")
             timeout=30,
             check=False,
         )
+        return result
+
+    @unittest.skipUnless(
+        sys.platform == "linux", "requires Linux address-space accounting"
+    )
+    def test_large_binary_is_excluded_with_bounded_memory(self):
+        with (self.root / "large.bin").open("wb") as stream:
+            block = b"a" * (1024 * 1024)
+            for _ in range(128):
+                stream.write(block)
+            stream.write(b"\xff")
+        result = self.run_with_memory_limit()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("1 binary files excluded", result.stdout)
+
+    @unittest.skipUnless(
+        sys.platform == "linux", "requires Linux address-space accounting"
+    )
+    def test_large_utf8_is_rejected_with_bounded_memory(self):
+        with (self.root / "large.py").open("wb") as stream:
+            block = "你".encode() * (1024 * 1024 // 3)
+            for _ in range(128):
+                stream.write(block)
+        result = self.run_with_memory_limit()
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertIn("budget: at least ", result.stdout)
+        self.assertIn("limit 70000", result.stdout)
+        self.assertIn("0 binary files excluded", result.stdout)
+
+    def test_dense_text_below_budget_keeps_its_exact_count(self):
+        baseline = int(re.search(r"budget: (\d+) of", self.check())[1])
+        self.write("payload.txt", " " * (128 * 1000))
+        output = self.check(budget=baseline + 1000)
+        self.assertIn(f"budget: {baseline + 1000} of", output)
+        self.check(f"limit {baseline + 999}", budget=baseline + 999)
 
     def test_utf8_split_between_chunks_remains_text(self):
         self.write("payload.txt", "." * 65_535 + "你\n")

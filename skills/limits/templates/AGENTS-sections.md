@@ -37,7 +37,9 @@ files are separate steps in the same workflow.
   comments, whitespace, and the copied checker count. `LICENSE`, lock files,
   and binary blobs (NUL bytes or invalid UTF-8) do not; the checker reports
   how many binary files it excludes. Submodule contents are outside this
-  repository. This is a conservative CI policy covering all repository
+  repository. A provable overrun may be reported as a lower bound; then
+  tokenization and remaining source checks are skipped.
+  This is a conservative CI policy covering all repository
   text. The checker does not select or measure a task's working set. A PR
   that crosses the budget fails even when a smaller working set fits.
   The 70k/30k split is a planning assumption for a 100k window. The other

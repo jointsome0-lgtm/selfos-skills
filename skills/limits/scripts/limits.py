@@ -76,8 +76,9 @@ def blob_chunks(process, object_id: str):
     process.stdout.read(1)
 
 
-def text_budget(objects: list[str], encoding) -> tuple[int, int]:
-    tokens = 0
+def text_budget(objects: list[str], encoding) -> tuple[int, int, bool]:
+    text_objects = []
+    text_bytes = 0
     binary = 0
     with subprocess.Popen(
         ["git", "cat-file", "--batch"],
@@ -86,9 +87,11 @@ def text_budget(objects: list[str], encoding) -> tuple[int, int]:
         stdout=subprocess.PIPE,
     ) as process:
         for object_id in objects:
+            size = 0
             decoder = codecs.getincrementaldecoder("utf-8")()
             is_binary = False
             for data in blob_chunks(process, object_id):
+                size += len(data)
                 is_binary = is_binary or b"\0" in data
                 if not is_binary:
                     try:
@@ -101,13 +104,22 @@ def text_budget(objects: list[str], encoding) -> tuple[int, int]:
                 is_binary = True
             if is_binary:
                 binary += 1
-                continue
-            text = b"".join(blob_chunks(process, object_id)).decode("utf-8")
-            tokens += len(encoding.encode_ordinary(text))
+            else:
+                text_objects.append(object_id)
+                text_bytes += size
+        token_bytes = max(map(len, encoding.token_byte_values()))
+        minimum = (text_bytes + token_bytes - 1) // token_bytes
+        oversized = minimum > BUDGET_TOKENS
+        tokens = minimum
+        if not oversized:
+            tokens = 0
+            for object_id in text_objects:
+                text = b"".join(blob_chunks(process, object_id)).decode("utf-8")
+                tokens += len(encoding.encode_ordinary(text))
         process.stdin.close()
     if process.returncode:
         raise subprocess.CalledProcessError(process.returncode, process.args)
-    return tokens, binary
+    return tokens, binary, oversized
 
 
 def compare(
@@ -458,7 +470,15 @@ def main() -> int:
         and f.name not in LOCKS
         and f.suffix != ".lock"
     ]
-    tokens, binary = text_budget([index[f][1] for f in counted], encoding)
+    tokens, binary, oversized = text_budget([index[f][1] for f in counted], encoding)
+    if oversized:
+        print(
+            f"budget: at least {tokens} tokens, limit {BUDGET_TOKENS} "
+            f"({TOKEN_ENCODING}; {binary} binary files excluded)",
+            "limits: 1 problem; remaining checks skipped",
+            sep="\n",
+        )
+        return 1
     errors = (
         []
         if tokens <= BUDGET_TOKENS

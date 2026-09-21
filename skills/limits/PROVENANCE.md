@@ -27,10 +27,13 @@ Named deviations in the shipped copy. Earlier forms are in git history:
 3. Read tracked paths, modes, and blob IDs from one Git index listing.
    Stream staged blobs through one `git cat-file --batch` process, so
    checkout transformations do not change the budget. Classify blobs in
-   bounded chunks without retaining their contents, then read text blobs
-   again for tokenization. Count each UTF-8 text with `tiktoken` 0.14.0
-   and `o200k_base`, preserving whitespace and
-   treating special-token strings as ordinary text. Exclude and report
+   bounded chunks without retaining their contents. Divide the validated
+   text byte count by the encoding's largest token byte width to obtain a
+   lower bound. If it already exceeds the budget, report it as a lower
+   bound and stop before tokenization or source inspection. Otherwise,
+   read text blobs again and count each with `tiktoken` 0.14.0 and
+   `o200k_base`, preserving whitespace and treating special-token strings
+   as ordinary text. Exclude and report
    binary blobs (NUL bytes or invalid UTF-8); exclude `npm-shrinkwrap.json`
    with the other lock files. Tokenizer data needs a one-time cache setup;
    token counting then stays local and offline.
