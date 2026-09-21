@@ -92,8 +92,11 @@ Named deviations in the shipped copy. Earlier forms are in git history:
 
 The templates generalize project names and goals to placeholders, describe
 the checked syntax, and separate the checker from the Ruff and named-test
-steps. Workflow action references are pinned to immutable commits at the
-named releases. Adopters configure the interpreter for their project's syntax.
+steps. They distinguish implementation size, the task's working set, and
+the repository total; the executable budget still covers all tracked text
+with the exclusions listed above. Workflow action references are pinned to
+immutable commits at the named releases. Adopters configure the interpreter
+for their project's syntax.
 
 ## Downstream license notice
 

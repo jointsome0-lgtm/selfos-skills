@@ -1,7 +1,17 @@
 # Sections for the adopting repository's AGENTS.md
 
-Fill `<package>` with the Python package name, then merge both sections into
+Fill `<package>` with the Python package name, then merge these sections into
 the repository's agent instructions.
+
+## Purpose
+
+Keep the complete implementation core, including its internal dependencies,
+and the contracts, tests, and documentation needed for a change small enough
+to reason about together. Leave room for instructions and the work itself.
+Read other tests, examples, and reference material when needed. Report core
+size, the task's working set, and the repository total as different scopes.
+The repository total alone does not establish that the working set is too
+large or that the architecture needs simplification.
 
 ## Three sources of truth, one each
 
@@ -27,9 +37,12 @@ files are separate steps in the same workflow.
   comments, whitespace, and the copied checker count. `LICENSE`, lock files,
   and binary blobs (NUL bytes or invalid UTF-8) do not; the checker reports
   how many binary files it excludes. Submodule contents are outside this
-  repository. A PR that crosses the budget fails. The
-  other 30k of a 100k window are the task, the diff, tool output and the
-  answer. The number is never raised in the PR that needs it. A boundary
+  repository. This is a conservative CI policy covering all repository
+  text. The checker does not select or measure a task's working set. A PR
+  that crosses the budget fails even when a smaller working set fits.
+  The 70k/30k split is a planning assumption for a 100k window. The other
+  30k cover instructions, the task, diff, tool output, and answer.
+  The number is never raised in the PR that needs it. A boundary
   becomes a separate repository only after a concrete second subsystem
   exists, both sides run the same executable contract test (schema, types),
   and the complete working set still fits the budget; never a prose boundary.
