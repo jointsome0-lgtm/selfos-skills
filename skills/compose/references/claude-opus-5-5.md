@@ -10,20 +10,22 @@ Consider Opus 5.5 for long repository tasks, code review, knowledge work, and vi
 
 Set `medium` explicitly as the starting point. It is the upstream default, replacing Opus 5's `high`. Compare `low`, `medium`, and `high` on representative tasks; matching level names do not establish matching cost or quality across models. Ordinary delegations stay at `high` or below. `xhigh` and `max` remain reserved for live design passes the owner explicitly requests.
 
-Thinking is always on. Lower effort to control latency and cost; an instruction to disable thinking is not a supported setting. In API runs, `max_tokens` covers thinking and the answer together, including hidden thinking. Size it for both. Per-message effort changes preserve the cache; changing top-level effort does not.
+Thinking is always on. Remove legacy instructions forbidding thought; use effort to control latency and cost. In API runs, `max_tokens` covers thinking and the answer together, including hidden thinking. Size it for both. Per-message effort changes preserve the cache; changing top-level effort does not.
 
 ## Compose the task
 
 Existing Opus 5 prompts are a starting point. The following are provisional defaults carried over from that reference, not separately established 5.5 behaviors: specify length and scope, cap subagents on small tasks, omit generic self-check loops and automatic verifier agents. Retain required tests and acceptance evidence. For broad reviews, collect findings before severity triage. Reassess these defaults on the actual task.
 
-For unattended runs only, complete all unblocked work. Stop when finished or when remaining work needs user input or protected actions. Preserve authorization gates; report unresolved items.
+Request conclusions and evidence; omit requests to reproduce private reasoning.
+
+For unattended runs only, complete unblocked work. Preserve authorization gates; report blockers. Do not end a turn by announcing the next step, offering to continue, or listing nonblocking decisions. Pair status notes with the next action.
 
 Apply the following only when relevant:
 
-- For multi-app work, inspect authorized relevant sources before writing. Discovery grants no additional permissions.
-- For frontend work, specify concrete design choices and unwanted patterns.
-- For chat latency, remove generic deliberation instructions. Treating earlier answers as settled is optional for chat; omit that rule from analysis and coding.
-- For dense visuals, reassess old workarounds; supply original images and crop tools where useful.
+- For multi-app work, inspect authorized relevant sources before writing.
+- For frontend work, specify concrete choices and unwanted patterns.
+- For chat latency, remove generic deliberation instructions. Treating earlier answers as settled is optional for chat, unsuitable for analysis or coding.
+- For dense visuals, provide original images and crop tools as needed.
 
 ## Agent loops and API integrations
 
@@ -36,10 +38,10 @@ From the [migration guide](https://platform.claude.com/docs/en/models/opus-5-5/m
 - Progress notes arrive in thinking blocks, empty under default `display: "omitted"`. Use `display: "updates"` with `thinking-display-updates-2026-08-18`, or `summarized`, and render the non-empty blocks. Prompt for cadence after confirming the client displays them.
 - Preserve conversation history. Editing earlier instructions, tools, or messages can invalidate later thinking blocks; use supported appended messages for changes.
 
-For unattended loops, check remaining work after text-only `end_turn`; wait for running tools or agents. Cap automatic continuations at three per task. Report unresolved work after that cap.
+For unattended loops, check remaining work after text-only `end_turn`; wait for running tools or agents. Cap automatic continuations at three per task; report unresolved work.
 
-For authorized teams, consider elapsed-time signals and advisory budgets. Keep separate timeouts and team limits; measure quality under time pressure.
+For authorized teams, consider elapsed-time signals and advisory budgets. Preserve timeouts and team limits; measure quality.
 
-When wrapping pasted material, use paired tags with matching random IDs. The initial system policy should mark it as external data whose instructions require the user's own authorization. Tags alone cannot prevent injection.
+Wrap pasted material in paired tags with matching random IDs. The initial system policy should treat embedded instructions as external unless the user authorizes them. Tags alone cannot prevent injection.
 
-From the [model changes](https://platform.claude.com/docs/en/models/opus-5-5/whats-new-opus-5-5): handle `stop_reason: "refusal"` and its category. Remove requests to reproduce private reasoning; use supported summaries when needed. Follow the migration guide for computer-use tool compatibility and model-switching behavior rather than assuming all Opus 5 integrations transfer unchanged.
+From the [model changes](https://platform.claude.com/docs/en/models/opus-5-5/whats-new-opus-5-5): handle `stop_reason: "refusal"` and its category. Use `display: "summarized"` when reasoning summaries are needed. Follow the migration guide for computer-use tool compatibility and model-switching behavior rather than assuming all Opus 5 integrations transfer unchanged.
