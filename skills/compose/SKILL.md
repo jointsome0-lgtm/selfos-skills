@@ -3,7 +3,7 @@ name: compose
 description: Use when work is about to be delegated to another model or agent — Codex, a Claude subagent, or similar — and needs a prompt or agent instructions; produces a lean, outcome-first delegate prompt with a dated model and effort choice.
 compatibility: Host-neutral Markdown guidance; no required tools, OS constraints, write access, or external integrations. Network access is optional for refreshing linked provider guidance.
 metadata:
-  selfos.version: "0.4.1"
+  selfos.version: "0.5.0"
 ---
 
 # Composing delegated prompts
@@ -17,6 +17,7 @@ How to write prompts that delegate work to another model or agent. This file hol
 | Claude Fable 5 and Claude Mythos 5 (`fable-5`; API `claude-fable-5`, `claude-mythos-5`) | [references/claude-fable-5.md](references/claude-fable-5.md) |
 | Claude Fable 5.1 and Claude Mythos 5.1 (`fable-5-1`; API `claude-fable-5-1`, `claude-mythos-5-1`) | [references/claude-fable-5-1.md](references/claude-fable-5-1.md), which builds on the Fable 5 reference |
 | Claude Opus 5 (`opus-5`; API `claude-opus-5`) | [references/claude-opus-5.md](references/claude-opus-5.md) |
+| Claude Opus 5.5 (`claude-opus-5-5`) | [references/claude-opus-5-5.md](references/claude-opus-5-5.md) |
 
 Preserve a caller-specified model and read its matching reference before composing. Only when the model is not fixed yet, skim the model-choice section of each candidate reference first. **On any conflict, the per-model reference wins over this file.** The core is a default, not a dogma: models change between versions, and a model that breaks these defaults is handled by editing its reference, not by relitigating the core.
 
