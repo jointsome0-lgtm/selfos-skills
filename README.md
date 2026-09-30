@@ -73,11 +73,13 @@ npx skills add https://github.com/cursor/plugins/tree/main/pstack/skills/unslop 
 
 The [installer documents](https://github.com/vercel-labs/skills#source-formats) GitHub directory URLs and selective installation. Change `--agent` for another host, or omit `--global` for project scope. These external catalogs are outside the selfos installation matrix. The commands select the replacements; they do not establish equivalent behavior across hosts.
 
-Refresh the selfos marketplace cache and installed plugin, and replace any remaining flat selfos copies of these two skills. The other selfos skills remain available. `improve-codebase-architecture` needs no separate `codebase-design` installation: its pinned internal [design reference](skills/improve-codebase-architecture/references/design/CONTRACT.md) retains the scoped design-it-twice adaptation and upstream provenance.
+`wayfinder` has also been removed, without a replacement. `slice` remains a standalone workflow for an approved goal, phase, or parent issue. Remove stale installed copies of `wayfinder` during the refresh.
+
+Refresh the selfos marketplace cache and installed plugin, and replace any remaining flat selfos copies of these two skills. The retained selfos skills remain available. `improve-codebase-architecture` needs no separate `codebase-design` installation: its pinned internal [design reference](skills/improve-codebase-architecture/references/design/CONTRACT.md) retains the scoped design-it-twice adaptation and upstream provenance.
 
 ## Catalog
 
-The catalog contains ten independently installable skills. Three retained adaptations have workflow differences from their upstream counterparts:
+The catalog contains nine independently installable skills. Three retained adaptations have workflow differences from their upstream counterparts:
 
 - `slice` verifies an approved scope against current repository evidence, publishes to GitHub after exact-payload confirmation, and ends at publication.
 - `prototype` isolates all exploratory work in a worktree from the start and keeps the captured prototype on its throwaway branch.
@@ -94,7 +96,6 @@ The catalog contains ten independently installable skills. Three retained adapta
 | `prototype` | Answer one design question with a throwaway worktree prototype | automatic or explicit |
 | `slice` | Turn one approved scope into vertical issues | automatic or explicit (announce first) |
 | `watch` | Codex cloud PR push-review-fix loop | automatic or explicit |
-| `wayfinder` | Chart a foggy effort as a map of decision tickets until slice-ready | automatic or explicit (announce first) |
 
 <!-- BEGIN GENERATED COMPATIBILITY; do not edit by hand. -->
 ## Compatibility
@@ -110,9 +111,8 @@ Compatibility describes hard runtime needs and conditional capabilities; descrip
 | `limits` | `1.0.2` | Requires Python 3.10+, git, and tiktoken 0.14.0. Install dependencies and cache the o200k_base encoding once with network access; checks then run locally and offline. The checked repository's Python files must parse. |
 | `limits-core` | `0.1.0` | Host-neutral instructions. The optional read-only checker needs Python 3.10+ and read access to selected UTF-8 files. No Git, network, external service or OS-specific runtime is required by the checker. Updating memory needs the workspace's existing write permissions. |
 | `prototype` | `0.1.1` | Requires the host project's own runtime and task runner to run the prototype, and git worktree support for the throwaway branch. Capturing the answer needs write access to the driving issue's tracker and push access to the repository remote; without a writable remote the prototype branch stays local and the pointer says so. No OS constraint; no other external integration. |
-| `slice` | `2.0.0` | Requires read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
+| `slice` | `2.0.1` | Requires read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
 | `watch` | `2.1.0` | Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; repositories that require a post-verdict manual dispatch additionally need authenticated GitHub Actions write (workflow-dispatch) access; requires a POSIX-style shell environment but no specific OS. |
-| `wayfinder` | `2.0.2` | Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the target repository when an outcome changes it. Prototype tickets require the sibling prototype skill installed; grilling tickets run on the bundled grilling contract. No OS constraint. |
 <!-- END GENERATED COMPATIBILITY -->
 
 ## Repository layout
