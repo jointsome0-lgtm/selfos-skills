@@ -1,6 +1,6 @@
-# Provenance — skills/codebase-design
+# Provenance for the internal design reference
 
-## skills/codebase-design/SKILL.md
+## CONTRACT.md
 
 | Field | Value |
 | --- | --- |
@@ -14,15 +14,16 @@
 Named deviations — the glossary, diagrams, principles, testability rules,
 relationships, and rejected framings are verbatim upstream text:
 
-1. **Frontmatter description reworded** — upstream's "Shared vocabulary for
-   designing deep modules." fails this repository's third-person index rule;
-   the summary is rewritten ("Defines the shared deep-module design
-   vocabulary …") and upstream's "Use when …" triggers are kept verbatim.
+1. **Reference entrypoint** — the imported skill body is retained as
+   `CONTRACT.md` without discovery frontmatter. It is an internal reference
+   for the architecture workflow, not an independently installed skill.
 2. **Sub-agents made harness-optional** — the "Going deeper" pointer to
    DESIGN-IT-TWICE.md replaces upstream's "spin up parallel sub-agents" with
    parallel-where-supported, sequential-independent-passes otherwise.
 
-## skills/codebase-design/DEEPENING.md
+## DEEPENING.md
+
+The same-directory link to `SKILL.md` is renamed to `CONTRACT.md`.
 
 | Field | Value |
 | --- | --- |
@@ -31,9 +32,9 @@ relationships, and rejected framings are verbatim upstream text:
 | Blob | `3938457b88ddf98262d5f461aac703dbd74f749a` |
 | Imported | 2026-07-14 |
 | License | MIT (notice below) |
-| Status | **verbatim** (byte-identical to the pinned blob) |
+| Status | **adapted** (only the local entrypoint link is renamed) |
 
-## skills/codebase-design/DESIGN-IT-TWICE.md
+## DESIGN-IT-TWICE.md
 
 | Field | Value |
 | --- | --- |

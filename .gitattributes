@@ -1,5 +1,4 @@
 # BEGIN generated skill bundles; managed by scripts/build_bundles.py.
-skills/improve-codebase-architecture/references/codebase-design/** linguist-generated=true
 skills/improve-codebase-architecture/references/grilling/** linguist-generated=true
 skills/slice/references/grilling/** linguist-generated=true
 skills/wayfinder/references/grilling/** linguist-generated=true
