@@ -1,11 +1,3 @@
----
-name: codebase-design
-description: Use when a module's interface needs designing or improving — where a seam goes, how to deepen it, how to make code testable and AI-navigable — or when another skill needs the shared deep-module vocabulary of depth, seam, adapter, leverage, and the deletion test.
-compatibility: Host-neutral Markdown guidance; no required tools, OS constraints, network access, write access, or external integrations.
-metadata:
-  selfos.version: "0.1.3"
----
-
 # Codebase Design
 
 Design **deep modules**: a lot of behaviour behind a small interface, placed at a clean seam, testable through that interface. Use this language and these principles wherever code is being designed or restructured. The aim is leverage for callers, locality for maintainers, and testability for everyone.

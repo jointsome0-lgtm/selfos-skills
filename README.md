@@ -17,7 +17,7 @@ The installer detects available agents and lets you choose skills and scope. Use
 npx skills add jointsome0-lgtm/selfos-skills --skill '*' --agent codex --global --yes
 
 # One skill for Claude Code in the current project
-npx skills add jointsome0-lgtm/selfos-skills --skill codebase-design --agent claude-code --yes
+npx skills add jointsome0-lgtm/selfos-skills --skill compose --agent claude-code --yes
 
 # Show the catalog without installing
 npx skills add jointsome0-lgtm/selfos-skills --list
@@ -62,11 +62,31 @@ The preferred Claude package is the aggregate plugin over the canonical catalog:
 
 The former domain packages (`sdd@selfos`, `design@selfos`, `decision@selfos`, `learning@selfos`, `codex-pr@selfos`, `codex-prompting@selfos`) were removed on 2026-07-20 after their migration window closed ([issue #66](https://github.com/jointsome0-lgtm/selfos-skills/issues/66)); the major-migration release note names each one. Cached installs keep working but receive no updates — migrate with the aggregate plugin above or the universal installer, then uninstall the old package.
 
+### Skills moved upstream
+
+`codebase-design` and `unslop` are no longer separate selfos skills. Install them selectively from [Matt Pocock's catalog](https://github.com/mattpocock/skills) and [Cursor's pstack catalog](https://github.com/cursor/plugins/tree/main/pstack/skills), respectively. For a global Codex install:
+
+```bash
+npx skills add https://github.com/mattpocock/skills/tree/main/skills/engineering/codebase-design --skill codebase-design --agent codex --global
+npx skills add https://github.com/cursor/plugins/tree/main/pstack/skills/unslop --skill unslop --agent codex --global
+```
+
+The [installer documents](https://github.com/vercel-labs/skills#source-formats) GitHub directory URLs and selective installation. Change `--agent` for another host, or omit `--global` for project scope. These external catalogs are outside the selfos installation matrix. The commands select the replacements; they do not establish equivalent behavior across hosts.
+
+`wayfinder` has also been removed, without a replacement. `slice` remains a standalone workflow for an approved goal, phase, or parent issue. Remove stale installed copies of `wayfinder` during the refresh.
+
+Refresh the selfos marketplace cache and installed plugin, and replace any remaining flat selfos copies of these two skills. The retained selfos skills remain available. `improve-codebase-architecture` needs no separate `codebase-design` installation: its pinned internal [design reference](skills/improve-codebase-architecture/references/design/CONTRACT.md) retains the scoped design-it-twice adaptation and upstream provenance.
+
 ## Catalog
+
+The catalog contains nine independently installable skills. Three retained adaptations have workflow differences from their upstream counterparts:
+
+- `slice` verifies an approved scope against current repository evidence, publishes to GitHub after exact-payload confirmation, and ends at publication.
+- `prototype` isolates all exploratory work in a worktree from the start and keeps the captured prototype on its throwaway branch.
+- `improve-codebase-architecture` finds hot spots from changed files, respects existing repository terminology and decisions, and delivers an offline report with its design references included.
 
 | Skill | Purpose | Activation |
 | --- | --- | --- |
-| `codebase-design` | Deep-module vocabulary, seams, adapters, deletion test, testability | automatic or explicit |
 | `compose` | Lean outcome-first prompts for delegating to another model or agent | automatic or explicit |
 | `grilling` | Owner decision interview in rounds | explicit standalone request, or a wrapper's documented workflow |
 | `handoff` | Compact privacy-safe context for a fresh agent in one temporary Markdown file | automatic or explicit |
@@ -75,9 +95,7 @@ The former domain packages (`sdd@selfos`, `design@selfos`, `decision@selfos`, `l
 | `limits-core` | Bounded persistent working kernel, deferred work and review at session entry | automatic or explicit |
 | `prototype` | Answer one design question with a throwaway worktree prototype | automatic or explicit |
 | `slice` | Turn one approved scope into vertical issues | automatic or explicit (announce first) |
-| `unslop` | Strip AI tells from prose and add a human voice, meaning preserved | automatic or explicit |
 | `watch` | Codex cloud PR push-review-fix loop | automatic or explicit |
-| `wayfinder` | Chart a foggy effort as a map of decision tickets until slice-ready | automatic or explicit (announce first) |
 
 <!-- BEGIN GENERATED COMPATIBILITY; do not edit by hand. -->
 ## Compatibility
@@ -86,18 +104,15 @@ Compatibility describes hard runtime needs and conditional capabilities; descrip
 
 | Skill | Version | Runtime compatibility |
 | --- | --- | --- |
-| `codebase-design` | `0.1.3` | Host-neutral Markdown guidance; no required tools, OS constraints, network access, write access, or external integrations. |
 | `compose` | `0.5.0` | Host-neutral Markdown guidance; no required tools, OS constraints, write access, or external integrations. Network access is optional for refreshing linked provider guidance. |
 | `grilling` | `1.0.0` | Requires read access to owner-scoped sources. No specific CLI or OS; network, write access, and external integrations are needed only when the chosen facts or an owner-confirmed outcome require them. |
 | `handoff` | `0.1.2` | Requires permission to create one file in the operating system's temporary directory. No specific CLI, OS, network access, repository write access, or external integration is required. |
-| `improve-codebase-architecture` | `2.0.1` | Requires read access to the target repository and its git history and a writable OS temp directory. Verification and automatic preview need a browser context that blocks outbound network access; otherwise return the report path. The finished HTML works offline. Acquiring libraries and verifying release dates may need network access; downloaded build tools require filesystem and network isolation. Repository write access is needed only to land owner-confirmed changes during the grilling loop. |
+| `improve-codebase-architecture` | `2.0.2` | Requires read access to the target repository and its git history and a writable OS temp directory. Verification and automatic preview need a browser context that blocks outbound network access; otherwise return the report path. The finished HTML works offline. Acquiring libraries and verifying release dates may need network access; downloaded build tools require filesystem and network isolation. Repository write access is needed only to land owner-confirmed changes during the grilling loop. |
 | `limits` | `1.0.2` | Requires Python 3.10+, git, and tiktoken 0.14.0. Install dependencies and cache the o200k_base encoding once with network access; checks then run locally and offline. The checked repository's Python files must parse. |
 | `limits-core` | `0.1.0` | Host-neutral instructions. The optional read-only checker needs Python 3.10+ and read access to selected UTF-8 files. No Git, network, external service or OS-specific runtime is required by the checker. Updating memory needs the workspace's existing write permissions. |
 | `prototype` | `0.1.1` | Requires the host project's own runtime and task runner to run the prototype, and git worktree support for the throwaway branch. Capturing the answer needs write access to the driving issue's tracker and push access to the repository remote; without a writable remote the prototype branch stays local and the pointer says so. No OS constraint; no other external integration. |
-| `slice` | `2.0.0` | Requires read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
-| `unslop` | `0.1.0` | No specific CLI, OS, network access, repository write access, or external integration is required. |
+| `slice` | `2.0.1` | Requires read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
 | `watch` | `2.1.0` | Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; repositories that require a post-verdict manual dispatch additionally need authenticated GitHub Actions write (workflow-dispatch) access; requires a POSIX-style shell environment but no specific OS. |
-| `wayfinder` | `2.0.2` | Requires an authenticated gh CLI against a GitHub repository with sub-issues and issue dependencies enabled (see TRACKER.md), network access, write access to the target repository when an outcome changes it. Prototype tickets require the sibling prototype skill installed; grilling tickets run on the bundled grilling contract. No OS constraint. |
 <!-- END GENERATED COMPATIBILITY -->
 
 ## Repository layout
@@ -119,13 +134,14 @@ Every top-level skill is independently installable. Where one workflow composes 
 ```json
 {
   "dependencies": [
-    "codebase-design",
     "grilling"
   ]
 }
 ```
 
-`python scripts/build_bundles.py` deterministically copies each complete canonical source folder under `references/<dependency>/`, renames the copied entrypoint `SKILL.md` to `CONTRACT.md` (rewriting same-directory links to it) so hosts that discover skills by recursive filename scan catalog only canonical skills, stamps every copy with a `GENERATED.md` marker so it self-identifies as a build artifact, and maintains a managed `linguist-generated` block in `.gitattributes` so regenerated trees fold away from authored changes in review diffs. Contributors edit only canonical sources — never the generated copies — and CI runs `python scripts/build_bundles.py --check`, which fails with actionable diagnostics on drift, stale trees, nested composition, missing dependencies, and path-escaping names. Installed skills therefore stay standalone: at runtime they need neither network access nor sibling installations nor host-specific plugin dependency semantics.
+`python scripts/build_bundles.py` deterministically copies each complete canonical source folder under `references/<dependency>/`, renames the copied entrypoint `SKILL.md` to `CONTRACT.md` (rewriting same-directory links to it) so hosts that discover skills by recursive filename scan catalog only canonical skills, stamps every copy with a `GENERATED.md` marker so it self-identifies as a build artifact, and maintains a managed `linguist-generated` block in `.gitattributes` so regenerated trees fold away from authored changes in review diffs. Contributors edit canonical sources, never the generated copies. CI runs `python scripts/build_bundles.py --check`, which fails with actionable diagnostics on drift, stale trees, nested composition, missing dependencies, and path-escaping names. Installed skills therefore stay standalone: at runtime they need neither network access nor sibling installations nor host-specific plugin dependency semantics.
+
+Pinned upstream references can also be authored inside a skill without becoming separate catalog entries or generated dependencies. The architecture skill's `references/design/` folder uses this form. Its `PROVENANCE.md` records the source blobs and local adaptations; changes there require a version bump of the containing architecture skill.
 
 ## Add or change a skill
 

@@ -4,7 +4,7 @@
 A composed skill declares its local dependencies once, in a machine-readable
 manifest at skills/<name>/BUNDLE.json:
 
-    {"dependencies": ["codebase-design", "grilling"]}
+    {"dependencies": ["grilling"]}
 
 For every declared dependency this tool copies the canonical
 skills/<dependency>/ tree to skills/<name>/references/<dependency>/ —

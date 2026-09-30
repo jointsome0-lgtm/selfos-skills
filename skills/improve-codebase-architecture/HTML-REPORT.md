@@ -44,7 +44,7 @@ Each candidate contains:
 - A recommendation strength of `Strong`, `Worth exploring`, or `Speculative`.
 - A commit or issue reference when the proposal would reopen an earlier decision.
 
-Use the project's domain terminology and the bundled [design vocabulary](references/codebase-design/CONTRACT.md). Keep prose concise and connect every visual to the finding it explains. Finish with a top recommendation, its reason, and a link to its candidate.
+Use the project's domain terminology and the bundled [design vocabulary](references/design/CONTRACT.md). Keep prose concise and connect every visual to the finding it explains. Finish with a top recommendation, its reason, and a link to its candidate.
 
 ## Visual patterns
 

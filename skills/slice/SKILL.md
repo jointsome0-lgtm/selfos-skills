@@ -1,10 +1,10 @@
 ---
 name: slice
-description: Use when an approved scope needs cutting into small, agent-ready GitHub issues — the ticket-cutting stage of wayfinder, also usable standalone on an approved goal or parent issue.
+description: Use when an approved goal, phase, or parent issue needs cutting into small, agent-ready GitHub issues.
 license: LICENSE.txt
 compatibility: Requires read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint.
 metadata:
-  selfos.version: "2.0.0"
+  selfos.version: "2.0.1"
 ---
 
 # Slice an approved scope
