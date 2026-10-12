@@ -112,7 +112,7 @@ Compatibility describes hard runtime needs and conditional capabilities; descrip
 | `limits-core` | `0.1.0` | Host-neutral instructions. The optional read-only checker needs Python 3.10+ and read access to selected UTF-8 files. No Git, network, external service or OS-specific runtime is required by the checker. Updating memory needs the workspace's existing write permissions. |
 | `prototype` | `0.1.1` | Requires the host project's own runtime and task runner to run the prototype, and git worktree support for the throwaway branch. Capturing the answer needs write access to the driving issue's tracker and push access to the repository remote; without a writable remote the prototype branch stays local and the pointer says so. No OS constraint; no other external integration. |
 | `slice` | `2.0.1` | Requires read access to the target repository, network access, and authenticated GitHub issue read/write integration to publish confirmed tickets. No OS constraint. |
-| `watch` | `2.1.0` | Requires bash, git, gh, jq, network access, repository write access, authenticated GitHub pull-request read/write access, and an open PR with Codex review configured; repositories that require a post-verdict manual dispatch additionally need authenticated GitHub Actions write (workflow-dispatch) access; requires a POSIX-style shell environment but no specific OS. |
+| `watch` | `3.0.0` | Requires Python 3.8 or later, git, gh with authenticated GitHub API access, and a PR on which the Codex bot keeps its review summary comment. Writes need the permissions for the authorized push, review request, merge, or workflow dispatch. |
 <!-- END GENERATED COMPATIBILITY -->
 
 ## Repository layout
