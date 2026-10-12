@@ -142,6 +142,10 @@ class Heads(unittest.TestCase):
         board = Board(pull=[old], post={"created_at": DONE})
         self.assertEqual(board.run(trigger=True).code, 3)
         self.assertEqual(board.posts, 0)
+        board = Board(pull=[old, old, old, new], post={"created_at": DONE})
+        stop = board.run(trigger=True)
+        self.assertEqual((stop.code, board.posts), (3, 0))
+        self.assertIn("nothing was posted", stop.text)
 
     def test_a_head_that_moves_away_is_an_error(self):
         pulls = [{"state": "open", "head": {"sha": SHA}}, {"state": "open", "head": {"sha": OTHER}}]

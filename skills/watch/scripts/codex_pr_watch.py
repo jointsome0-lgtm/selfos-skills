@@ -66,6 +66,7 @@ class Watch:
         self.sha, self.bot, self.trigger, self.api = sha, bot.casefold(), trigger, api
         self.seen = False
         self.after = None
+        self.late = lambda: False
 
     def pages(self, path):
         found, page = [], 1
@@ -126,6 +127,8 @@ class Watch:
             return f"GitHub reports head {head}, not yet the expected {self.sha}"
         self.seen = True
         if self.trigger and not self.after:
+            if self.late():
+                return "the time ran out before a review could be requested; nothing was posted"
             try:
                 self.after = moment(self.api(self.issue + "/comments", "-f", "body=@codex review")["created_at"])
             except Unreadable as exc:
@@ -159,6 +162,7 @@ class Watch:
 
     def run(self, timeout, interval, clock=time.monotonic, sleep=time.sleep, log=print):
         deadline, failed, said = clock() + timeout, 0, None
+        self.late = lambda: clock() >= deadline
         while True:
             try:
                 state = self.look()
