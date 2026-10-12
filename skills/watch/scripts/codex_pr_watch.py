@@ -148,7 +148,8 @@ class Watch:
             return "the summary is older than the review request"
         reviews = self.reviews(when)
         thumbs = [] if reviews else [r for r in self.mine(self.pages(self.issue + "/reactions"))
-                                     if r["content"] == "+1" and moment(r["created_at"]) >= when - THUMB_BEFORE]
+                                     if r["content"] == "+1" and moment(r["created_at"])
+                                     >= max(when - THUMB_BEFORE, self.after or when - THUMB_BEFORE)]
         # A review that shows up only now, beside the +1, is still this completion's.
         reviews = reviews or thumbs and self.reviews(when)
         if reviews:

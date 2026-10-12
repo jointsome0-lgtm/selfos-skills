@@ -208,6 +208,9 @@ class Requests(unittest.TestCase):
         self.assertIn("older than the review request", stop.text)
         same_second = Board(comments=[summary()], reactions=[thumb()], post={"created_at": "2026-01-02T10:00:00Z"})
         self.assertEqual(same_second.run(trigger=True).code, 3)
+        soon = Board(comments=[summary(when="2026-01-02T10:05:04Z")], reactions=[thumb("2026-01-02T10:04:58Z")],
+                     post={"created_at": "2026-01-02T10:05:00Z"})
+        self.assertEqual(soon.run(trigger=True).code, 3)
         later = summary(when="2026-01-02T10:09:00Z")
         board = Board(comments=[later], reactions=[thumb("2026-01-02T10:09:02Z")],
                       post={"created_at": "2026-01-02T10:05:00Z"})
