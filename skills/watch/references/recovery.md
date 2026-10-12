@@ -21,7 +21,7 @@ For exit 1, read the message: a usage or target error, a head that moved (restar
 For exit 3, the last line says what was seen last:
 
 - **GitHub reports another head:** confirm the push and the target.
-- **No summary, or the summary names another commit:** no review of this commit started. Where reviews do not start by themselves and review requests are authorized, run again with `--trigger`.
+- **No summary, or the summary names another commit:** no review of this commit started. The bot also answers its own mention inside a PR description with a free-form comment; that answer is no verdict. Where reviews do not start by themselves and review requests are authorized, run again with `--trigger`.
 - **The review is running:** run again with a longer `--timeout`.
 - **Completed, and neither a review nor a 👍 is visible:** read the PR's reviews and reactions yourself before running again.
 - **The summary is older than the review request:** the requested review did not complete. Do not post another request for the same head.
