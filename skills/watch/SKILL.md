@@ -34,7 +34,7 @@ Honor `round-budget`, defaulting to three verdicts with remaining blockers; only
 
 Apply the caller's threshold and trusted repository requirements, including required approvals. Otherwise confirmed P0/P1 findings block. Judge consequences rather than the badge: a lower or unlabelled finding with a demonstrated functional failure blocks too.
 
-A verdict for the exact head with no remaining blockers is accepted, even with nonblocking findings. End the repair loop and continue through the gates below. Report what remains and why it is nonblocking; do not call that a clean review.
+A verdict for the exact head with no remaining blockers is accepted, even with nonblocking findings. End the repair loop and continue through the gates below. Leave nonblocking findings unfixed, however cheap the fix looks: every fix is a new head and another review round, and the next round finds more of the same. Fold one in only when a blocker already forces a repair commit. Report what remains and why it is nonblocking; do not call that a clean review.
 
 ## Post-verdict dispatch policy
 
