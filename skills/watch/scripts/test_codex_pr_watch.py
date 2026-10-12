@@ -217,9 +217,15 @@ class Requests(unittest.TestCase):
         self.assertEqual((board.run(trigger=True).code, board.posts), (0, 1))
 
     def test_a_request_that_may_not_have_been_posted_is_not_repeated(self):
-        board = Board(post=watch.Unreadable("timeout"))
-        stop = board.run(trigger=True)
-        self.assertEqual((stop.code, board.posts), (1, 1))
+        for answer in (watch.Unreadable("timeout"), {"id": 1}):
+            board = Board(post=answer)
+            stop = board.run(trigger=True, timeout=3600)
+            self.assertEqual((stop.code, board.posts), (1, 1))
+
+    def test_a_review_from_before_the_request_is_not_the_requested_one(self):
+        board = Board(comments=[summary(when="2026-01-02T10:06:00Z")], reactions=[thumb("2026-01-02T10:06:02Z")],
+                      reviews=[review(at="2026-01-02T10:04:30Z")], post={"created_at": "2026-01-02T10:05:00Z"})
+        self.assertEqual(board.run(trigger=True).code, 0)
 
 
 class Arguments(unittest.TestCase):

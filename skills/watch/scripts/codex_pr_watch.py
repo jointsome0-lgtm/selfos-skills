@@ -107,7 +107,7 @@ class Watch:
     def reviews(self, when):
         return [r for r in self.mine(self.pages(self.pull + "/reviews"))
                 if r["commit_id"] == self.sha and r.get("submitted_at")
-                and moment(r["submitted_at"]) >= when - REVIEW_BEFORE]
+                and moment(r["submitted_at"]) >= max(when - REVIEW_BEFORE, self.after or when - REVIEW_BEFORE)]
 
     def findings(self, reviews):
         ids = {r["id"] for r in reviews}
@@ -131,8 +131,8 @@ class Watch:
                 return "the time ran out before a review could be requested; nothing was posted"
             try:
                 self.after = moment(self.api(self.issue + "/comments", "-f", "body=@codex review")["created_at"])
-            except Unreadable as exc:
-                raise Stop(1, "ERROR", f"The review request may not have been posted ({exc}). "
+            except (Unreadable, KeyError, TypeError, ValueError) as exc:
+                raise Stop(1, "ERROR", f"The review request may or may not have been posted ({exc!r}). "
                            "Look at the pull request before asking again.") from exc
             return "a review was requested"
         row = self.summary()
