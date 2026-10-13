@@ -47,10 +47,7 @@ jobs:
       - name: ShellCheck portable helpers
         run: find scripts skills -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
       - name: Test the Codex PR watcher
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q bats
-          bats skills/watch/scripts/test_codex_pr_watch.bats
+        run: python skills/watch/scripts/test_codex_pr_watch.py
 
   install-matrix-config:
     runs-on: ubuntu-latest
